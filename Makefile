@@ -68,7 +68,7 @@ LIB_SOURCES := \
 	src/delivery/contract.c \
 	src/export/export.c \
 	src/compositor/math.c src/compositor/reaction.c src/compositor/style.c src/compositor/layout.c src/compositor/background.c \
-	src/compositor/core.c src/compositor/field.c src/compositor/hud.c src/compositor/render.c \
+	src/compositor/core.c src/compositor/field.c src/compositor/hud.c src/compositor/render.c src/compositor/supersample.c \
 	src/spine/spine_registry.c \
 	src/spine/spine.c \
 	src/spine/spine_impact.c \
@@ -95,7 +95,7 @@ CLI := $(BUILD_DIR)/odpar-music
 TEST_RUNNER := $(BUILD_DIR)/odm-tests
 CORE_BENCHMARK := $(BUILD_DIR)/odm-core-benchmark
 
-.PHONY: visual-dynamics-oracle all clean ffi-shared test selftest guardians spine-check header-check determinism crypto-oracle sha-backend-oracle abi-check hardening media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle commercial-claims-check ffmpeg-delivery-smoke benchmark-core gate11-benchmark-observation evidence evidence-extension013 evidence-gate0 evidence-gate1 evidence-gate2 evidence-gate3 evidence-gate4 evidence-gate5 evidence-gate6 evidence-gate7 evidence-gate8 evidence-gate9 evidence-gate10 evidence-gate11 \
+.PHONY: supersample-oracle visual-dynamics-oracle all clean ffi-shared test selftest guardians spine-check header-check determinism crypto-oracle sha-backend-oracle abi-check hardening media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle supersample-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle commercial-claims-check ffmpeg-delivery-smoke benchmark-core gate11-benchmark-observation evidence evidence-extension013 evidence-gate0 evidence-gate1 evidence-gate2 evidence-gate3 evidence-gate4 evidence-gate5 evidence-gate6 evidence-gate7 evidence-gate8 evidence-gate9 evidence-gate10 evidence-gate11 \
 	repro analyze-gcc test-gcc test-clang asan-gcc asan-clang tsan-gcc \
 	gate0-local gate0 gate1-local gate1 gate2 gate3 gate4 gate5 gate6 gate7 gate8-local gate8 gate9-local gate9 gate10-local gate10 gate11-local gate11
 
@@ -220,6 +220,9 @@ renderer-oracle: $(LIBRARY)
 renderer-property-oracle: $(LIBRARY)
 	$(PYTHON) tools/check_renderer_property_oracle.py --root . --cc $(CC) --library $(LIBRARY)
 
+supersample-oracle: $(LIBRARY)
+	$(PYTHON) tools/check_supersample_oracle.py --root . --cc $(CC) --library $(LIBRARY)
+
 visual-dynamics-oracle: $(LIBRARY)
 	$(PYTHON) tools/check_visual_dynamics_oracle.py --root . --cc $(CC) --library $(LIBRARY)
 
@@ -325,14 +328,14 @@ test-gcc:
 	@# oracles in parallel. No oracle is allowed to race a library rebuild.
 	$(MAKE) -j4 BUILD_DIR=build/gcc CC=gcc $(LIBRARY:build/%=build/gcc/%) $(SHARED_LIBRARY:build/%=build/gcc/%) $(CLI:build/%=build/gcc/%) $(TEST_RUNNER:build/%=build/gcc/%)
 	$(MAKE) -j1 BUILD_DIR=build/gcc CC=gcc test selftest guardians spine-check header-check determinism hardening
-	$(MAKE) -j4 BUILD_DIR=build/gcc CC=gcc crypto-oracle sha-backend-oracle media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle abi-check
+	$(MAKE) -j4 BUILD_DIR=build/gcc CC=gcc crypto-oracle sha-backend-oracle media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle supersample-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle abi-check
 
 test-clang:
 	@command -v clang >/dev/null 2>&1 || { echo "ERROR: clang is required for the full Gate 0/1 matrix"; exit 1; }
 	@# Same build-before-parallel-oracles contract as GCC.
 	$(MAKE) -j4 BUILD_DIR=build/clang CC=clang $(LIBRARY:build/%=build/clang/%) $(SHARED_LIBRARY:build/%=build/clang/%) $(CLI:build/%=build/clang/%) $(TEST_RUNNER:build/%=build/clang/%)
 	$(MAKE) -j1 BUILD_DIR=build/clang CC=clang test selftest guardians spine-check header-check determinism hardening
-	$(MAKE) -j4 BUILD_DIR=build/clang CC=clang crypto-oracle sha-backend-oracle media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle abi-check
+	$(MAKE) -j4 BUILD_DIR=build/clang CC=clang crypto-oracle sha-backend-oracle media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle supersample-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle abi-check
 
 asan-gcc:
 	$(MAKE) -j4 BUILD_DIR=build/asan-gcc CC=gcc OPT_FLAGS="-O1 -g1" \
