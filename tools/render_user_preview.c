@@ -251,41 +251,102 @@ static int build_config(odm_layered_config *out_config, uint32_t width, uint32_t
     if (odm_layered_style_init(&style, ODM_LAYERED_STYLE_PRESET_DEEP_GRID) != ODM_STATUS_OK) return 0;
     if (odm_layered_style_apply(&base, &style, &styled) != ODM_STATUS_OK) return 0;
 
-    styled.background.style = ODM_BACKGROUND_PERSPECTIVE_GRID;
-    styled.background.zoom_reactivity_q31 = q31_ratio(1u, 8u);
-    styled.background.warp_reactivity_q31 = q31_ratio(1u, 12u);
-    styled.background.depth_reactivity_q31 = q31_ratio(1u, 7u);
-    styled.background.opacity_q31 = q31_ratio(1u, 8u);
+    /* ------------------------------------------------------------------
+     * Defaults de diseno.
+     *
+     * Todo se expresa como fraccion del lado menor del lienzo, no en pixeles
+     * fijos: un preset pensado a 540 que se ve ridiculo a 1080 no es un preset,
+     * es un accidente.
+     *
+     * El criterio es restriccion. Un halo no es 96 rayas alrededor de un
+     * circulo, un fondo no es una rejilla cyberpunk que llena la pantalla, y
+     * las particulas no existen porque si. Menos elementos, mejor colocados.
+     * ------------------------------------------------------------------ */
+    {
+        uint32_t dim = width < height ? width : height;
+        /* Fraccion del lado menor -> Q16.16 en pixeles. */
+        #define PX(num, den) ((uint32_t)(((uint64_t)dim * (uint64_t)(num) << 16) / (uint64_t)(den)))
 
-    styled.core.shape = ODM_CORE_SHAPE_CIRCLE;
-    styled.core.fit = ODM_CORE_FIT_COVER;
-    styled.core.width_q31 = q31_ratio(7u, 20u);
-    styled.core.height_q31 = q31_ratio(7u, 20u);
-    styled.core.corner_radius_q31 = 0u;
-    styled.core.border_q16 = 1u << 16;
-    styled.core.feather_q16 = 1u << 16;
-    styled.core.scale_reactivity_q31 = q31_ratio(1u, 3u);
+        /* FONDO: la rejilla se insinua, no se exhibe. Muy tenue y espaciada,
+         * para dar profundidad al vacio en vez de dibujar un suelo. */
+        styled.background.style = ODM_BACKGROUND_PERSPECTIVE_GRID;
+        styled.background.grid_spacing_q16 = PX(1u, 5u);   /* celdas muy amplias */
+        styled.background.grid_line_q16 = PX(1u, 900u);    /* hairline real */
+        styled.background.grid_feather_q16 = PX(1u, 540u);
+        styled.background.grid_color.r = UINT16_MAX;
+        styled.background.grid_color.g = UINT16_MAX;
+        styled.background.grid_color.b = UINT16_MAX;
+        /* Casi invisible a proposito. La rejilla debe sugerir un espacio en el
+         * que el nucleo esta suspendido; en cuanto se lee como una malla, deja
+         * de ser profundidad y pasa a ser un suelo de plantilla que compite con
+         * el protagonista. */
+        styled.background.grid_color.a = UINT16_C(2600);
+        styled.background.zoom_reactivity_q31 = q31_ratio(1u, 14u);
+        styled.background.warp_reactivity_q31 = q31_ratio(1u, 20u);
+        styled.background.depth_reactivity_q31 = q31_ratio(1u, 12u);
+        styled.background.opacity_q31 = q31_ratio(1u, 2u);
 
-    styled.field.flags = ODM_FIELD_RADIAL_BARS | ODM_FIELD_PARTICLES | ODM_FIELD_ORBIT_RING;
-    styled.field.radial_segments = ODM_COMPOSITION_RADIAL_SEGMENTS_MAX;
-    styled.field.particle_count = 28u;
-    styled.field.ring_gap_q16 = 10u << 16;
-    styled.field.bar_min_q16 = 2u << 16;
-    styled.field.bar_max_q16 = 104u << 16;
-    styled.field.bar_width_q16 = 1u << 16;
-    styled.field.particle_radius_q16 = 1u << 16;
-    styled.field.field_opacity_q31 = (uint32_t)INT32_MAX;
-    styled.field.seed = seed;
+        /* NUCLEO: protagonista. Contorno hairline, sin aro decorativo. */
+        styled.core.shape = ODM_CORE_SHAPE_CIRCLE;
+        styled.core.fit = ODM_CORE_FIT_COVER;
+        styled.core.width_q31 = q31_ratio(38u, 100u);
+        styled.core.height_q31 = q31_ratio(38u, 100u);
+        styled.core.corner_radius_q31 = 0u;
+        styled.core.border_q16 = PX(1u, 720u);
+        styled.core.feather_q16 = PX(1u, 900u);
+        styled.core.scale_reactivity_q31 = q31_ratio(1u, 5u);
+        styled.core.border_color.r = UINT16_MAX;
+        styled.core.border_color.g = UINT16_MAX;
+        styled.core.border_color.b = UINT16_MAX;
+        styled.core.border_color.a = UINT16_C(30000);
 
-    styled.hud.flags = ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE;
-    styled.hud.margin_q16 = 4u << 16;
-    styled.hud.progress_height_q16 = 3u << 16;
-    styled.hud.progress_width_q31 = q31_ratio(4u, 5u);
-    styled.hud.text_scale_q16 = 3u << 16;
-    styled.hud.line_gap_q16 = 2u << 16;
-    styled.hud.metadata_anchor = ODM_HUD_ANCHOR_BOTTOM_CENTER;
-    styled.hud.progress_style = ODM_HUD_PROGRESS_CAPSULE;
-    styled.hud.time_mode = ODM_HUD_TIME_ELAPSED;
+        /* HALO: filamentos finos y cortos que leen como UNA forma, no como 96
+         * objetos pegados. Sin anillo orbital y sin particulas: ambos son ruido
+         * que compite con el nucleo. */
+        styled.field.flags = ODM_FIELD_RADIAL_BARS;
+        styled.field.radial_segments = ODM_COMPOSITION_RADIAL_SEGMENTS_MAX;
+        styled.field.particle_count = 0u;
+        styled.field.ring_gap_q16 = PX(1u, 44u);
+        styled.field.bar_min_q16 = 0u;
+        styled.field.bar_max_q16 = PX(1u, 7u);
+        styled.field.bar_width_q16 = PX(1u, 620u);
+        styled.field.particle_radius_q16 = PX(1u, 900u);
+        styled.field.field_opacity_q31 = q31_ratio(8u, 10u);
+        styled.field.seed = seed;
+        /* Un solo acento sobre una base neutra: el ataque es lo unico que se
+         * ilumina, el cuerpo sostenido queda por debajo en la jerarquia. */
+        styled.field.primary_color.r = UINT16_MAX;
+        styled.field.primary_color.g = UINT16_C(62000);
+        styled.field.primary_color.b = UINT16_C(48000);
+        styled.field.primary_color.a = UINT16_MAX;
+        styled.field.secondary_color.r = UINT16_C(30000);
+        styled.field.secondary_color.g = UINT16_C(32000);
+        styled.field.secondary_color.b = UINT16_C(36000);
+        styled.field.secondary_color.a = UINT16_MAX;
+
+        /* HUD: instrumentacion, no interfaz. Solo el tiempo y un riel fino. */
+        styled.hud.flags = ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE;
+        styled.hud.margin_q16 = PX(1u, 18u);
+        styled.hud.progress_height_q16 = PX(1u, 540u);
+        styled.hud.progress_width_q31 = q31_ratio(1u, 3u);
+        {   /* La fuente base mide 5x7; se escala a enteros para que el
+             * rasterizado caiga en rejilla y no salga borroso. */
+            uint32_t scale = dim / 180u;
+            if (scale < 2u) scale = 2u;
+            if (scale > 24u) scale = 24u;
+            styled.hud.text_scale_q16 = scale << 16;
+        }
+        styled.hud.line_gap_q16 = PX(1u, 200u);
+        styled.hud.metadata_anchor = ODM_HUD_ANCHOR_BOTTOM_CENTER;
+        styled.hud.progress_style = ODM_HUD_PROGRESS_HAIRLINE;
+        styled.hud.time_mode = ODM_HUD_TIME_ELAPSED;
+        styled.hud.foreground_color.r = UINT16_MAX;
+        styled.hud.foreground_color.g = UINT16_MAX;
+        styled.hud.foreground_color.b = UINT16_MAX;
+        styled.hud.foreground_color.a = UINT16_C(40000);
+        styled.hud.background_color.a = 0u;
+        #undef PX
+    }
 
     if (!set_route(&styled, ODM_REACTION_TARGET_BACKGROUND_ZOOM,
                    ODM_REACTION_SOURCE_GRID, ODM_REACTION_SOURCE_NONE,
