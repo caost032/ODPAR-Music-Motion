@@ -1,0 +1,315 @@
+{
+  "full_gate1_status": "fail",
+  "identity_excludes_wall_clock": true,
+  "limitations": [
+    "Clang lanes are mandatory and are not inferred from GCC results.",
+    "LeakSanitizer detection is disabled because thread enumeration is blocked by the container tracing model; ASan and UBSan remain active.",
+    "Performance floors describe this evidence host and are not a cross-platform speed certification."
+  ],
+  "local_status": "fail",
+  "platform": {
+    "machine": "x86_64",
+    "system": "Linux"
+  },
+  "schema": "odm_gate1_evidence_v1",
+  "source_id": "sha256:d9fb740f4bd951eca73d809845b07fea8d9889674c8b17171faf637f8bee3237",
+  "spine_summary": {
+    "capabilities": 128,
+    "compiler": "gcc-13.3.0",
+    "dependencies": 243,
+    "gate0_claim": "requires_external_gate_evidence",
+    "gate1_claim": "requires_external_gate_evidence",
+    "graph_acyclic": true,
+    "guardians": 8,
+    "invariants": 141,
+    "known_bugs": 0,
+    "media_adapters": 8,
+    "modules": 65,
+    "output_profiles": 2,
+    "ownership_pairs": 7,
+    "parity_contracts": 1,
+    "renderer_backends": 1,
+    "schema": "odm_spine_summary_v1",
+    "security_investigations": 96,
+    "source_files": 65,
+    "source_id": "sha256:d9fb740f4bd951eca73d809845b07fea8d9889674c8b17171faf637f8bee3237",
+    "source_lines": 22377,
+    "state_models": 11,
+    "version": "0.24.0-sample-accurate-causal-presentation-v1-wip-local"
+  },
+  "steps": [
+    {
+      "command": [
+        "make",
+        "test-gcc"
+      ],
+      "exit_code": 2,
+      "last_test_totals": {
+        "checks": 8900833,
+        "failed": 2,
+        "passed": 8900831
+      },
+      "name": "strict_gcc_matrix",
+      "output_paths_normalized": true,
+      "status": "fail",
+      "stderr_sha256": "0daf492c1fd2051b1fc9ecbcef13e58244f11ecf3aa636cd215a58c771c17877",
+      "stderr_tail": [
+        "make[2]: *** [Makefile:139: test] Error 1",
+        "make[1]: *** [Makefile:324: test-gcc] Error 2"
+      ],
+      "stdout_sha256": "63b81d2cd10558c07309885850719d1bdd3bbd4e1d3bfe3292ddee4854aaa193",
+      "stdout_tail": [
+        "\t-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--build-id=none -pie -o build/gcc/odpar-music",
+        "gcc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. build/gcc/obj/tests/properties/test_properties.o build/gcc/obj/tests/test_main.o build/gcc/obj/tests/unit/test_compositor.o build/gcc/obj/tests/unit/test_delivery.o build/gcc/obj/tests/unit/test_executor.o build/gcc/obj/tests/unit/test_export_engine.o build/gcc/obj/tests/unit/test_export_run.o build/gcc/obj/tests/unit/test_ffi.o build/gcc/obj/tests/unit/test_fixed.o build/gcc/obj/tests/unit/test_hash.o build/gcc/obj/tests/unit/test_job.o build/gcc/obj/tests/unit/test_limits.o build/gcc/obj/tests/unit/test_master.o build/gcc/obj/tests/unit/test_media.o build/gcc/obj/tests/unit/test_memory.o build/gcc/obj/tests/unit/test_music_analysis.o build/gcc/obj/tests/unit/test_music_map_wire.o build/gcc/obj/tests/unit/test_music_reaction.o build/gcc/obj/tests/unit/test_package.o build/gcc/obj/tests/unit/test_preview.o build/gcc/obj/tests/unit/test_renderer.o build/gcc/obj/tests/unit/test_resample.o build/gcc/obj/tests/unit/test_rng.o build/gcc/obj/tests/unit/test_score_ir.o build/gcc/obj/tests/unit/test_spine.o build/gcc/obj/tests/unit/test_status.o build/gcc/obj/tests/unit/test_studio.o build/gcc/obj/tests/unit/test_time.o build/gcc/obj/tests/unit/test_visual.o build/gcc/obj/tests/unit/test_visual_dynamics.o build/gcc/obj/tests/unit/test_wire.o build/gcc/libodpar_music.a -pthread   -lpng16  -lssl -lcrypto  -o build/gcc/odm-tests",
+        "make[2]: Leaving directory '.'",
+        "make -j1 BUILD_DIR=build/gcc CC=gcc test selftest guardians spine-check header-check determinism hardening",
+        "make[2]: Entering directory '.'",
+        "python3 tools/gen_build_meta.py --output build/gcc/generated/odm_build_meta.h",
+        "build/gcc/odm-tests",
+        "FAIL tests/unit/test_spine.c:15: summary.module_count == 64u",
+        "FAIL tests/unit/test_spine.c:16: summary.dependency_count == 240u",
+        "ODM TESTS checks=8900833 passed=8900831 failed=2",
+        "make[2]: Leaving directory '.'",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "command": [
+        "make",
+        "asan-gcc"
+      ],
+      "exit_code": 2,
+      "last_test_totals": {
+        "checks": 8900833,
+        "failed": 2,
+        "passed": 8900831
+      },
+      "name": "asan_ubsan_gcc",
+      "output_paths_normalized": true,
+      "status": "fail",
+      "stderr_sha256": "ee411c9566d22e68f87c12ba8e3cfaeb6d19635a8933983e012432fb74880be1",
+      "stderr_tail": [
+        "make[1]: *** [Makefile:336: asan-gcc] Error 1"
+      ],
+      "stdout_sha256": "4a5a087523f17be0da5c7c0ed52d0b73021d361c7bd21d229972f413738f5e2e",
+      "stdout_tail": [
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/asan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/cli/main.c -o build/asan-gcc/obj/src/cli/main.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/asan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/cli/selftest.c -o build/asan-gcc/obj/src/cli/selftest.o",
+        "ar rcsD build/asan-gcc/libodpar_music.a build/asan-gcc/obj/src/core/status.o build/asan-gcc/obj/src/core/version.o build/asan-gcc/obj/src/core/hash.o build/asan-gcc/obj/src/core/time.o build/asan-gcc/obj/src/core/fixed.o build/asan-gcc/obj/src/core/rng.o build/asan-gcc/obj/src/core/wire.o build/asan-gcc/obj/src/core/limits.o build/asan-gcc/obj/src/core/memory_budget.o build/asan-gcc/obj/src/core/arena.o build/asan-gcc/obj/src/core/ownership.o build/asan-gcc/obj/src/core/progress.o build/asan-gcc/obj/src/core/job.o build/asan-gcc/obj/src/core/executor.o build/asan-gcc/obj/src/media/media_limits.o build/asan-gcc/obj/src/media/media_facts.o build/asan-gcc/obj/src/media/pcm.o build/asan-gcc/obj/src/media/wav.o build/asan-gcc/obj/src/media/png_crc.o build/asan-gcc/obj/src/media/png.o build/asan-gcc/obj/src/media/media_probe.o build/asan-gcc/obj/src/media/media_dispatch.o build/asan-gcc/obj/src/music_map/resample.o build/asan-gcc/obj/src/music_map/analysis.o build/asan-gcc/obj/src/music_map/analysis_wire.o build/asan-gcc/obj/src/music_inference/reaction_spine.o build/asan-gcc/obj/src/score/score.o build/asan-gcc/obj/src/score/compiler.o build/asan-gcc/obj/src/ir/ir.o build/asan-gcc/obj/src/ir/frame_state.o build/asan-gcc/obj/src/package/deflate.o build/asan-gcc/obj/src/package/sign.o build/asan-gcc/obj/src/package/odparms.o build/asan-gcc/obj/src/renderer/color.o build/asan-gcc/obj/src/renderer/sampler.o build/asan-gcc/obj/src/renderer/reference.o build/asan-gcc/obj/src/renderer/frame_root.o build/asan-gcc/obj/src/visual/event_history.o build/asan-gcc/obj/src/visual/procedural.o build/asan-gcc/obj/src/visual_dynamics/response.o build/asan-gcc/obj/src/preview/preview.o build/asan-gcc/obj/src/preview/ffi_preview.o build/asan-gcc/obj/src/master/master.o build/asan-gcc/obj/src/master/receipt.o build/asan-gcc/obj/src/master/controller_sign.o build/asan-gcc/obj/src/studio/revision.o build/asan-gcc/obj/src/studio/approval.o build/asan-gcc/obj/src/studio/workflow.o build/asan-gcc/obj/src/delivery/contract.o build/asan-gcc/obj/src/export/export.o build/asan-gcc/obj/src/compositor/math.o build/asan-gcc/obj/src/compositor/reaction.o build/asan-gcc/obj/src/compositor/style.o build/asan-gcc/obj/src/compositor/layout.o build/asan-gcc/obj/src/compositor/background.o build/asan-gcc/obj/src/compositor/core.o build/asan-gcc/obj/src/compositor/field.o build/asan-gcc/obj/src/compositor/hud.o build/asan-gcc/obj/src/compositor/render.o build/asan-gcc/obj/src/spine/spine_registry.o build/asan-gcc/obj/src/spine/spine.o build/asan-gcc/obj/src/spine/spine_impact.o build/asan-gcc/obj/src/core/ffi.o",
+        "gcc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. build/asan-gcc/obj/tests/properties/test_properties.o build/asan-gcc/obj/tests/test_main.o build/asan-gcc/obj/tests/unit/test_compositor.o build/asan-gcc/obj/tests/unit/test_delivery.o build/asan-gcc/obj/tests/unit/test_executor.o build/asan-gcc/obj/tests/unit/test_export_engine.o build/asan-gcc/obj/tests/unit/test_export_run.o build/asan-gcc/obj/tests/unit/test_ffi.o build/asan-gcc/obj/tests/unit/test_fixed.o build/asan-gcc/obj/tests/unit/test_hash.o build/asan-gcc/obj/tests/unit/test_job.o build/asan-gcc/obj/tests/unit/test_limits.o build/asan-gcc/obj/tests/unit/test_master.o build/asan-gcc/obj/tests/unit/test_media.o build/asan-gcc/obj/tests/unit/test_memory.o build/asan-gcc/obj/tests/unit/test_music_analysis.o build/asan-gcc/obj/tests/unit/test_music_map_wire.o build/asan-gcc/obj/tests/unit/test_music_reaction.o build/asan-gcc/obj/tests/unit/test_package.o build/asan-gcc/obj/tests/unit/test_preview.o build/asan-gcc/obj/tests/unit/test_renderer.o build/asan-gcc/obj/tests/unit/test_resample.o build/asan-gcc/obj/tests/unit/test_rng.o build/asan-gcc/obj/tests/unit/test_score_ir.o build/asan-gcc/obj/tests/unit/test_spine.o build/asan-gcc/obj/tests/unit/test_status.o build/asan-gcc/obj/tests/unit/test_studio.o build/asan-gcc/obj/tests/unit/test_time.o build/asan-gcc/obj/tests/unit/test_visual.o build/asan-gcc/obj/tests/unit/test_visual_dynamics.o build/asan-gcc/obj/tests/unit/test_wire.o build/asan-gcc/libodpar_music.a -pthread -fsanitize=address,undefined -fno-omit-frame-pointer  -lpng16  -lssl -lcrypto  -o build/asan-gcc/odm-tests",
+        "gcc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. build/asan-gcc/obj/src/cli/main.o build/asan-gcc/obj/src/cli/selftest.o build/asan-gcc/libodpar_music.a -pthread -fsanitize=address,undefined -fno-omit-frame-pointer  -lpng16  -lssl -lcrypto  \\",
+        "\t-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--build-id=none -pie -o build/asan-gcc/odpar-music",
+        "make[2]: Leaving directory '.'",
+        "ASAN_OPTIONS=\"detect_leaks=0:halt_on_error=1\" UBSAN_OPTIONS=\"halt_on_error=1:print_stacktrace=1\" build/asan-gcc/odm-tests",
+        "FAIL tests/unit/test_spine.c:15: summary.module_count == 64u",
+        "FAIL tests/unit/test_spine.c:16: summary.dependency_count == 240u",
+        "ODM TESTS checks=8900833 passed=8900831 failed=2",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "command": [
+        "make",
+        "tsan-gcc"
+      ],
+      "exit_code": 0,
+      "last_test_totals": {
+        "checks": 8900833,
+        "failed": 0,
+        "passed": 8900833
+      },
+      "name": "tsan_gcc",
+      "output_paths_normalized": true,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": [],
+      "stdout_sha256": "9bf27b447a0d4e631c3a6961128be48eb8d78bc09c332a465f8098401f5ef472",
+      "stdout_tail": [
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/tsan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/compositor/hud.c -o build/tsan-gcc/obj/src/compositor/hud.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/tsan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/compositor/render.c -o build/tsan-gcc/obj/src/compositor/render.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/tsan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/spine/spine_registry.c -o build/tsan-gcc/obj/src/spine/spine_registry.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/tsan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/spine/spine.c -o build/tsan-gcc/obj/src/spine/spine.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/tsan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/spine/spine_impact.c -o build/tsan-gcc/obj/src/spine/spine_impact.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/tsan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/core/ffi.c -o build/tsan-gcc/obj/src/core/ffi.o",
+        "ar rcsD build/tsan-gcc/libodpar_music.a build/tsan-gcc/obj/src/core/status.o build/tsan-gcc/obj/src/core/version.o build/tsan-gcc/obj/src/core/hash.o build/tsan-gcc/obj/src/core/time.o build/tsan-gcc/obj/src/core/fixed.o build/tsan-gcc/obj/src/core/rng.o build/tsan-gcc/obj/src/core/wire.o build/tsan-gcc/obj/src/core/limits.o build/tsan-gcc/obj/src/core/memory_budget.o build/tsan-gcc/obj/src/core/arena.o build/tsan-gcc/obj/src/core/ownership.o build/tsan-gcc/obj/src/core/progress.o build/tsan-gcc/obj/src/core/job.o build/tsan-gcc/obj/src/core/executor.o build/tsan-gcc/obj/src/media/media_limits.o build/tsan-gcc/obj/src/media/media_facts.o build/tsan-gcc/obj/src/media/pcm.o build/tsan-gcc/obj/src/media/wav.o build/tsan-gcc/obj/src/media/png_crc.o build/tsan-gcc/obj/src/media/png.o build/tsan-gcc/obj/src/media/media_probe.o build/tsan-gcc/obj/src/media/media_dispatch.o build/tsan-gcc/obj/src/music_map/resample.o build/tsan-gcc/obj/src/music_map/analysis.o build/tsan-gcc/obj/src/music_map/analysis_wire.o build/tsan-gcc/obj/src/music_inference/reaction_spine.o build/tsan-gcc/obj/src/score/score.o build/tsan-gcc/obj/src/score/compiler.o build/tsan-gcc/obj/src/ir/ir.o build/tsan-gcc/obj/src/ir/frame_state.o build/tsan-gcc/obj/src/package/deflate.o build/tsan-gcc/obj/src/package/sign.o build/tsan-gcc/obj/src/package/odparms.o build/tsan-gcc/obj/src/renderer/color.o build/tsan-gcc/obj/src/renderer/sampler.o build/tsan-gcc/obj/src/renderer/reference.o build/tsan-gcc/obj/src/renderer/frame_root.o build/tsan-gcc/obj/src/visual/event_history.o build/tsan-gcc/obj/src/visual/procedural.o build/tsan-gcc/obj/src/visual_dynamics/response.o build/tsan-gcc/obj/src/preview/preview.o build/tsan-gcc/obj/src/preview/ffi_preview.o build/tsan-gcc/obj/src/master/master.o build/tsan-gcc/obj/src/master/receipt.o build/tsan-gcc/obj/src/master/controller_sign.o build/tsan-gcc/obj/src/studio/revision.o build/tsan-gcc/obj/src/studio/approval.o build/tsan-gcc/obj/src/studio/workflow.o build/tsan-gcc/obj/src/delivery/contract.o build/tsan-gcc/obj/src/export/export.o build/tsan-gcc/obj/src/compositor/math.o build/tsan-gcc/obj/src/compositor/reaction.o build/tsan-gcc/obj/src/compositor/style.o build/tsan-gcc/obj/src/compositor/layout.o build/tsan-gcc/obj/src/compositor/background.o build/tsan-gcc/obj/src/compositor/core.o build/tsan-gcc/obj/src/compositor/field.o build/tsan-gcc/obj/src/compositor/hud.o build/tsan-gcc/obj/src/compositor/render.o build/tsan-gcc/obj/src/spine/spine_registry.o build/tsan-gcc/obj/src/spine/spine.o build/tsan-gcc/obj/src/spine/spine_impact.o build/tsan-gcc/obj/src/core/ffi.o",
+        "gcc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=thread -fno-omit-frame-pointer  -ffile-prefix-map=.=. build/tsan-gcc/obj/tests/properties/test_properties.o build/tsan-gcc/obj/tests/test_main.o build/tsan-gcc/obj/tests/unit/test_compositor.o build/tsan-gcc/obj/tests/unit/test_delivery.o build/tsan-gcc/obj/tests/unit/test_executor.o build/tsan-gcc/obj/tests/unit/test_export_engine.o build/tsan-gcc/obj/tests/unit/test_export_run.o build/tsan-gcc/obj/tests/unit/test_ffi.o build/tsan-gcc/obj/tests/unit/test_fixed.o build/tsan-gcc/obj/tests/unit/test_hash.o build/tsan-gcc/obj/tests/unit/test_job.o build/tsan-gcc/obj/tests/unit/test_limits.o build/tsan-gcc/obj/tests/unit/test_master.o build/tsan-gcc/obj/tests/unit/test_media.o build/tsan-gcc/obj/tests/unit/test_memory.o build/tsan-gcc/obj/tests/unit/test_music_analysis.o build/tsan-gcc/obj/tests/unit/test_music_map_wire.o build/tsan-gcc/obj/tests/unit/test_music_reaction.o build/tsan-gcc/obj/tests/unit/test_package.o build/tsan-gcc/obj/tests/unit/test_preview.o build/tsan-gcc/obj/tests/unit/test_renderer.o build/tsan-gcc/obj/tests/unit/test_resample.o build/tsan-gcc/obj/tests/unit/test_rng.o build/tsan-gcc/obj/tests/unit/test_score_ir.o build/tsan-gcc/obj/tests/unit/test_spine.o build/tsan-gcc/obj/tests/unit/test_status.o build/tsan-gcc/obj/tests/unit/test_studio.o build/tsan-gcc/obj/tests/unit/test_time.o build/tsan-gcc/obj/tests/unit/test_visual.o build/tsan-gcc/obj/tests/unit/test_visual_dynamics.o build/tsan-gcc/obj/tests/unit/test_wire.o build/tsan-gcc/libodpar_music.a -pthread -fsanitize=thread -fno-omit-frame-pointer  -lpng16  -lssl -lcrypto  -o build/tsan-gcc/odm-tests",
+        "make[2]: Leaving directory '.'",
+        "TSAN_OPTIONS=\"halt_on_error=1\" build/tsan-gcc/odm-tests",
+        "ODM TESTS checks=8900833 passed=8900833 failed=0",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "command": [
+        "make",
+        "analyze-gcc"
+      ],
+      "exit_code": 0,
+      "name": "gcc_static_analyzer",
+      "output_paths_normalized": true,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": [],
+      "stdout_sha256": "706dd7c1f885a20ccf54e451a29cd0792b42ff26c013d2c04a51ad20cbe544cf",
+      "stdout_tail": [
+        "make[1]: Entering directory '.'",
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_gcc_analyzer.py --root . --cc gcc \\",
+        "\t--generated build/generated",
+        "GCC analyzer: pass (65 production units)",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "command": [
+        "make",
+        "repro"
+      ],
+      "exit_code": 0,
+      "name": "clean_root_reproducibility",
+      "output_paths_normalized": true,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": [],
+      "stdout_sha256": "b853e37c1306b13e896da481f2c8ab0965ccd4b524b1c7b8502cdc1102360cdb",
+      "stdout_tail": [
+        "make[1]: Entering directory '.'",
+        "python3 tests/determinism/check_reproducible.py --root . --cc cc",
+        "reproducible build: pass (3/3 byte-identical; binary sha256:ced686915adc59bfad529098ff052ddffb8d831c2f5c9c709c74f4fce2e05d6e)",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "benchmark": {
+        "executor": {
+          "allocation_bytes": 246080,
+          "nanoseconds": 68164793,
+          "tasks": 100000,
+          "tasks_per_second": 1467032,
+          "workers": 4
+        },
+        "measurement_only": false,
+        "schema": "odm_core_benchmark_v1",
+        "sha256": {
+          "bytes": 268435456,
+          "bytes_per_second": 190530259,
+          "nanoseconds": 1408886212
+        },
+        "sink": 89,
+        "status": "pass",
+        "thresholds": {
+          "executor_tasks_per_second": 100000,
+          "sha256_bytes_per_second": 100000000,
+          "wire_payload_bytes_per_second": 50000000
+        },
+        "wire_record": {
+          "nanoseconds": 729915692,
+          "payload_bytes": 67108864,
+          "payload_bytes_per_second": 91940568
+        }
+      },
+      "command": [
+        "make",
+        "BUILD_DIR=build/bench-gcc",
+        "CC=gcc",
+        "benchmark-core"
+      ],
+      "exit_code": 0,
+      "name": "release_performance_floors",
+      "output_paths_normalized": true,
+      "status": "pass",
+      "stderr_sha256": "b5345914b4f8eee4942e20566b341269f206846c875e2937943bebe697b21b96",
+      "stderr_tail": [
+        "Makefile:227: warning: overriding recipe for target 'visual-oracle'",
+        "Makefile:191: warning: ignoring old recipe for target 'visual-oracle'"
+      ],
+      "stdout_sha256": "c7f5d9c90de2a4317219242fff6b259bc4713a4f5cfd07fb499a3f7145d7c7d4",
+      "stdout_tail": [
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/compositor/field.c -o build/bench-gcc/obj/src/compositor/field.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/compositor/hud.c -o build/bench-gcc/obj/src/compositor/hud.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/compositor/render.c -o build/bench-gcc/obj/src/compositor/render.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/spine/spine_registry.c -o build/bench-gcc/obj/src/spine/spine_registry.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/spine/spine.c -o build/bench-gcc/obj/src/spine/spine.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/spine/spine_impact.c -o build/bench-gcc/obj/src/spine/spine_impact.o",
+        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/core/ffi.c -o build/bench-gcc/obj/src/core/ffi.o",
+        "ar rcsD build/bench-gcc/libodpar_music.a build/bench-gcc/obj/src/core/status.o build/bench-gcc/obj/src/core/version.o build/bench-gcc/obj/src/core/hash.o build/bench-gcc/obj/src/core/time.o build/bench-gcc/obj/src/core/fixed.o build/bench-gcc/obj/src/core/rng.o build/bench-gcc/obj/src/core/wire.o build/bench-gcc/obj/src/core/limits.o build/bench-gcc/obj/src/core/memory_budget.o build/bench-gcc/obj/src/core/arena.o build/bench-gcc/obj/src/core/ownership.o build/bench-gcc/obj/src/core/progress.o build/bench-gcc/obj/src/core/job.o build/bench-gcc/obj/src/core/executor.o build/bench-gcc/obj/src/media/media_limits.o build/bench-gcc/obj/src/media/media_facts.o build/bench-gcc/obj/src/media/pcm.o build/bench-gcc/obj/src/media/wav.o build/bench-gcc/obj/src/media/png_crc.o build/bench-gcc/obj/src/media/png.o build/bench-gcc/obj/src/media/media_probe.o build/bench-gcc/obj/src/media/media_dispatch.o build/bench-gcc/obj/src/music_map/resample.o build/bench-gcc/obj/src/music_map/analysis.o build/bench-gcc/obj/src/music_map/analysis_wire.o build/bench-gcc/obj/src/music_inference/reaction_spine.o build/bench-gcc/obj/src/score/score.o build/bench-gcc/obj/src/score/compiler.o build/bench-gcc/obj/src/ir/ir.o build/bench-gcc/obj/src/ir/frame_state.o build/bench-gcc/obj/src/package/deflate.o build/bench-gcc/obj/src/package/sign.o build/bench-gcc/obj/src/package/odparms.o build/bench-gcc/obj/src/renderer/color.o build/bench-gcc/obj/src/renderer/sampler.o build/bench-gcc/obj/src/renderer/reference.o build/bench-gcc/obj/src/renderer/frame_root.o build/bench-gcc/obj/src/visual/event_history.o build/bench-gcc/obj/src/visual/procedural.o build/bench-gcc/obj/src/visual_dynamics/response.o build/bench-gcc/obj/src/preview/preview.o build/bench-gcc/obj/src/preview/ffi_preview.o build/bench-gcc/obj/src/master/master.o build/bench-gcc/obj/src/master/receipt.o build/bench-gcc/obj/src/master/controller_sign.o build/bench-gcc/obj/src/studio/revision.o build/bench-gcc/obj/src/studio/approval.o build/bench-gcc/obj/src/studio/workflow.o build/bench-gcc/obj/src/delivery/contract.o build/bench-gcc/obj/src/export/export.o build/bench-gcc/obj/src/compositor/math.o build/bench-gcc/obj/src/compositor/reaction.o build/bench-gcc/obj/src/compositor/style.o build/bench-gcc/obj/src/compositor/layout.o build/bench-gcc/obj/src/compositor/background.o build/bench-gcc/obj/src/compositor/core.o build/bench-gcc/obj/src/compositor/field.o build/bench-gcc/obj/src/compositor/hud.o build/bench-gcc/obj/src/compositor/render.o build/bench-gcc/obj/src/spine/spine_registry.o build/bench-gcc/obj/src/spine/spine.o build/bench-gcc/obj/src/spine/spine_impact.o build/bench-gcc/obj/src/core/ffi.o",
+        "gcc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. build/bench-gcc/obj/bench/benchmark_core.o build/bench-gcc/libodpar_music.a -pthread   -lpng16  -lssl -lcrypto  -o build/bench-gcc/odm-core-benchmark",
+        "build/bench-gcc/odm-core-benchmark",
+        "{\"schema\":\"odm_core_benchmark_v1\",\"measurement_only\":false,\"thresholds\":{\"sha256_bytes_per_second\":100000000,\"wire_payload_bytes_per_second\":50000000,\"executor_tasks_per_second\":100000},\"sha256\":{\"bytes\":268435456,\"nanoseconds\":1408886212,\"bytes_per_second\":190530259},\"wire_record\":{\"payload_bytes\":67108864,\"nanoseconds\":729915692,\"payload_bytes_per_second\":91940568},\"executor\":{\"workers\":4,\"tasks\":100000,\"nanoseconds\":68164793,\"tasks_per_second\":1467032,\"allocation_bytes\":246080},\"sink\":89,\"status\":\"pass\"}",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "command": [
+        "make",
+        "test-clang"
+      ],
+      "exit_code": 0,
+      "last_test_totals": {
+        "checks": 8900833,
+        "failed": 0,
+        "passed": 8900833
+      },
+      "name": "strict_clang_matrix",
+      "output_paths_normalized": true,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": [],
+      "stdout_sha256": "db8c016580b9a1e836dd665093a2746bdfe4d7fceac763791c0ce3b03e30536c",
+      "stdout_tail": [
+        "frames=4 video_bytes=16384 audio_frames=6400 audio_bytes=51200 argv_tokens=59",
+        "video_sha256=b4b5f22c090e2e24065d799643ed13af086f371edb98b382c724eaaf553b13fd",
+        "audio_sha256=42c0e3ef57b9c472cb38731ffd2e9a3fd00eaebd3b17bafff2fbd59e4d8e0042",
+        "mp4_sha256=f35d929eb19d7730705360d2a83ad0aadd58d31bce5a380a21a5aa62fe1d0eb8",
+        "receipt_sha256=8f5c13b784f6f29fb51a52498ee423d25d6b6208e8805d51f42821e6ca605379",
+        "ffprobe_frames=4 audio_rate=48000",
+        "Resampler oracle: pass (720896 full coefficients across 3 rates)",
+        "  44100 Hz: taps=64 coeffs=65536 sha256=21e84b064573c930946e3edff82ad47cfafd4f26196b1859d017160c3cc10ebe",
+        "  96000 Hz: taps=128 coeffs=131072 sha256=6daaa5dbdb2c543c88f9b76449a1d9da714429f7ae3ec1c13b30d3af7e938427",
+        "  384000 Hz: taps=512 coeffs=524288 sha256=cdace5dffa0ada7fe9382dbe5fb888d21b9838f60e314fea8575ae5242d9b5af",
+        "make[2]: Leaving directory '.'",
+        "make[1]: Leaving directory '.'"
+      ]
+    },
+    {
+      "command": [
+        "make",
+        "asan-clang"
+      ],
+      "exit_code": 2,
+      "last_test_totals": {
+        "checks": 8900833,
+        "failed": 3,
+        "passed": 8900830
+      },
+      "name": "asan_ubsan_clang",
+      "output_paths_normalized": true,
+      "status": "fail",
+      "stderr_sha256": "07c9bae60befafd00fce2488f7528759445a181719d11b28fd96f1931602b89b",
+      "stderr_tail": [
+        "make[1]: *** [Makefile:347: asan-clang] Error 1"
+      ],
+      "stdout_sha256": "d10d033c393ed0e71a583f1bc38bf95cac1c187e547845eead110465f5ad4660",
+      "stdout_tail": [
+        "clang -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/asan-clang/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/cli/selftest.c -o build/asan-clang/obj/src/cli/selftest.o",
+        "ar rcsD build/asan-clang/libodpar_music.a build/asan-clang/obj/src/core/status.o build/asan-clang/obj/src/core/version.o build/asan-clang/obj/src/core/hash.o build/asan-clang/obj/src/core/time.o build/asan-clang/obj/src/core/fixed.o build/asan-clang/obj/src/core/rng.o build/asan-clang/obj/src/core/wire.o build/asan-clang/obj/src/core/limits.o build/asan-clang/obj/src/core/memory_budget.o build/asan-clang/obj/src/core/arena.o build/asan-clang/obj/src/core/ownership.o build/asan-clang/obj/src/core/progress.o build/asan-clang/obj/src/core/job.o build/asan-clang/obj/src/core/executor.o build/asan-clang/obj/src/media/media_limits.o build/asan-clang/obj/src/media/media_facts.o build/asan-clang/obj/src/media/pcm.o build/asan-clang/obj/src/media/wav.o build/asan-clang/obj/src/media/png_crc.o build/asan-clang/obj/src/media/png.o build/asan-clang/obj/src/media/media_probe.o build/asan-clang/obj/src/media/media_dispatch.o build/asan-clang/obj/src/music_map/resample.o build/asan-clang/obj/src/music_map/analysis.o build/asan-clang/obj/src/music_map/analysis_wire.o build/asan-clang/obj/src/music_inference/reaction_spine.o build/asan-clang/obj/src/score/score.o build/asan-clang/obj/src/score/compiler.o build/asan-clang/obj/src/ir/ir.o build/asan-clang/obj/src/ir/frame_state.o build/asan-clang/obj/src/package/deflate.o build/asan-clang/obj/src/package/sign.o build/asan-clang/obj/src/package/odparms.o build/asan-clang/obj/src/renderer/color.o build/asan-clang/obj/src/renderer/sampler.o build/asan-clang/obj/src/renderer/reference.o build/asan-clang/obj/src/renderer/frame_root.o build/asan-clang/obj/src/visual/event_history.o build/asan-clang/obj/src/visual/procedural.o build/asan-clang/obj/src/visual_dynamics/response.o build/asan-clang/obj/src/preview/preview.o build/asan-clang/obj/src/preview/ffi_preview.o build/asan-clang/obj/src/master/master.o build/asan-clang/obj/src/master/receipt.o build/asan-clang/obj/src/master/controller_sign.o build/asan-clang/obj/src/studio/revision.o build/asan-clang/obj/src/studio/approval.o build/asan-clang/obj/src/studio/workflow.o build/asan-clang/obj/src/delivery/contract.o build/asan-clang/obj/src/export/export.o build/asan-clang/obj/src/compositor/math.o build/asan-clang/obj/src/compositor/reaction.o build/asan-clang/obj/src/compositor/style.o build/asan-clang/obj/src/compositor/layout.o build/asan-clang/obj/src/compositor/background.o build/asan-clang/obj/src/compositor/core.o build/asan-clang/obj/src/compositor/field.o build/asan-clang/obj/src/compositor/hud.o build/asan-clang/obj/src/compositor/render.o build/asan-clang/obj/src/spine/spine_registry.o build/asan-clang/obj/src/spine/spine.o build/asan-clang/obj/src/spine/spine_impact.o build/asan-clang/obj/src/core/ffi.o",
+        "clang -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. build/asan-clang/obj/tests/properties/test_properties.o build/asan-clang/obj/tests/test_main.o build/asan-clang/obj/tests/unit/test_compositor.o build/asan-clang/obj/tests/unit/test_delivery.o build/asan-clang/obj/tests/unit/test_executor.o build/asan-clang/obj/tests/unit/test_export_engine.o build/asan-clang/obj/tests/unit/test_export_run.o build/asan-clang/obj/tests/unit/test_ffi.o build/asan-clang/obj/tests/unit/test_fixed.o build/asan-clang/obj/tests/unit/test_hash.o build/asan-clang/obj/tests/unit/test_job.o build/asan-clang/obj/tests/unit/test_limits.o build/asan-clang/obj/tests/unit/test_master.o build/asan-clang/obj/tests/unit/test_media.o build/asan-clang/obj/tests/unit/test_memory.o build/asan-clang/obj/tests/unit/test_music_analysis.o build/asan-clang/obj/tests/unit/test_music_map_wire.o build/asan-clang/obj/tests/unit/test_music_reaction.o build/asan-clang/obj/tests/unit/test_package.o build/asan-clang/obj/tests/unit/test_preview.o build/asan-clang/obj/tests/unit/test_renderer.o build/asan-clang/obj/tests/unit/test_resample.o build/asan-clang/obj/tests/unit/test_rng.o build/asan-clang/obj/tests/unit/test_score_ir.o build/asan-clang/obj/tests/unit/test_spine.o build/asan-clang/obj/tests/unit/test_status.o build/asan-clang/obj/tests/unit/test_studio.o build/asan-clang/obj/tests/unit/test_time.o build/asan-clang/obj/tests/unit/test_visual.o build/asan-clang/obj/tests/unit/test_visual_dynamics.o build/asan-clang/obj/tests/unit/test_wire.o build/asan-clang/libodpar_music.a -pthread -fsanitize=address,undefined -fno-omit-frame-pointer  -lpng16  -lssl -lcrypto  -o build/asan-clang/odm-tests",
+        "clang -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. build/asan-clang/obj/src/cli/main.o build/asan-clang/obj/src/cli/selftest.o build/asan-clang/libodpar_music.a -pthread -fsanitize=address,undefined -fno-omit-frame-pointer  -lpng16  -lssl -lcrypto  \\",
+        "\t-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--build-id=none -pie -o build/asan-clang/odpar-music",
+        "make[2]: Leaving directory '.'",
+        "ASAN_OPTIONS=\"detect_leaks=0:halt_on_error=1\" UBSAN_OPTIONS=\"halt_on_error=1:print_stacktrace=1\" build/asan-clang/odm-tests",
+        "FAIL tests/unit/test_status.c:20: ODM_VERSION_MINOR == 24u",
+        "FAIL tests/unit/test_status.c:22: strcmp(ODM_VERSION_LABEL, \"sample-accurate-causal-presentation-v1-wip-local\") == 0",
+        "FAIL tests/unit/test_status.c:24: strcmp(ODM_VERSION_STRING, \"0.24.0-sample-accurate-causal-presentation-v1-wip-local\") == 0",
+        "ODM TESTS checks=8900833 passed=8900830 failed=3",
+        "make[1]: Leaving directory '.'"
+      ]
+    }
+  ],
+  "toolchains": {
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "make": "GNU Make 4.3",
+    "python": "3.11.15"
+  }
+}

@@ -1,69 +1,132 @@
 {
   "abi_version": 6,
-  "claim_boundary": "WIP; this checkpoint does not claim beat/BPM/semantic musical understanding or public FINAL status.",
-  "key_change": {
-    "dominant_pulse_q31": "sample-decayed strength of newly captured dominant event at the exact presentation sample",
-    "double_fire_prevention": "coarse 100 Hz event authority cannot retrigger a sample-domain event",
-    "immutable_event_salience": "kept for provenance/ranking"
-  },
-  "oracles": [
-    "Music-Reaction Policy v11 PASS",
-    "Contextual Salience PASS",
-    "Reaction Presentation Projection 24/25/30/50/60/100/120 fps PASS",
-    "STRICT_CAUSAL PASS",
-    "Radial Provenance 96->48 PASS",
-    "Radial Timescale Geometry PASS",
-    "Multiscale Radial Raster pixel-exact PASS",
-    "Causal Trace PASS",
-    "Visual Policy v8 byte-exact PASS",
-    "Composition PASS",
-    "Director PASS",
-    "Layered PASS",
-    "Reaction Matrix PASS",
-    "Spine reconciliation PASS",
-    "Determinism PASS",
-    "ABI reconciliation PASS"
-  ],
+  "claim_boundary": "WIP. This checkpoint does not claim beat, BPM, tempo, sections, instruments, voices, onset accuracy on real music, visual quality, or public FINAL status. Pixel oracles prove reconstructibility, not aesthetics. See docs/CLAIMS_MATRIX.md.",
+  "generated_by": "tools/gen_checkpoint_status.py",
+  "note": "Derived from the tree, never hand-written. The 0.33 package shipped a hand-typed checkpoint describing the 0.24 tree; that divergence is the defect this generator exists to make impossible.",
   "policies": {
-    "layered": 10,
+    "export": 1,
+    "layered": 11,
+    "music_map": 1,
     "music_reaction": 11,
-    "visual": 8
+    "visual": 9,
+    "visual_dynamics": 1
   },
-  "preview": {
-    "audio_channels": 2,
-    "audio_sample_rate": 48000,
-    "duration_seconds": 24.0,
-    "file": "ODPAR_MUSIC_0_24_SAMPLE_ACCURATE_CAUSAL_PREVIEW.mp4",
-    "fps": 30,
-    "height": 540,
-    "music_ticks_full_track": 25420,
-    "music_visible_range_seconds": [
-      54,
-      78
-    ],
-    "note": "FFmpeg is used only at media decode/encode boundaries; ODPAR computes analysis, causal projection, composition and raster.",
-    "offline_events_full_track": 506,
-    "sha256": "251192f7a9208e1a6e9c946bd8ea9566a83c5cbd192eacf9ead52864957fdff3",
-    "width": 540
+  "schema": "odpar.music.checkpoint-status.v2",
+  "sealed_gate_evidence": {
+    "gate0": {
+      "sha256": "b0faf2d4445de1f95006aec4e98649db6b338199f7d000e5efe16bb604a966e9",
+      "status": "fail"
+    },
+    "gate1": {
+      "sha256": "c4968684bdeec738920584c0073edeaea04dfedf97843686117f284051b671b7",
+      "status": "fail"
+    },
+    "gate2": {
+      "sha256": "8a29d7b66576c57eb782631bb5b01ffac2fc85e70beceeb33609bfa1ba84b615",
+      "status": "fail"
+    },
+    "gate3": {
+      "sha256": "04816d6f8c279f6bdfde994848482bdac335e9a26988ec61311c6a9387128d31",
+      "status": "fail"
+    },
+    "gate4": {
+      "sha256": "cadb0404a6c388cbd383b404197e513cf5face41c6236736b74d8ff5cbd4ef1c",
+      "status": "pass"
+    },
+    "gate5": {
+      "sha256": "d1b1803031827b678ec4429fa33d317ee51f4143b48a4d5d035090066afdd868",
+      "status": "fail"
+    }
   },
-  "schema": "odpar.music.checkpoint-status.v1",
   "source_identity": {
-    "algorithm": "sha256(path_len_be32 || path_utf8 || file_len_be64 || file_bytes), sorted paths; excludes build/ and CHECKPOINT_STATUS.json",
-    "file_count": 288,
-    "sha256": "f0adf036f3bd67c9afeeea1019f9f88c7faf5bde4eb622cada2c09b678dae5da"
+    "algorithm": "sha256(path_len_be32 || path_utf8 || file_len_be64 || file_bytes), sorted paths; excludes build/, .git/, evidence/, __pycache__/ and CHECKPOINT_STATUS.json",
+    "file_count": 309,
+    "sha256": "979b9051853b4559a670df885e8df51944343456def5bf09e9bcef187372288d"
   },
   "spine": {
     "capabilities": 128,
-    "dependencies": 240,
+    "dependencies": 243,
     "invariants": 141,
-    "investigations": 96,
-    "modules": 64
+    "modules": 65,
+    "security_investigations": 96,
+    "state_models": 11
   },
   "state": "WIP_CHECKPOINT",
   "tests": {
-    "checks": 8764484,
+    "checks": 8900833,
     "failed": 0,
-    "passed": 8764484
+    "passed": 8900833
   },
-  "version": "0.24.0-sample-accurate-causal-presentation-v1-wip-local"
+  "verification_lanes": {
+    "blocked": [],
+    "fail": [
+      "commercial-claims-check"
+    ],
+    "not_run": [],
+    "pass": [
+      "abi-check",
+      "analyze-gcc",
+      "asan-clang",
+      "asan-gcc",
+      "benchmark-core",
+      "build-all",
+      "causal-trace-oracle",
+      "composition-oracle",
+      "contextual-salience-oracle",
+      "crypto-oracle",
+      "delivery-oracle",
+      "determinism",
+      "director-oracle",
+      "export-engine-oracle",
+      "export-ffmpeg-smoke",
+      "export-run-smoke",
+      "ffmpeg-delivery-smoke",
+      "flutter-preview-binding",
+      "frame-state-oracle",
+      "guardians",
+      "hardening",
+      "header-check",
+      "hud-geometry-oracle",
+      "layer-output-oracle",
+      "layered-oracle",
+      "layered-raster-oracle",
+      "master-oracle",
+      "media-oracle",
+      "multi-axis-visual-oracle",
+      "multiscale-radial-raster-oracle",
+      "music-analysis-oracle",
+      "music-reaction-oracle",
+      "odparms-oracle",
+      "particle-geometry-oracle",
+      "perspective-grid-oracle",
+      "preview-ffi",
+      "preview-oracle",
+      "radial-geometry-oracle",
+      "radial-hires-geometry-oracle",
+      "radial-provenance-oracle",
+      "radial-timescale-geometry-oracle",
+      "reaction-oracle",
+      "reaction-projection-oracle",
+      "render-ir-oracle",
+      "renderer-oracle",
+      "renderer-property-oracle",
+      "repro",
+      "resampler-oracle",
+      "selftest",
+      "sha-backend-oracle",
+      "spine-check",
+      "srgb-lut-check",
+      "strict-causal-field-oracle",
+      "strict-causal-oracle",
+      "studio-oracle",
+      "style-oracle",
+      "test-clang",
+      "test-gcc",
+      "tsan-gcc",
+      "visual-dynamics-oracle",
+      "visual-oracle",
+      "visual-policy-oracle"
+    ]
+  },
+  "version": "odpar-music 0.33.0-radial-morphology-v2-visual-dynamics-v1-wip-local abi=6 source=sha256:c22dbc5aa6d522e1df2812fa06dd3159968411346700f3124b537da0c115e025 compiler=gcc-13.3.0"
 }

@@ -1,0 +1,905 @@
+{
+  "lanes": [
+    {
+      "lane": "build-all",
+      "returncode": 0,
+      "seconds": 7.01,
+      "status": "PASS",
+      "tail": [
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/compositor/field.c -o build/obj/src/compositor/field.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/compositor/hud.c -o build/obj/src/compositor/hud.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/compositor/render.c -o build/obj/src/compositor/render.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/spine/spine_registry.c -o build/obj/src/spine/spine_registry.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/spine/spine.c -o build/obj/src/spine/spine.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/spine/spine_impact.c -o build/obj/src/spine/spine_impact.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/core/ffi.c -o build/obj/src/core/ffi.o",
+        "ar rcsD build/libodpar_music.a build/obj/src/core/status.o build/obj/src/core/version.o build/obj/src/core/hash.o build/obj/src/core/time.o build/obj/src/core/fixed.o build/obj/src/core/rng.o build/obj/src/core/wire.o build/obj/src/core/limits.o build/obj/src/core/memory_budget.o build/obj/src/core/arena.o build/obj/src/core/ownership.o build/obj/src/core/progress.o build/obj/src/core/job.o build/obj/src/core/executor.o build/obj/src/media/media_limits.o build/obj/src/media/media_facts.o build/obj/src/media/pcm.o build/obj/src/media/wav.o build/obj/src/media/png_crc.o build/obj/src/media/png.o build/obj/src/media/media_probe.o build/obj/src/media/media_dispatch.o build/obj/src/music_map/resample.o build/obj/src/music_map/analysis.o build/obj/src/music_map/analysis_wire.o build/obj/src/music_inference/reaction_spine.o build/obj/src/score/score.o build/obj/src/score/compiler.o build/obj/src/ir/ir.o build/obj/src/ir/frame_state.o build/obj/src/package/deflate.o build/obj/src/package/sign.o build/obj/src/package/odparms.o build/obj/src/renderer/color.o build/obj/src/renderer/sampler.o build/obj/src/renderer/reference.o build/obj/src/renderer/frame_root.o build/obj/src/visual/event_history.o build/obj/src/visual/procedural.o build/obj/src/preview/preview.o build/obj/src/preview/ffi_preview.o build/obj/src/master/master.o build/obj/src/master/receipt.o build/obj/src/master/controller_sign.o build/obj/src/studio/revision.o build/obj/src/studio/approval.o build/obj/src/studio/workflow.o build/obj/src/delivery/contract.o build/obj/src/export/export.o build/obj/src/compositor/math.o build/obj/src/compositor/reaction.o build/obj/src/compositor/style.o build/obj/src/compositor/layout.o build/obj/src/compositor/background.o build/obj/src/compositor/core.o build/obj/src/compositor/field.o build/obj/src/compositor/hud.o build/obj/src/compositor/render.o build/obj/src/spine/spine_registry.o build/obj/src/spine/spine.o build/obj/src/spine/spine_impact.o build/obj/src/core/ffi.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/cli/main.c -o build/obj/src/cli/main.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c src/cli/selftest.c -o build/obj/src/cli/selftest.o",
+        "cc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. build/obj/src/cli/main.o build/obj/src/cli/selftest.o build/libodpar_music.a -pthread   -lpng16  -lssl -lcrypto  \\",
+        "\t-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--build-id=none -pie -o build/odpar-music"
+      ]
+    },
+    {
+      "lane": "selftest",
+      "returncode": 0,
+      "seconds": 0.14,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "build/odpar-music selftest",
+        "{\"schema\":\"odm_selftest_v1\",\"checks\":12,\"passed\":12,\"failed\":0,\"status\":\"pass\",\"failed_check\":null,\"error\":\"ok\"}"
+      ]
+    },
+    {
+      "lane": "test-gcc",
+      "returncode": 2,
+      "seconds": 7.39,
+      "status": "FAIL",
+      "tail": [
+        "DBG export FAIL st=11 frame_index=2 frame_count=4 audio_pos=0 work_done=2 video_bytes=8192 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=1024 work_done=1028 video_bytes=16384 audio_bytes=8192",
+        "DBG export frame=0 state_contract st=12 sample=0 tick=0 comp_tick=1 dir_tick=1 center=480 schema=1/3",
+        "DBG export FAIL st=12 frame_index=0 frame_count=4 audio_pos=0 work_done=0 video_bytes=0 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "DBG export FAIL st=6 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export frame=1 core_provider st=12 sample=1600",
+        "DBG export FAIL st=12 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export FAIL st=6 frame_index=4 frame_count=4 audio_pos=2048 work_done=2052 video_bytes=16384 audio_bytes=16384",
+        "DBG export FAIL st=13 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "make[1]: *** [Makefile:138: test] Error 1",
+        "make: *** [Makefile:323: test-gcc] Error 2"
+      ]
+    },
+    {
+      "lane": "test-clang",
+      "returncode": 2,
+      "seconds": 6.53,
+      "status": "FAIL",
+      "tail": [
+        "DBG export FAIL st=11 frame_index=2 frame_count=4 audio_pos=0 work_done=2 video_bytes=8192 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=1024 work_done=1028 video_bytes=16384 audio_bytes=8192",
+        "DBG export frame=0 state_contract st=12 sample=0 tick=0 comp_tick=1 dir_tick=1 center=480 schema=1/3",
+        "DBG export FAIL st=12 frame_index=0 frame_count=4 audio_pos=0 work_done=0 video_bytes=0 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "DBG export FAIL st=6 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export frame=1 core_provider st=12 sample=1600",
+        "DBG export FAIL st=12 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export FAIL st=6 frame_index=4 frame_count=4 audio_pos=2048 work_done=2052 video_bytes=16384 audio_bytes=16384",
+        "DBG export FAIL st=13 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "make[1]: *** [Makefile:138: test] Error 1",
+        "make: *** [Makefile:330: test-clang] Error 2"
+      ]
+    },
+    {
+      "lane": "asan-gcc",
+      "returncode": 2,
+      "seconds": 12.27,
+      "status": "FAIL",
+      "tail": [
+        "DBG export FAIL st=12 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=2 frame_count=4 audio_pos=0 work_done=2 video_bytes=8192 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=1024 work_done=1028 video_bytes=16384 audio_bytes=8192",
+        "DBG export frame=0 state_contract st=12 sample=0 tick=0 comp_tick=1 dir_tick=1 center=480 schema=1/3",
+        "DBG export FAIL st=12 frame_index=0 frame_count=4 audio_pos=0 work_done=0 video_bytes=0 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "DBG export FAIL st=6 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export frame=1 core_provider st=12 sample=1600",
+        "DBG export FAIL st=12 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export FAIL st=6 frame_index=4 frame_count=4 audio_pos=2048 work_done=2052 video_bytes=16384 audio_bytes=16384",
+        "DBG export FAIL st=13 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "make: *** [Makefile:335: asan-gcc] Error 1"
+      ]
+    },
+    {
+      "lane": "asan-clang",
+      "returncode": 2,
+      "seconds": 8.06,
+      "status": "FAIL",
+      "tail": [
+        "\t-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--build-id=none -pie -o build/asan-clang/odpar-music",
+        "make[1]: Leaving directory '/home/user/ODPAR-Music-Motion'",
+        "/usr/bin/ld: cannot find /usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_static-x86_64.a: No such file or directory",
+        "/usr/bin/ld: cannot find /usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a: No such file or directory",
+        "/usr/bin/ld: cannot find /usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_static-x86_64.a: No such file or directory",
+        "/usr/bin/ld: cannot find /usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a: No such file or directory",
+        "clang: error: linker command failed with exit code 1 (use -v to see invocation)",
+        "make[1]: *** [Makefile:128: build/asan-clang/odpar-music] Error 1",
+        "make[1]: *** Waiting for unfinished jobs....",
+        "clang: error: linker command failed with exit code 1 (use -v to see invocation)",
+        "make[1]: *** [Makefile:132: build/asan-clang/odm-tests] Error 1",
+        "make: *** [Makefile:342: asan-clang] Error 2"
+      ]
+    },
+    {
+      "lane": "tsan-gcc",
+      "returncode": 2,
+      "seconds": 8.87,
+      "status": "FAIL",
+      "tail": [
+        "DBG export FAIL st=12 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=2 frame_count=4 audio_pos=0 work_done=2 video_bytes=8192 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=1024 work_done=1028 video_bytes=16384 audio_bytes=8192",
+        "DBG export frame=0 state_contract st=12 sample=0 tick=0 comp_tick=1 dir_tick=1 center=480 schema=1/3",
+        "DBG export FAIL st=12 frame_index=0 frame_count=4 audio_pos=0 work_done=0 video_bytes=0 audio_bytes=0",
+        "DBG export FAIL st=11 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "DBG export FAIL st=6 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export frame=1 core_provider st=12 sample=1600",
+        "DBG export FAIL st=12 frame_index=1 frame_count=4 audio_pos=0 work_done=1 video_bytes=4096 audio_bytes=0",
+        "DBG export FAIL st=6 frame_index=4 frame_count=4 audio_pos=2048 work_done=2052 video_bytes=16384 audio_bytes=16384",
+        "DBG export FAIL st=13 frame_index=4 frame_count=4 audio_pos=6400 work_done=6404 video_bytes=16384 audio_bytes=51200",
+        "make: *** [Makefile:350: tsan-gcc] Error 1"
+      ]
+    },
+    {
+      "lane": "analyze-gcc",
+      "returncode": 0,
+      "seconds": 51.26,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_gcc_analyzer.py --root . --cc gcc \\",
+        "\t--generated build/generated",
+        "GCC analyzer: pass (64 production units)"
+      ]
+    },
+    {
+      "lane": "repro",
+      "returncode": 0,
+      "seconds": 12.04,
+      "status": "PASS",
+      "tail": [
+        "python3 tests/determinism/check_reproducible.py --root . --cc cc",
+        "reproducible build: pass (3/3 byte-identical; binary sha256:666d9dcfae2b91d201adc548ebed39a5c1736c4857d982391278cb3cbc45d7a9)"
+      ]
+    },
+    {
+      "lane": "determinism",
+      "returncode": 2,
+      "seconds": 7.53,
+      "status": "FAIL",
+      "tail": [
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_score_ir.c -o build/obj/tests/unit/test_score_ir.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_spine.c -o build/obj/tests/unit/test_spine.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_status.c -o build/obj/tests/unit/test_status.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_studio.c -o build/obj/tests/unit/test_studio.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_time.c -o build/obj/tests/unit/test_time.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_visual.c -o build/obj/tests/unit/test_visual.o",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c tests/unit/test_wire.c -o build/obj/tests/unit/test_wire.o",
+        "cc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. build/obj/tests/properties/test_properties.o build/obj/tests/test_main.o build/obj/tests/unit/test_compositor.o build/obj/tests/unit/test_delivery.o build/obj/tests/unit/test_executor.o build/obj/tests/unit/test_export_engine.o build/obj/tests/unit/test_export_run.o build/obj/tests/unit/test_ffi.o build/obj/tests/unit/test_fixed.o build/obj/tests/unit/test_hash.o build/obj/tests/unit/test_job.o build/obj/tests/unit/test_limits.o build/obj/tests/unit/test_master.o build/obj/tests/unit/test_media.o build/obj/tests/unit/test_memory.o build/obj/tests/unit/test_music_analysis.o build/obj/tests/unit/test_music_map_wire.o build/obj/tests/unit/test_music_reaction.o build/obj/tests/unit/test_package.o build/obj/tests/unit/test_preview.o build/obj/tests/unit/test_renderer.o build/obj/tests/unit/test_resample.o build/obj/tests/unit/test_rng.o build/obj/tests/unit/test_score_ir.o build/obj/tests/unit/test_spine.o build/obj/tests/unit/test_status.o build/obj/tests/unit/test_studio.o build/obj/tests/unit/test_time.o build/obj/tests/unit/test_visual.o build/obj/tests/unit/test_wire.o build/libodpar_music.a -pthread   -lpng16  -lssl -lcrypto  -o build/odm-tests",
+        "python3 tests/determinism/check_outputs.py --binary build/odpar-music \\",
+        "\t--tests build/odm-tests",
+        "deterministic outputs: fail: /home/user/ODPAR-Music-Motion/build/odm-tests returned 1; expected 0",
+        "make: *** [Makefile:154: determinism] Error 1"
+      ]
+    },
+    {
+      "lane": "guardians",
+      "returncode": 0,
+      "seconds": 0.58,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/guardian.py --root .",
+        "architectural guardians: pass (8 rules)",
+        "python3 tools/guardian.py --root . --negative-fixtures",
+        "guardian negative controls: pass (8/8)"
+      ]
+    },
+    {
+      "lane": "spine-check",
+      "returncode": 0,
+      "seconds": 0.37,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_spine.py --root . --binary build/odpar-music --library build/libodpar_music.a",
+        "Spine reconciliation: pass (64 modules, 240 edges, 141 invariants, 7 ownership records, 8 guardians, 128 capabilities, 96 scoped investigations)"
+      ]
+    },
+    {
+      "lane": "header-check",
+      "returncode": 0,
+      "seconds": 0.67,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_headers.py --root . --cc cc --generated build/generated",
+        "public header check: pass (29 standalone + aggregate)"
+      ]
+    },
+    {
+      "lane": "abi-check",
+      "returncode": 0,
+      "seconds": 0.36,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_abi.py --root . --cc cc \\",
+        "\t--library build/libodpar_music.a --golden tests/golden/abi_v1.json",
+        "ABI v1 golden reconciliation: pass (11 structs, 7 constants)"
+      ]
+    },
+    {
+      "lane": "hardening",
+      "returncode": 0,
+      "seconds": 0.22,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_hardening.py --root . --binary build/odpar-music",
+        "ELF hardening: pass (PIE, full RELRO/NOW, NX stack, canary, FORTIFY, no TEXTREL, no linker build-id)"
+      ]
+    },
+    {
+      "lane": "crypto-oracle",
+      "returncode": 0,
+      "seconds": 0.39,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_sha256_oracle.py --root . --cc cc \\",
+        "\t--library build/libodpar_music.a",
+        "SHA-256 independent oracle: pass (1024 vectors, 5245957 bytes, corpus sha256:7c5c47f9e59944fa850020b0abdda93ac22f911cfa6198aaa34eab571715eb89)"
+      ]
+    },
+    {
+      "lane": "sha-backend-oracle",
+      "returncode": 0,
+      "seconds": 2.0,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/check_sha256_backends.py --root . --cc cc",
+        "SHA BACKEND ORACLE: PASS (100 size/chunk cases; scalar == provider == hashlib)"
+      ]
+    },
+    {
+      "lane": "srgb-lut-check",
+      "returncode": 0,
+      "seconds": 0.13,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_layered_srgb_lut.py --check",
+        "layered sRGB LUT exact: 65536/65536"
+      ]
+    },
+    {
+      "lane": "media-oracle",
+      "returncode": 0,
+      "seconds": 0.55,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_media_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Media Truth independent oracle: pass (25004 duration vectors, 60 WAV vectors, 16 PNG vectors)"
+      ]
+    },
+    {
+      "lane": "resampler-oracle",
+      "returncode": 0,
+      "seconds": 28.3,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_resampler_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Resampler oracle: pass (720896 full coefficients across 3 rates)",
+        "  44100 Hz: taps=64 coeffs=65536 sha256=21e84b064573c930946e3edff82ad47cfafd4f26196b1859d017160c3cc10ebe",
+        "  96000 Hz: taps=128 coeffs=131072 sha256=6daaa5dbdb2c543c88f9b76449a1d9da714429f7ae3ec1c13b30d3af7e938427",
+        "  384000 Hz: taps=512 coeffs=524288 sha256=cdace5dffa0ada7fe9382dbe5fb888d21b9838f60e314fea8575ae5242d9b5af"
+      ]
+    },
+    {
+      "lane": "music-analysis-oracle",
+      "returncode": 0,
+      "seconds": 2.78,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_music_analysis_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Music analysis oracle: pass (2048 Hann coefficients, 1024 complex twiddles, 3 exact feature ticks, full analysis.bin)",
+        "Music policy SHA-256: cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec",
+        "analysis.bin SHA-256: 0a1fce8b9fa2a3b33e5307de04668f135f1cd59c11dbbfcba700d984903bf7fc"
+      ]
+    },
+    {
+      "lane": "music-reaction-oracle",
+      "returncode": 0,
+      "seconds": 0.79,
+      "status": "PASS",
+      "tail": [
+        "  policy v11: 576 canonical bytes, sha256=dd43420436880c6d33141bb5c6b17378124895ef91a8691a362d132b366ab0ea",
+        "  96 spectral lanes: frozen contiguous topology, DC excluded, 23.4 Hz..18 kHz",
+        "  locality: FFT bin 10 -> lane 9 only; lane 40 -> high-resolution radial 40 only",
+        "  robust refs: magnitude P99=1100000, positive-attack P95=100000 despite INT32_MAX outlier",
+        "  provenance: legacy radial 20 -> lanes 40/41; hires radial 40 -> lane 40 exactly",
+        "  event provenance: broadband + strongest two canonical families + score/threshold/raw/context fields reconstructed exactly",
+        "  strict causal isolation: project-time changed; phase/ring stayed zero, flags include HIRES|STRICT_CAUSAL|RADIAL_PROVENANCE|RADIAL_TIMESCALE, radial amplitude byte-identical",
+        "  frequency-aware release: SUB=1968526677, AIR=1610612736, broadband=1879048192",
+        "  attack headroom: P95 reference -> 1576607346/2147483647; absolute Q1.31 max -> 2147483647/2147483647",
+        "  causal projection: 20/20 source ticks consumed exactly once at 800-sample presentation cadence; seek replays no historical impulse",
+        "  offline onset refinement: candidate-median gate preserves local maxima at ticks 7 and 25; no beat/BPM claim",
+        "  contextual salience: full-track macro lane is separate from raw causal event evidence and carries explicit stream flags"
+      ]
+    },
+    {
+      "lane": "contextual-salience-oracle",
+      "returncode": 0,
+      "seconds": 0.31,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_contextual_salience_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "CONTEXTUAL SALIENCE ORACLE: PASS",
+        "  published events=11, salience distinct=10, range=214748365..2147483647 Q1.31",
+        "  exact reconstruction: local peaks -> candidate median gate -> refractory publication -> P10..P90/P99 knots -> piecewise salience",
+        "  negative control: suppressed 0.90 vs 1.00 outlier has zero event fields and cannot recalibrate published salience"
+      ]
+    },
+    {
+      "lane": "multi-axis-visual-oracle",
+      "returncode": 2,
+      "seconds": 0.3,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_multi_axis_visual_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "base: mismatch [(15, 126497626, 381917217)] got=[2, 60, 1030792151, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1503238553, 278547057, 0, 126497626, 0] expected=[2, 60, 1030792151, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1503238553, 278547057, 0, 381917217, 0]",
+        "make: *** [Makefile:187: multi-axis-visual-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "radial-provenance-oracle",
+      "returncode": 2,
+      "seconds": 0.28,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_radial_provenance_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "96: composition morphology mismatch c40=(574113142, 495000000, 293746895, 0)/(648984606, 495000000, 300000000, 100000000) c41=(2019818414, 87088784, 600000000, 2000000000)/(2022787067, 135000000, 600000000, 2000000000)",
+        "make: *** [Makefile:190: radial-provenance-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "radial-timescale-geometry-oracle",
+      "returncode": 2,
+      "seconds": 0.67,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_radial_timescale_geometry_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "timescale radial raster mismatch byte=16192 pixel=(40,31) got=740ecd1f2c58ba5e exp=fa1e2544f3bcffca",
+        "make: *** [Makefile:193: radial-timescale-geometry-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "multiscale-radial-raster-oracle",
+      "returncode": 2,
+      "seconds": 0.31,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_multiscale_radial_raster_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "multiscale radial raster mismatch byte=15976 pixel=(13,31) got=941823079103fb19 exp=3023370a1c053225",
+        "make: *** [Makefile:196: multiscale-radial-raster-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "causal-trace-oracle",
+      "returncode": 2,
+      "seconds": 0.34,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_causal_trace_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "native compositor trace mismatch got=[40, 96, 40, 40, 40, 13, 574113142, 495000000, 293746895, 0] exp=[40, 96, 40, 40, 40, 13, 648984606, 495000000, 300000000, 100000000]",
+        "make: *** [Makefile:199: causal-trace-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "reaction-projection-oracle",
+      "returncode": 0,
+      "seconds": 0.28,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_reaction_projection_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "REACTION PRESENTATION PROJECTION ORACLE: PASS",
+        "  24/25/30/50/60/100/120 fps: every 100 Hz source tick captured exactly once",
+        "  instantaneous lane/family/broadband attacks: interval-max preserved",
+        "  event flags/strength + contextual macro salience: interval-captured; raw/macro pulses: held from causal source tick",
+        "  mixed evidence-only/contextual stream: rejected before projection",
+        "  invalid non-monotonic schedule: transactional output preserved"
+      ]
+    },
+    {
+      "lane": "strict-causal-oracle",
+      "returncode": 0,
+      "seconds": 0.3,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_strict_causal_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "STRICT CAUSAL ORACLE: PASS",
+        "  strict: identical Background+Field pixels across seed, sample/tick, composition phase/ring, Director orbit/asymmetry perturbations",
+        "  orthogonality: STRICT_CAUSAL verified independently of RADIAL_HIRES",
+        "  negative control: non-strict Background and Field remain sensitive to procedural authorities",
+        "  strict_background sha256=1b9c9b25d3beb6cc0a2ba1d68975288fd88280d19a8cb918dc2f9b57ff9563f0",
+        "  strict_field sha256=4acdf02b5766eec139db49d956af5459df0858fecd3d206cd2775f81c62c889f",
+        "  control_background sha256=3786ecdc966e7131a1c79a955d07f389fb615c87d5f4ac2c6651f31f51b5c4ca",
+        "  control_field sha256=e48778affd09ffc6ec94e678323c1f37e2419146aa793c42c1050952d25eb832"
+      ]
+    },
+    {
+      "lane": "strict-causal-field-oracle",
+      "returncode": 0,
+      "seconds": 0.31,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_strict_causal_field_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "STRICT CAUSAL FIELD ORACLE: PASS",
+        "  96 particles / 96 radial sectors reconstructed pixel-exact",
+        "  sample, tick, ring phase and config seed perturbations: byte-identical under held music",
+        "  changing radial lane 40 changes particle geometry/opacity deterministically",
+        "  baseline sha256=a1e79d09a62b10a9d9bed23ea557e256b0b2544fb1366a975d5ca0d839939042",
+        "  changed  sha256=40d9d4e1bd1106b9c2b0ab60dec90fcff22330d3dc1e4a93ad06fbbfb5d21c3e"
+      ]
+    },
+    {
+      "lane": "render-ir-oracle",
+      "returncode": 0,
+      "seconds": 0.28,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_render_ir_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Render IR oracle: pass (2032 bytes exact)",
+        "Score SHA-256: 84b7439726ea121a5aeb2a7de34db9ccfde15cdb27f10a56e22f86e7d48c4207",
+        "Capability SHA-256: 26987f408c4c5bdbaa589741de7f1e697f479b8f6efa1251a3a62ca9c6bfe4a6",
+        "Music policy SHA-256: cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec",
+        "Render IR SHA-256: a51e4a883722a5dc71f50e3545064fcfe7a6160fe3abad78bb2328886eb64cd8"
+      ]
+    },
+    {
+      "lane": "frame-state-oracle",
+      "returncode": 0,
+      "seconds": 0.36,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_frame_state_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Frame State oracle: pass (30 frames, 83 node states, 1 transfer events)"
+      ]
+    },
+    {
+      "lane": "odparms-oracle",
+      "returncode": 2,
+      "seconds": 1.86,
+      "status": "FAIL",
+      "tail": [
+        "Traceback (most recent call last):",
+        "  File \"/home/user/ODPAR-Music-Motion/tools/check_odparms_oracle.py\", line 142, in <module>",
+        "    if __name__=='__main__': main()",
+        "                             ^^^^^^",
+        "  File \"/home/user/ODPAR-Music-Motion/tools/check_odparms_oracle.py\", line 117, in main",
+        "    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey",
+        "  File \"/usr/lib/python3/dist-packages/cryptography/hazmat/primitives/asymmetric/ed25519.py\", line 9, in <module>",
+        "    from cryptography.exceptions import UnsupportedAlgorithm, _Reasons",
+        "  File \"/usr/lib/python3/dist-packages/cryptography/exceptions.py\", line 9, in <module>",
+        "    from cryptography.hazmat.bindings._rust import exceptions as rust_exceptions",
+        "pyo3_runtime.PanicException: Python API call failed",
+        "make: *** [Makefile:214: odparms-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "renderer-oracle",
+      "returncode": 0,
+      "seconds": 0.51,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_renderer_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Renderer oracle: pass (256 color vectors, 5 transform samples, 6 frames, 384 pixels / 1536 channels exact)",
+        "Asset set SHA-256: 378767a6d5c52a1935e07fafd7c0f4a3b52b910299831674bc2ea0f24d703222",
+        "Frame 0 SHA-256: 8560f74f9ad473506163102ca5b00c96b95f1c8854dbb437cd20468c473faf32",
+        "Frame 1 SHA-256: fb6e3743e3151580abdeceb77bfbf65606553e11034bafb5b3a29d17eab27f58",
+        "Frame 2 SHA-256: 0f26bc78b12306cb07ea5967c5f984760cf12b63343b0a6458e1e50a3d092785",
+        "Frame 3 SHA-256: 301c3427d0ac2954e7618d6b415bcee81d60832979868fb70747e69f53142db8",
+        "Frame 4 SHA-256: c0ca43f61d351e6d33b7cae801bf80899f4ed71dc719775a95199fd73f69760e",
+        "Frame 5 SHA-256: 5913b891a3e8172088484d72a9d03174ca97c5428399e0dab48bab055ed0c39f",
+        "Frame root SHA-256: fbb830c1a41773ff2f7d8f8e6723445757b16d86a08fcf5d8f8eb7fed5e269ea"
+      ]
+    },
+    {
+      "lane": "renderer-property-oracle",
+      "returncode": 0,
+      "seconds": 2.32,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_renderer_property_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Renderer property oracle: pass (64 transforms, 4096 pixels / 16384 channels exact)"
+      ]
+    },
+    {
+      "lane": "visual-oracle",
+      "returncode": 0,
+      "seconds": 0.4,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_visual_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Visual oracle: pass (37 event records, 2 frames, 2048 pixels / 8192 channels exact)",
+        "Frame 20 SHA-256: 40d698d4e7256310c2f4e82d2d7f6e65dad93fca0edca68868b74c3884c2df4e",
+        "Frame 21 SHA-256: c45b09ae8db2c658243320cf491c878a5c681ed016a2ee8946b6d32a302cbc65"
+      ]
+    },
+    {
+      "lane": "composition-oracle",
+      "returncode": 0,
+      "seconds": 0.57,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "cc -shared -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. build/obj/src/core/status.o build/obj/src/core/version.o build/obj/src/core/hash.o build/obj/src/core/time.o build/obj/src/core/fixed.o build/obj/src/core/rng.o build/obj/src/core/wire.o build/obj/src/core/limits.o build/obj/src/core/memory_budget.o build/obj/src/core/arena.o build/obj/src/core/ownership.o build/obj/src/core/progress.o build/obj/src/core/job.o build/obj/src/core/executor.o build/obj/src/media/media_limits.o build/obj/src/media/media_facts.o build/obj/src/media/pcm.o build/obj/src/media/wav.o build/obj/src/media/png_crc.o build/obj/src/media/png.o build/obj/src/media/media_probe.o build/obj/src/media/media_dispatch.o build/obj/src/music_map/resample.o build/obj/src/music_map/analysis.o build/obj/src/music_map/analysis_wire.o build/obj/src/music_inference/reaction_spine.o build/obj/src/score/score.o build/obj/src/score/compiler.o build/obj/src/ir/ir.o build/obj/src/ir/frame_state.o build/obj/src/package/deflate.o build/obj/src/package/sign.o build/obj/src/package/odparms.o build/obj/src/renderer/color.o build/obj/src/renderer/sampler.o build/obj/src/renderer/reference.o build/obj/src/renderer/frame_root.o build/obj/src/visual/event_history.o build/obj/src/visual/procedural.o build/obj/src/preview/preview.o build/obj/src/preview/ffi_preview.o build/obj/src/master/master.o build/obj/src/master/receipt.o build/obj/src/master/controller_sign.o build/obj/src/studio/revision.o build/obj/src/studio/approval.o build/obj/src/studio/workflow.o build/obj/src/delivery/contract.o build/obj/src/export/export.o build/obj/src/compositor/math.o build/obj/src/compositor/reaction.o build/obj/src/compositor/style.o build/obj/src/compositor/layout.o build/obj/src/compositor/background.o build/obj/src/compositor/core.o build/obj/src/compositor/field.o build/obj/src/compositor/hud.o build/obj/src/compositor/render.o build/obj/src/spine/spine_registry.o build/obj/src/spine/spine.o build/obj/src/spine/spine_impact.o build/obj/src/core/ffi.o -pthread   -lpng16  -lssl -lcrypto  \\",
+        "\t-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--build-id=none -o build/libodpar_music.so",
+        "python3 tools/check_composition_oracle.py --shared build/libodpar_music.so",
+        "{\"compared_values\": 82080, \"fields_per_tick\": 80, \"glitch_gates_profiled\": 4, \"glitch_gates_raw\": 4, \"profile_refs\": {\"bands\": [555924648, 556778017, 555654924, 556661476, 552639448, 553950952], \"env_medium\": 855123353, \"env_short\": 1133054033, \"flux\": 700000000, \"positive_delta\": 650000000}, \"profiled_stream_sha256\": \"140f08fdd617c5f0958e95c947a39b7fe53984afbc091d5f41b501f54fd9297c\", \"raw_stream_sha256\": \"0c9f873d6564c58a3fe872b37442f1097ed6c812e575cc6c0df835550f8bb37f\", \"sizeof_frame\": 1704, \"sizeof_profile\": 112, \"sizeof_state\": 72, \"sizeof_tick\": 128, \"status\": \"pass\", \"ticks\": 513}"
+      ]
+    },
+    {
+      "lane": "director-oracle",
+      "returncode": 0,
+      "seconds": 0.87,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_director_oracle.py --shared build/libodpar_music.so",
+        "{\"compared_fields_per_tick\": 40, \"compared_values\": 336000, \"impact_ticks\": 1, \"layout_shifts\": 7, \"layouts_seen\": [0, 1, 2, 3, 4, 5, 6], \"recoveries\": 1, \"sizeof_composition_frame\": 1704, \"sizeof_director_frame\": 128, \"sizeof_director_state\": 88, \"status\": \"pass\", \"stream_sha256\": \"bb685d12507f68cbc365561874ea48885a2a0d458cbe37a5147c138f311cc60b\", \"strict_causal_ticks\": 5000, \"strict_seed_phase_invariance\": \"pass\", \"strict_stagnation_alternates\": 0, \"strict_stream_sha256\": \"2774beb7c519ca359f3650c3255b89430bdcaffcd9d8eb48934cebb94fea5279\", \"ticks\": 8400, \"transactional_negative\": \"pass\"}"
+      ]
+    },
+    {
+      "lane": "visual-policy-oracle",
+      "returncode": 0,
+      "seconds": 0.19,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_visual_policy_oracle.py --library build/libodpar_music.so",
+        "VISUAL POLICY ORACLE: PASS",
+        "  canonical bytes: 1024",
+        "  encoded semantic bytes: 937 (remaining canonical zero)",
+        "  independent reconstruction: byte-exact",
+        "  sha256: 07088616242b45547b46278de634f9284e524858c15c86b74c2e9ebf373c0387"
+      ]
+    },
+    {
+      "lane": "layered-oracle",
+      "returncode": 0,
+      "seconds": 0.27,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_layered_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "LAYERED ORACLE: PASS",
+        "  config: 1024 bytes, sha256=9acf6f61dd3203e4ac17e5247fa6d435e042f747130ffb5e0df863e5ae9297c2",
+        "  policy: 1536 bytes, sha256=8ec7d27b7b4fe45f96e74656c492e658f8d74fdf9818e217a878fd1464b7ccb7",
+        "  frame plan: independent fixed-point reconstruction exact",
+        "  progress: arbitrary-precision oracle exact through INT64_MAX",
+        "  export timeline: 31 frames / 49,600 samples exact"
+      ]
+    },
+    {
+      "lane": "style-oracle",
+      "returncode": 0,
+      "seconds": 0.29,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_style_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "STYLE ORACLE: PASS",
+        "  preset 1: 512 bytes sha256=3fc28a3181cf8c66596c1ea9ec8e53c2b9c3e44cf514604082def2c584bc04e0",
+        "  preset 2: 512 bytes sha256=fca1451f376bc62d191f537b2f5fcfe9fe2a7d0603cc88b37127ffbe27d5a0d9",
+        "  preset 3: 512 bytes sha256=1723a20e767f9aa38833119084289f7da9d4b878f7824c35f8befefe5724e445",
+        "  preset 4: 512 bytes sha256=24c6dbff55f815220aa575fceaf567eed3cb2814e42773e1f7171f1bc54028af",
+        "  VOID_CINEMATIC -> 1080x1080 config sha256=b0769ff88370277c3c533dcb2838e81af2d1af41c37a1fbe3a1953647bb71bc9",
+        "  style application: independent Python materialization byte-exact"
+      ]
+    },
+    {
+      "lane": "reaction-oracle",
+      "returncode": 0,
+      "seconds": 0.27,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_reaction_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "REACTION MATRIX ORACLE: PASS",
+        "  A_ONLY sources checked: 26",
+        "  binary combinations checked: 3125",
+        "  operators: MAX/MIN/AVERAGE/MUL/ABS_DIFF",
+        "  hostile routes + selected non-Q1.31 signals: fail-closed and output-transactional",
+        "  stream sha256=57aac475129318abafdc2a5c362bb5a4acc2f9044cd878fc18bd1740fc3c004e"
+      ]
+    },
+    {
+      "lane": "layer-output-oracle",
+      "returncode": 0,
+      "seconds": 0.28,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_layer_output_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "LAYER OUTPUT ORACLE: PASS",
+        "  canvas: 32x32; layers=4; pixels/layer=1024; channels checked=16384",
+        "  BACKGROUND sha256=413d9b9fc9f7c9598b736cf704ac1232a2f12a125df77f81493ab13f2ae3c88b",
+        "  CORE sha256=548188489b8597bec3f9481ec260aed3a511e8a802aad8344e1b0039f8baf6bb",
+        "  FIELD sha256=b7167c10f1535828643e9228794569788463e808975455fcda68b457d7a126b1",
+        "  HUD sha256=6a7fc42efe20dc7577276caf8c3e30b504350578171caf1ff7cfe9e7ee38932b",
+        "  semantics: each public layer independently reconstructed over transparent black",
+        "  CANONICAL STACK sha256=df4d6432a1f6bf6b5f576f78f42bb167e288ccc4eec29586b6380f5cbd00a0a0 (direct authority-order reconstruction)",
+        "  nonclaim: flattened integer-alpha layer recomposition is not assumed associative"
+      ]
+    },
+    {
+      "lane": "layered-raster-oracle",
+      "returncode": 0,
+      "seconds": 0.29,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_layered_raster_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "LAYERED RASTER ORACLE: PASS",
+        "  canvas: 32x32, pixels=1024, channels=4096",
+        "  layers: solid background + circular feathered core + exact orbit ring + progress HUD",
+        "  note: frame-plan scalars are independently verified by check_layered_oracle.py"
+      ]
+    },
+    {
+      "lane": "radial-geometry-oracle",
+      "returncode": 0,
+      "seconds": 0.27,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_radial_geometry_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "RADIAL GEOMETRY ORACLE: PASS",
+        "  segments: 48, pixels=4096, channels=16384",
+        "  independently reconstructed: CORDIC + endpoints + Q24.8 projection + coverage + premul blend",
+        "  stream sha256=92792e68c3e4f9f8b2cdc317cf56dd1491a3b6612d7308626a7aa3c82a97d88c"
+      ]
+    },
+    {
+      "lane": "radial-hires-geometry-oracle",
+      "returncode": 0,
+      "seconds": 0.28,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_radial_hires_geometry_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "RADIAL HIRES GEOMETRY ORACLE: PASS",
+        "  segments: 96, pixels=4096, channels=16384",
+        "  independently reconstructed: CORDIC + endpoints + Q24.8 projection + coverage + premul blend",
+        "  stream sha256=3f96c6abafe991a4fc2c227c5147c8da86b957ff4f78cfafc98b3981b11bca6a"
+      ]
+    },
+    {
+      "lane": "particle-geometry-oracle",
+      "returncode": 0,
+      "seconds": 0.28,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_particle_geometry_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "PARTICLE GEOMETRY ORACLE: PASS",
+        "  vectors: 7 samples, including INT64_MAX-4096",
+        "  pixels: 28672, channels: 114688",
+        "  independently reconstructed: seed/mix64 + sample phase + CORDIC + disk feather + premul blend",
+        "  stream sha256=e654a036eec47873ffe51883947a5df142e6bee5a6ef4eb3e9418d9793f8d65a"
+      ]
+    },
+    {
+      "lane": "perspective-grid-oracle",
+      "returncode": 0,
+      "seconds": 0.26,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_perspective_grid_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "PERSPECTIVE GRID ORACLE: PASS",
+        "  reactive raster: 1536 pixels / 12288 bytes sha256=57e43f5f88770e772aa32327816a7129085b1b208d659fd0afc1a57f5cc7e7da",
+        "  symmetric raster: 1536 pixels / 12288 bytes sha256=a12e462765e9c7a439c02556a52c709a00449145b8d00ba6db91c3235748a977",
+        "  independent fixed-point projection + horizon suppression + RGBA16 reconstruction exact"
+      ]
+    },
+    {
+      "lane": "hud-geometry-oracle",
+      "returncode": 0,
+      "seconds": 0.28,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_hud_geometry_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "HUD GEOMETRY ORACLE: PASS",
+        "  raster: 32x32 / 8192 bytes / sha256=45f0c651750abcfa5c86ea6ab79dde020275cd6d798dabe45d539ebad590a47d",
+        "  capsule track/fill: independent integer-SDF + 1px-AA reconstruction exact"
+      ]
+    },
+    {
+      "lane": "export-engine-oracle",
+      "returncode": 0,
+      "seconds": 0.3,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_export_engine_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "EXPORT ENGINE ORACLE: PASS",
+        "  export policy: 1024 bytes sha256=1aecce212f79de534423d4f193b3a464e9f90dc3817b13299040593884156740",
+        "  profile: 256 bytes sha256=56776e2f1bf16165b9d9d4116d61f52b0b7108d9c57b8f4c0ad143ebb57a8c1e",
+        "  recipe: 512 bytes sha256=0a7311505bde6234cb003b7fa5aab61f289ba0910088ebcab755fefe63c95334",
+        "  recipe identity: 9038c45bb3eccd6afa236aa8abcb9629dbeeb64e5a575f17ca63aa902e45b96f",
+        "  frame 30 -> sample 48,000 exact",
+        "  S32LE tail: 2 source frames + 3 exact silent frames",
+        "  ffmpeg argv: 59 shell-free tokens / 457 bytes / no -shortest / explicit stream maps"
+      ]
+    },
+    {
+      "lane": "export-run-smoke",
+      "returncode": 2,
+      "seconds": 0.18,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_export_run_smoke.py --root . --cc cc --library build/libodpar_music.a",
+        "BLOCKED: ffmpeg/ffprobe missing",
+        "make: *** [Makefile:277: export-run-smoke] Error 1"
+      ]
+    },
+    {
+      "lane": "export-ffmpeg-smoke",
+      "returncode": 0,
+      "seconds": 0.18,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_export_ffmpeg_smoke.py --root . --cc cc --library build/libodpar_music.a",
+        "EXPORT FFMPEG SMOKE: BLOCKED_MISSING_FFMPEG"
+      ]
+    },
+    {
+      "lane": "preview-oracle",
+      "returncode": 0,
+      "seconds": 0.63,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_preview_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Preview oracle: pass (8 frame/class vectors, 680 RGBA8 bytes exact)",
+        "Canonical frame 0 SHA-256: 24f06e28e1b8fe3b144360406b47d9afc259bc9da45103407f2225d8f68ec672",
+        "Canonical frame 4 SHA-256: 83537dc20d5dc40bbbd13aad9dd13c302cd0d8fd53a8a96be26a2b4a2fd3c1e5"
+      ]
+    },
+    {
+      "lane": "preview-ffi",
+      "returncode": 0,
+      "seconds": 0.3,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_preview_ffi.py --root . --cc cc \\",
+        "\t--golden tests/golden/preview_ffi_v1.json --shared build/libodpar_music.so",
+        "Preview FFI oracle: pass (8 structs, shared ABI loaded, base ABI preserved, caller-owned lifecycle)",
+        "Preview job storage: 56 bytes align 8; feature_bits=63"
+      ]
+    },
+    {
+      "lane": "flutter-preview-binding",
+      "returncode": 0,
+      "seconds": 0.13,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/check_flutter_preview_ffi.py --root . \\",
+        "\t--golden tests/golden/preview_ffi_v1.json --binding flutter/odpar_music_ffi.dart",
+        "Flutter FFI binding: static parity pass; runtime/analyzer BLOCKED_MISSING_DART_TOOLCHAIN",
+        "Flutter runtime lane: BLOCKED_MISSING_FLUTTER_TOOLCHAIN"
+      ]
+    },
+    {
+      "lane": "master-oracle",
+      "returncode": 2,
+      "seconds": 0.8,
+      "status": "FAIL",
+      "tail": [
+        "Traceback (most recent call last):",
+        "  File \"/home/user/ODPAR-Music-Motion/tools/check_master_oracle.py\", line 126, in <module>",
+        "    if __name__=='__main__':main()",
+        "                            ^^^^^^",
+        "  File \"/home/user/ODPAR-Music-Motion/tools/check_master_oracle.py\", line 116, in main",
+        "    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey",
+        "  File \"/usr/lib/python3/dist-packages/cryptography/hazmat/primitives/asymmetric/ed25519.py\", line 9, in <module>",
+        "    from cryptography.exceptions import UnsupportedAlgorithm, _Reasons",
+        "  File \"/usr/lib/python3/dist-packages/cryptography/exceptions.py\", line 9, in <module>",
+        "    from cryptography.hazmat.bindings._rust import exceptions as rust_exceptions",
+        "pyo3_runtime.PanicException: Python API call failed",
+        "make: *** [Makefile:291: master-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "studio-oracle",
+      "returncode": 2,
+      "seconds": 0.58,
+      "status": "FAIL",
+      "tail": [
+        "    main()",
+        "  File \"/home/user/ODPAR-Music-Motion/tools/check_studio_oracle.py\", line 445, in main",
+        "    pa=open_package(td/'package_a.odparms'); pb=open_package(td/'package_b.odparms'); pr=open_package(td/'package_resigned.odparms')",
+        "       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "  File \"/home/user/ODPAR-Music-Motion/tools/check_studio_oracle.py\", line 336, in open_package",
+        "    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey",
+        "  File \"/usr/lib/python3/dist-packages/cryptography/hazmat/primitives/asymmetric/ed25519.py\", line 9, in <module>",
+        "    from cryptography.exceptions import UnsupportedAlgorithm, _Reasons",
+        "  File \"/usr/lib/python3/dist-packages/cryptography/exceptions.py\", line 9, in <module>",
+        "    from cryptography.hazmat.bindings._rust import exceptions as rust_exceptions",
+        "pyo3_runtime.PanicException: Python API call failed",
+        "make: *** [Makefile:294: studio-oracle] Error 1"
+      ]
+    },
+    {
+      "lane": "delivery-oracle",
+      "returncode": 0,
+      "seconds": 0.25,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "python3 tools/check_delivery_oracle.py --root . --cc cc --library build/libodpar_music.a",
+        "Delivery oracle: pass (receipt + 384-byte contract + 256-byte artifact)",
+        "video_descriptor_sha256=82e179147c0b218f43b0e6cd6771199cccc0e697632923f29aad3fe09875e780",
+        "audio_descriptor_sha256=6110db50e3c583f3de7f719f4733436950e0941302443be4feb4fe5944e577c4",
+        "settings_sha256=0d91a362aced9612d34dc42c40fb5f1c71035dc53e969ca101622c15f01e4f3b",
+        "delivery_contract_id=e4c7265f31772ec19eaade5caa90c8b931639edd2df41e88c08212b2cdb4339b",
+        "contract_record_sha256=8a2c4c63a80ba1756d61c12eb12866dbb44c4b5f07b4077ed13d725ef7d14322",
+        "artifact_id=911d4b09c01287c97659c8a38c03685e126c5e44d9a875267f30e85f2b26fabb",
+        "artifact_record_sha256=3b816ce77816e2dcc9c6afdc62d0e61e0c1a105fe01fa223fa8fe22a17388fdb"
+      ]
+    },
+    {
+      "lane": "commercial-claims-check",
+      "returncode": 2,
+      "seconds": 0.07,
+      "status": "FAIL",
+      "tail": [
+        "python3 tools/check_commercial_claims.py --root .",
+        "missing sealed evidence: /home/user/ODPAR-Music-Motion/evidence/gate2_evidence.json",
+        "make: *** [Makefile:300: commercial-claims-check] Error 1"
+      ]
+    },
+    {
+      "lane": "ffmpeg-delivery-smoke",
+      "returncode": 2,
+      "seconds": 0.07,
+      "status": "BLOCKED",
+      "tail": [
+        "python3 tools/check_ffmpeg_delivery.py",
+        "FFmpeg delivery smoke: BLOCKED_MISSING_FFMPEG",
+        "make: *** [Makefile:303: ffmpeg-delivery-smoke] Error 2"
+      ]
+    },
+    {
+      "lane": "benchmark-core",
+      "returncode": 0,
+      "seconds": 2.51,
+      "status": "PASS",
+      "tail": [
+        "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+        "cc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. -c bench/benchmark_core.c -o build/obj/bench/benchmark_core.o",
+        "cc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=/home/user/ODPAR-Music-Motion=. build/obj/bench/benchmark_core.o build/libodpar_music.a -pthread   -lpng16  -lssl -lcrypto  -o build/odm-core-benchmark",
+        "build/odm-core-benchmark",
+        "{\"schema\":\"odm_core_benchmark_v1\",\"measurement_only\":false,\"thresholds\":{\"sha256_bytes_per_second\":100000000,\"wire_payload_bytes_per_second\":50000000,\"executor_tasks_per_second\":100000},\"sha256\":{\"bytes\":268435456,\"nanoseconds\":1361042172,\"bytes_per_second\":197227875},\"wire_record\":{\"payload_bytes\":67108864,\"nanoseconds\":718658542,\"payload_bytes_per_second\":93380736},\"executor\":{\"workers\":4,\"tasks\":100000,\"nanoseconds\":88710084,\"tasks_per_second\":1127267,\"allocation_bytes\":246080},\"sink\":89,\"status\":\"pass\"}"
+      ]
+    }
+  ],
+  "summary": {
+    "BLOCKED": 1,
+    "FAIL": 16,
+    "PASS": 45
+  }
+}
