@@ -267,9 +267,10 @@ static int build_config(odm_layered_config *out_config, uint32_t width, uint32_t
         /* Fraccion del lado menor -> Q16.16 en pixeles. */
         #define PX(num, den) ((uint32_t)(((uint64_t)dim * (uint64_t)(num) << 16) / (uint64_t)(den)))
 
-        /* FONDO: la rejilla se insinua, no se exhibe. Muy tenue y espaciada,
-         * para dar profundidad al vacio en vez de dibujar un suelo. */
-        styled.background.style = ODM_BACKGROUND_PERSPECTIVE_GRID;
+        /* FONDO: campo de profundidad. Un halo espacial muy tenue detras del
+         * nucleo, difuminado para que no aparezcan bandas. No dibuja nada
+         * reconocible: solo evita que el vacio sea plano. */
+        styled.background.style = ODM_BACKGROUND_DEPTH_FIELD;
         styled.background.grid_spacing_q16 = PX(1u, 5u);   /* celdas muy amplias */
         styled.background.grid_line_q16 = PX(1u, 900u);    /* hairline real */
         styled.background.grid_feather_q16 = PX(1u, 540u);
@@ -280,7 +281,7 @@ static int build_config(odm_layered_config *out_config, uint32_t width, uint32_t
          * que el nucleo esta suspendido; en cuanto se lee como una malla, deja
          * de ser profundidad y pasa a ser un suelo de plantilla que compite con
          * el protagonista. */
-        styled.background.grid_color.a = UINT16_C(2600);
+        styled.background.grid_color.a = UINT16_C(7200);
         styled.background.zoom_reactivity_q31 = q31_ratio(1u, 14u);
         styled.background.warp_reactivity_q31 = q31_ratio(1u, 20u);
         styled.background.depth_reactivity_q31 = q31_ratio(1u, 12u);

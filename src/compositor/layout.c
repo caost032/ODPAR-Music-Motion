@@ -234,7 +234,7 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
     if (pixels > ODM_LAYERED_MAX_PIXELS) return ODM_STATUS_BUDGET_EXCEEDED;
 
     if (c->background.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
-        c->background.style > ODM_BACKGROUND_PERSPECTIVE_GRID ||
+        c->background.style > ODM_BACKGROUND_DEPTH_FIELD ||
         !rgba_valid(&c->background.solid_color) || !rgba_valid(&c->background.grid_color) ||
         !q31u(c->background.zoom_reactivity_q31) ||
         !q31u(c->background.warp_reactivity_q31) ||
@@ -765,7 +765,14 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, 1u)); /* progress sample/duration exact */
     LP(odm_wire_write_u32(&w, 1u)); /* safe-area geometry is canvas-authoritative */
     LP(odm_wire_write_u32(&w, 1u)); /* field contour follows exact core SDF */
-    LP(odm_wire_write_u32(&w, 4u)); /* background styles incl perspective grid */
+    /* v12: se anade el campo de profundidad con difuminado ordenado. Un
+     * degradado oscuro sin difuminar produce bandas visibles a 8 bits, asi que
+     * el difuminado forma parte del contrato, no es un detalle de
+     * implementacion. */
+    LP(odm_wire_write_u32(&w, 5u)); /* estilos de fondo, incl. campo de profundidad */
+    LP(odm_wire_write_u32(&w, 1u)); /* difuminado ordenado Bayer 8x8, determinista */
+    LP(odm_wire_write_u32(&w, 64u)); /* celdas de la matriz de difuminado */
+    LP(odm_wire_write_u32(&w, 2u)); /* perfil de profundidad: (1-(d/r)^2)^2 */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective grid uses bounded row-projective integer mapping */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective horizon suppresses sub-two-pixel projected cells */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective world uses Q17 half-pixel-exact mirror geometry */

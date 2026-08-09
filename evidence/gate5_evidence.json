@@ -94,7 +94,7 @@
   },
   "schema": "odm_gate5_evidence_v1",
   "scope": "signed/versioned .odparms v1, canonical ZIP32, Ed25519, deterministic DEFLATE",
-  "source_id": "sha256:8ca258583a69115a3f8e786b133139b2e973ca0f30b24379eb9ad927a97b1eee",
+  "source_id": "sha256:351f8b3c6d668eb02f0c01d64220a576bbe604809262644d2686f115ca3e8fb2",
   "spine": {
     "capabilities": 128,
     "compiler": "gcc-13.3.0",
@@ -114,8 +114,8 @@
     "schema": "odm_spine_summary_v1",
     "security_investigations": 96,
     "source_files": 68,
-    "source_id": "sha256:8ca258583a69115a3f8e786b133139b2e973ca0f30b24379eb9ad927a97b1eee",
-    "source_lines": 23561,
+    "source_id": "sha256:351f8b3c6d668eb02f0c01d64220a576bbe604809262644d2686f115ca3e8fb2",
+    "source_lines": 23748,
     "state_models": 11,
     "version": "0.33.0-radial-morphology-v2-visual-dynamics-v1-wip-local"
   },
@@ -148,14 +148,14 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "ab497e60e66f8db3424b7866850e21803d4a82b3dcf96ee68fa93f74beab67ec",
+      "stdout_sha256": "e7cf8e79ebfd636d7550f6da3c9b0b14dccb5e68a2a84ae2fc86377ebd269377",
       "stdout_tail": [
-        "settings_sha256=0d91a362aced9612d34dc42c40fb5f1c71035dc53e969ca101622c15f01e4f3b",
-        "delivery_contract_id=e4c7265f31772ec19eaade5caa90c8b931639edd2df41e88c08212b2cdb4339b",
-        "contract_record_sha256=8a2c4c63a80ba1756d61c12eb12866dbb44c4b5f07b4077ed13d725ef7d14322",
-        "artifact_id=911d4b09c01287c97659c8a38c03685e126c5e44d9a875267f30e85f2b26fabb",
-        "artifact_record_sha256=3b816ce77816e2dcc9c6afdc62d0e61e0c1a105fe01fa223fa8fe22a17388fdb",
-        "ABI v1 golden reconciliation: pass (11 structs, 7 constants)",
+        "Render ID SHA-256: f799d28cee291669d15b398a7aa14e4cc78668b3762281c2c9966e0cbc3b4bd0",
+        "Frame root SHA-256: 4d9377ed81677bc316c33cc454954031eb26eb9b89a66c5906e3d4297081a5ae",
+        "Soundtrack SHA-256: dd7cf98889b205b9b65a9e06414a8c2313e8b02a58fe0a056f5df22bb4d38276",
+        "Receipt SHA-256: 2d1a791e90f906380d62fc28074d5fa4727befbfa69145a01ef4ba8deb631307",
+        "Controller public key: 79b5562e8fe654f94078b112e8a98ba7901f853ae695bed7e0e3910bad049664",
+        "frames=2 audio=3200 quote=3232 output=26432 scratch=3296\\n",
         "Studio oracle: pass (3 signed packages, 2 revisions, 1 approval, 16 preview bytes)",
         "Package content A SHA-256: 73ad246a85b5548efea28e558a8273fc6105eb9f0e51f3b75f6048a41a41e024",
         "Package content B SHA-256: d5485e3c5838b3f0bc36fcd17ad8f23ce7fc67b9fe7b720d556ee9aee5e4fa81",
@@ -187,13 +187,14 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "1036e84a8b63eb457c291038d74c5c6cd523d68acf6866773070e5033b626e44",
+      "stdout_sha256": "aa3219f26b292c8b14589e886386f610ea100550eb18b93be823c07d031120a6",
       "stdout_tail": [
         "settings_sha256=0d91a362aced9612d34dc42c40fb5f1c71035dc53e969ca101622c15f01e4f3b",
         "delivery_contract_id=e4c7265f31772ec19eaade5caa90c8b931639edd2df41e88c08212b2cdb4339b",
         "contract_record_sha256=8a2c4c63a80ba1756d61c12eb12866dbb44c4b5f07b4077ed13d725ef7d14322",
         "artifact_id=911d4b09c01287c97659c8a38c03685e126c5e44d9a875267f30e85f2b26fabb",
         "artifact_record_sha256=3b816ce77816e2dcc9c6afdc62d0e61e0c1a105fe01fa223fa8fe22a17388fdb",
+        "ABI v1 golden reconciliation: pass (11 structs, 7 constants)",
         "Studio oracle: pass (3 signed packages, 2 revisions, 1 approval, 16 preview bytes)",
         "Package content A SHA-256: 73ad246a85b5548efea28e558a8273fc6105eb9f0e51f3b75f6048a41a41e024",
         "Package content B SHA-256: d5485e3c5838b3f0bc36fcd17ad8f23ce7fc67b9fe7b720d556ee9aee5e4fa81",
@@ -202,7 +203,6 @@
         "Revision 1 ID SHA-256: 5977da196e0c8f57d49cf2271f18f20a975cd45079c623d5c04a3c71e9453b18",
         "Approval ID SHA-256: 73556c74e81c1220c4d2c1070e5fca607642f96d2c27145b9f5e60d318f8c059",
         "package_a=3033 package_b=3033 resigned=3033 revision=576 approval=320 preview=16",
-        "ABI v1 golden reconciliation: pass (11 structs, 7 constants)",
         "Resampler oracle: pass (720896 full coefficients across 3 rates)",
         "  44100 Hz: taps=64 coeffs=65536 sha256=21e84b064573c930946e3edff82ad47cfafd4f26196b1859d017160c3cc10ebe",
         "  96000 Hz: taps=128 coeffs=131072 sha256=6daaa5dbdb2c543c88f9b76449a1d9da714429f7ae3ec1c13b30d3af7e938427",
@@ -226,7 +226,7 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "42b7726e0f29b3824d18ba788a82db17c3b5c800d3f9468c50ccc20e125d709f",
+      "stdout_sha256": "37601d7f9e6cbe371b059de3771261b4eff6007d06cd71d41b86e2ba0c9038b1",
       "stdout_tail": [
         "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/asan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/compositor/field.c -o build/asan-gcc/obj/src/compositor/field.o",
         "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/asan-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O1 -g1  -fsanitize=address,undefined -fno-omit-frame-pointer  -ffile-prefix-map=.=. -c src/compositor/hud.c -o build/asan-gcc/obj/src/compositor/hud.o",
@@ -358,14 +358,14 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "301b3cc3b5ace777a5ed09e68d084032026987e1aef04476587fc988d6cd298b",
+      "stdout_sha256": "08e514a4554ce5812d8188286c757904bcec23ea9bb5d226a03a9a953718d18a",
       "stdout_tail": [
         "make[1]: Entering directory '.'",
         "python3 tests/determinism/check_reproducible.py --root . --cc cc",
-        "reproducible build: pass (3/3 byte-identical; binary sha256:3cb10d0af974c8ff8a94f391307d15c2a296bdf818531a02a3d0ade3c95f3ec5)",
+        "reproducible build: pass (3/3 byte-identical; binary sha256:6730db763598b4dd5b78767ae6fbed40d7159f5b5ac683538552c411695af9df)",
         "make[1]: Leaving directory '.'"
       ]
     }
   ],
-  "version": "odpar-music 0.33.0-radial-morphology-v2-visual-dynamics-v1-wip-local abi=6 source=sha256:8ca258583a69115a3f8e786b133139b2e973ca0f30b24379eb9ad927a97b1eee compiler=gcc-13.3.0"
+  "version": "odpar-music 0.33.0-radial-morphology-v2-visual-dynamics-v1-wip-local abi=6 source=sha256:351f8b3c6d668eb02f0c01d64220a576bbe604809262644d2686f115ca3e8fb2 compiler=gcc-13.3.0"
 }

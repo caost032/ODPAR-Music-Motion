@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(11)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(12)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -29,6 +29,10 @@ extern "C" {
 #define ODM_BACKGROUND_SOLID      UINT32_C(1)
 #define ODM_BACKGROUND_GRID             UINT32_C(2)
 #define ODM_BACKGROUND_PERSPECTIVE_GRID UINT32_C(3)
+/* Campo de profundidad: gradiente radial con difuminado ordenado. Existe porque
+ * un fondo plano no es un fondo, es la ausencia de uno, y porque un degradado
+ * oscuro sin difuminar produce bandas visibles a 8 bits. */
+#define ODM_BACKGROUND_DEPTH_FIELD      UINT32_C(4)
 
 #define ODM_CORE_SHAPE_CIRCLE       UINT32_C(1)
 #define ODM_CORE_SHAPE_SQUARE       UINT32_C(2)

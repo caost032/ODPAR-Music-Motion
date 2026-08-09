@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent ODPAR layered-config/policy/frame-plan oracle (policy v11).
+"""Independent ODPAR layered-config/policy/frame-plan oracle (policy v12).
 
 Expected bytes and fixed-point math are reconstructed here from literal contract
 values.  The C implementation is used only as the observed system under test.
@@ -91,11 +91,16 @@ def config_bytes():
 
 def policy_bytes():
     b=bytearray(b'ODMLAYR3')
-    vals0=(11,1,1,3,6,6,3,3,48,96,1,8,1,1,1)
+    vals0=(12,1,1,3,6,6,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
-              1,1,1,1,1,1,1,1,1,1,1,1,1,4,1,1,1,
+              1,1,1,1,1,1,1,1,1,1,1,1,1,
+              # v12: estilos de fondo (5 con el campo de profundidad), luego el
+              # contrato del difuminado ordenado: matriz Bayer 8x8 determinista,
+              # 64 celdas, y perfil de profundidad (1-(d/r)^2)^2.
+              5,1,64,2,
+              1,1,1,
               6,3,3,1,1,
               1,26,6,6,1,1,1,16,
               # 96->48 pair reduction, tip start, tip end, then the v11 tip

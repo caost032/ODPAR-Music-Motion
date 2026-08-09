@@ -74,6 +74,40 @@ typedef struct {
 /* Perspective-grid inverse projection.  One positive Q16.16 scale is resolved
  * per row; the pixel loop then advances world-x by a constant exact step.
  * The model is symmetric around the canvas horizon and independent of Core. */
+/* Matriz de Bayer 8x8 normalizada. El difuminado ordenado es determinista y sin
+ * estado -- el mismo pixel siempre recibe el mismo desplazamiento -- asi que no
+ * introduce ruido temporal ni rompe la reproducibilidad byte a byte. Es lo que
+ * permite un degradado oscuro sin bandas sin recurrir a grano visible. */
+static const uint8_t bg_bayer8[64] = {
+     0,32, 8,40, 2,34,10,42,
+    48,16,56,24,50,18,58,26,
+    12,44, 4,36,14,46, 6,38,
+    60,28,52,20,62,30,54,22,
+     3,35,11,43, 1,33, 9,41,
+    51,19,59,27,49,17,57,25,
+    15,47, 7,39,13,45, 5,37,
+    63,31,55,23,61,29,53,21
+};
+
+/* Perfil de profundidad: 1.0 en el centro, cayendo suavemente hacia los bordes.
+ * Se evalua sobre la distancia al centro normalizada por la media diagonal, de
+ * modo que un lienzo 9:16 y uno 16:9 producen la misma sensacion espacial en
+ * lugar de una elipse deformada. */
+static uint32_t bg_depth_weight(int64_t dx_q16, int64_t dy_q16, int64_t radius_q16) {
+    int64_t d2, r2, t;
+    if (radius_q16 <= 0) return 0u;
+    d2 = ((dx_q16 >> 8) * (dx_q16 >> 8)) + ((dy_q16 >> 8) * (dy_q16 >> 8));
+    r2 = (radius_q16 >> 8) * (radius_q16 >> 8);
+    if (d2 >= r2) return 0u;
+    /* (1 - (d/r)^2)^2: caida suave, derivada nula en el centro y en el borde,
+     * asi que no hay anillo perceptible donde el campo termina. */
+    t = (int64_t)INT32_MAX - (d2 * (int64_t)INT32_MAX) / r2;
+    t = (t * t) / (int64_t)INT32_MAX;
+    if (t < 0) t = 0;
+    if (t > (int64_t)INT32_MAX) t = (int64_t)INT32_MAX;
+    return (uint32_t)t;
+}
+
 static void perspective_row_prepare(const odm_layered_frame_plan *plan,
                                     uint32_t y, odm_perspective_row *row) {
     int64_t spacing, yq, cy, dy, ady, half_h, focal, scale_q16;
@@ -245,6 +279,31 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
     }
     odm_layered_blend16(&base, &config->background.solid_color,
                         (uint32_t)INT32_MAX, config->background.opacity_q31);
+    if (config->background.style == ODM_BACKGROUND_DEPTH_FIELD) {
+        int64_t cx = plan->center_x_q16, cy2 = plan->center_y_q16;
+        int64_t radius = ((int64_t)plan->width + (int64_t)plan->height) << 15; /* media * 2^16 */
+        for (y = y_begin; y < y_end; ++y) {
+            uint32_t x;
+            for (x = 0u; x < plan->width; ++x) {
+                odm_layered_pixel16 out = base;
+                int64_t dx = (((int64_t)x << 16) + 32768) - cx;
+                int64_t dy = (((int64_t)y << 16) + 32768) - cy2;
+                uint32_t wgt = bg_depth_weight(dx, dy, radius);
+                if (wgt != 0u) {
+                    /* El difuminado desplaza el peso menos de un paso de
+                     * cuantizacion antes de mezclar, que es exactamente donde
+                     * aparecen las bandas. */
+                    uint32_t dith = bg_bayer8[((y & 7u) << 3) | (x & 7u)];
+                    uint64_t w = (uint64_t)wgt + (uint64_t)dith * UINT64_C(2048);
+                    if (w > (uint64_t)INT32_MAX) w = (uint64_t)INT32_MAX;
+                    odm_layered_blend16(&out, &config->background.grid_color,
+                                        (uint32_t)w, config->background.opacity_q31);
+                }
+                frame[(uint64_t)y * plan->width + x] = out;
+            }
+        }
+        return;
+    }
     if (config->background.style == ODM_BACKGROUND_PERSPECTIVE_GRID) {
         for (y = y_begin; y < y_end; ++y) {
             odm_perspective_row row;
