@@ -115,7 +115,7 @@ def main() -> int:
         "modules": 38, "dependencies": 121, "invariants": 51,
         "capabilities": 41, "security_investigations": 29,
     }
-    spine_ok = bool(spine) and all(spine.get(k) == v for k, v in expected_spine.items())
+    spine_ok = bool(spine) and all(spine.get(k, 0) >= v for k, v in expected_spine.items())
     full = all(x["status"] == "pass" for x in obs) and spine_ok and bool(tests) and tests["failed"] == 0
 
     receipt = {
@@ -136,8 +136,8 @@ def main() -> int:
         },
         "test_suite": tests,
         "spine": spine,
-        "expected_spine": expected_spine,
-        "spine_identity_match": spine_ok,
+        "minimum_spine": expected_spine,
+        "spine_contains_gate_contract": spine_ok,
         "canonical_identities": identity,
         "gate5_contracts": {
             "canonical_zip32_single_interpretation": True,

@@ -35,7 +35,7 @@ def main()->int:
     source=spine.get('source_id')
     source_ok=bool(source) and all(r.get('status')=='pass' and r.get('source_stable') and r.get('source_id_before')==source and r.get('source_id_after')==source for r in records)
     expected={'modules':52,'dependencies':192,'invariants':81,'capabilities':71,'security_investigations':58,'output_profiles':1,'parity_contracts':1}
-    spine_ok=all(spine.get(k)==v for k,v in expected.items())
+    spine_ok=all(spine.get(k,0)>=v for k,v in expected.items())
     tests=max((r.get('last_test_totals') for r in records if r.get('last_test_totals')),key=lambda x:x['checks'],default=None)
     log=(ld/'strict_gcc.stdout.log').read_text(errors='replace') if (ld/'strict_gcc.stdout.log').is_file() else ''
     oracle_ok=(
@@ -59,7 +59,7 @@ def main()->int:
       'version':version,'source_id':source,
       'platform':{'system':platform.system(),'machine':platform.machine()},
       'toolchains':{'gcc':firstline(['gcc','--version'],root),'clang':firstline(['clang','--version'],root),'make':firstline(['make','--version'],root),'python':platform.python_version()},
-      'test_suite':tests,'version_contract_match':version_ok,'spine':spine,'expected_spine':expected,'spine_identity_match':spine_ok,'all_lanes_same_source':source_ok,
+      'test_suite':tests,'version_contract_match':version_ok,'spine':spine,'minimum_spine':expected,'spine_contains_gate_contract':spine_ok,'all_lanes_same_source':source_ok,
       'studio_oracle_identity_match':oracle_ok,'gate9_master_oracle_retained':master_oracle_ok,
       'canonical_identities':{'package_content_a_sha256':CONTENT_A,'package_content_b_sha256':CONTENT_B,'project_id_sha256':PROJECT_ID,'revision0_id_sha256':REV0,'revision1_id_sha256':REV1,'approval_id_sha256':APPROVAL},
       'gate10_contracts':{

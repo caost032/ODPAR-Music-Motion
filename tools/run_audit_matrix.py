@@ -59,6 +59,7 @@ LANES: list[tuple[str, list[str]]] = [
     ("renderer-oracle", ["make", "renderer-oracle"]),
     ("renderer-property-oracle", ["make", "renderer-property-oracle"]),
     ("visual-oracle", ["make", "visual-oracle"]),
+    ("visual-dynamics-oracle", ["make", "visual-dynamics-oracle"]),
     ("composition-oracle", ["make", "composition-oracle"]),
     ("director-oracle", ["make", "director-oracle"]),
     ("visual-policy-oracle", ["make", "visual-policy-oracle"]),
@@ -91,6 +92,7 @@ LANES: list[tuple[str, list[str]]] = [
 EXTERNAL_TOOLS = {
     "export-ffmpeg-smoke": "ffmpeg",
     "ffmpeg-delivery-smoke": "ffmpeg",
+    "export-run-smoke": "ffmpeg",
 }
 
 

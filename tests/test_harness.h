@@ -32,6 +32,7 @@ void odm_test_score_ir(odm_test_context *context);
 void odm_test_package(odm_test_context *context);
 void odm_test_renderer(odm_test_context *context);
 void odm_test_visual(odm_test_context *context);
+void odm_test_visual_dynamics(odm_test_context *context);
 void odm_test_preview(odm_test_context *context);
 void odm_test_master(odm_test_context *context);
 void odm_test_studio(odm_test_context *context);

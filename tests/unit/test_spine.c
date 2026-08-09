@@ -12,8 +12,8 @@ void odm_test_spine(odm_test_context *context) {
     char *first;
     char *second;
     ODM_TEST_CHECK(context, odm_spine_validate(&summary) == ODM_STATUS_OK);
-    ODM_TEST_CHECK(context, summary.module_count == 64u);
-    ODM_TEST_CHECK(context, summary.dependency_count == 240u);
+    ODM_TEST_CHECK(context, summary.module_count == 65u);
+    ODM_TEST_CHECK(context, summary.dependency_count == 243u);
     ODM_TEST_CHECK(context, summary.invariant_count == 141u);
     ODM_TEST_CHECK(context, summary.capability_count == 128u);
     ODM_TEST_CHECK(context, summary.state_model_count == 11u);

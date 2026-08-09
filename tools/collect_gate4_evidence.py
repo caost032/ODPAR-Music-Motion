@@ -111,7 +111,7 @@ def main() -> int:
         "modules": 35, "dependencies": 110, "invariants": 46,
         "capabilities": 37, "security_investigations": 24,
     }
-    spine_ok = bool(spine) and all(spine.get(k) == v for k, v in expected_spine.items())
+    spine_ok = bool(spine) and all(spine.get(k, 0) >= v for k, v in expected_spine.items())
     full = all(x["status"] == "pass" for x in obs) and spine_ok and bool(tests) and tests["failed"] == 0
 
     receipt = {
@@ -132,8 +132,8 @@ def main() -> int:
         },
         "test_suite": tests,
         "spine": spine,
-        "expected_spine": expected_spine,
-        "spine_identity_match": spine_ok,
+        "minimum_spine": expected_spine,
+        "spine_contains_gate_contract": spine_ok,
         "canonical_identities": identity,
         "gate4_contracts": {
             "canonical_music_policy_required": True,

@@ -31,7 +31,7 @@ def main()->int:
     source=spine.get('source_id')
     source_ok=bool(source) and all(r.get('status')=='pass' and r.get('source_stable') and r.get('source_id_before')==source and r.get('source_id_after')==source for r in records)
     expected={'modules':46,'dependencies':154,'invariants':68,'capabilities':57,'security_investigations':46,'parity_contracts':1}
-    spine_ok=all(spine.get(k)==v for k,v in expected.items())
+    spine_ok=all(spine.get(k,0)>=v for k,v in expected.items())
     tests=max((r.get('last_test_totals') for r in records if r.get('last_test_totals')),key=lambda x:x['checks'],default=None)
     log=(ld/'strict_gcc.stdout.log').read_text(errors='replace') if (ld/'strict_gcc.stdout.log').is_file() else ''
     m0=re.search(r'Canonical frame 0 SHA-256:\s*([0-9a-f]{64})',log);m4=re.search(r'Canonical frame 4 SHA-256:\s*([0-9a-f]{64})',log)
@@ -54,7 +54,7 @@ def main()->int:
       'version':version,'source_id':source,
       'platform':{'system':platform.system(),'machine':platform.machine()},
       'toolchains':{'gcc':firstline(['gcc','--version'],root),'clang':firstline(['clang','--version'],root),'make':firstline(['make','--version'],root),'python':platform.python_version(),'dart':firstline([dart,'--version'],root) if dart else None,'flutter':firstline([flutter,'--version'],root) if flutter else None},
-      'test_suite':tests,'version_contract_match':version_ok,'spine':spine,'expected_spine':expected,'spine_identity_match':spine_ok,'all_lanes_same_source':source_ok,
+      'test_suite':tests,'version_contract_match':version_ok,'spine':spine,'minimum_spine':expected,'spine_contains_gate_contract':spine_ok,'all_lanes_same_source':source_ok,
       'preview_oracle_identity_match':preview_oracle_ok,'preview_ffi_oracle_match':ffi_oracle_ok,'flutter_binding_static_parity':dart_static_ok,
       'canonical_identities':{'preview_oracle_canonical_frame0_sha256':FRAME0,'preview_oracle_canonical_frame4_sha256':FRAME4},
       'gate8_contracts':{

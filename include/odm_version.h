@@ -4,10 +4,10 @@
 #include <stdint.h>
 
 #define ODM_VERSION_MAJOR 0u
-#define ODM_VERSION_MINOR 24u
+#define ODM_VERSION_MINOR 33u
 #define ODM_VERSION_PATCH 0u
-#define ODM_VERSION_LABEL "sample-accurate-causal-presentation-v1-wip-local"
-#define ODM_VERSION_STRING "0.24.0-sample-accurate-causal-presentation-v1-wip-local"
+#define ODM_VERSION_LABEL "radial-morphology-v2-visual-dynamics-v1-wip-local"
+#define ODM_VERSION_STRING "0.33.0-radial-morphology-v2-visual-dynamics-v1-wip-local"
 #define ODM_ABI_VERSION   6u
 #define ODM_SPINE_SCHEMA_VERSION 1u
 

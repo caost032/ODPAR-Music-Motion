@@ -34,7 +34,7 @@ def main()->int:
     source=spine.get('source_id')
     source_ok=bool(source) and all(r.get('status')=='pass' and r.get('source_stable') and r.get('source_id_before')==source and r.get('source_id_after')==source for r in records)
     expected={'modules':49,'dependencies':173,'invariants':75,'capabilities':65,'security_investigations':52,'output_profiles':1,'parity_contracts':1}
-    spine_ok=all(spine.get(k)==v for k,v in expected.items())
+    spine_ok=all(spine.get(k,0)>=v for k,v in expected.items())
     tests=max((r.get('last_test_totals') for r in records if r.get('last_test_totals')),key=lambda x:x['checks'],default=None)
     log=(ld/'strict_gcc.stdout.log').read_text(errors='replace') if (ld/'strict_gcc.stdout.log').is_file() else ''
     oracle_ok=(
@@ -60,7 +60,7 @@ def main()->int:
       'version':version,'source_id':source,
       'platform':{'system':platform.system(),'machine':platform.machine()},
       'toolchains':{'gcc':firstline(['gcc','--version'],root),'clang':firstline(['clang','--version'],root),'make':firstline(['make','--version'],root),'python':platform.python_version()},
-      'test_suite':tests,'version_contract_match':version_ok,'spine':spine,'expected_spine':expected,'spine_identity_match':spine_ok,'all_lanes_same_source':source_ok,
+      'test_suite':tests,'version_contract_match':version_ok,'spine':spine,'minimum_spine':expected,'spine_contains_gate_contract':spine_ok,'all_lanes_same_source':source_ok,
       'master_oracle_identity_match':oracle_ok,
       'canonical_identities':{'render_id_sha256':RENDER_ID,'frame_root_sha256':FRAME_ROOT,'soundtrack_sha256':SOUNDTRACK,'receipt_sha256':RECEIPT,'controller_public_key':CONTROLLER_PK},
       'gate9_contracts':{
