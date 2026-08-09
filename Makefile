@@ -95,7 +95,7 @@ CLI := $(BUILD_DIR)/odpar-music
 TEST_RUNNER := $(BUILD_DIR)/odm-tests
 CORE_BENCHMARK := $(BUILD_DIR)/odm-core-benchmark
 
-.PHONY: supersample-oracle visual-dynamics-oracle all clean ffi-shared test selftest guardians spine-check header-check determinism crypto-oracle sha-backend-oracle abi-check hardening media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle supersample-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle commercial-claims-check ffmpeg-delivery-smoke benchmark-core gate11-benchmark-observation evidence evidence-extension013 evidence-gate0 evidence-gate1 evidence-gate2 evidence-gate3 evidence-gate4 evidence-gate5 evidence-gate6 evidence-gate7 evidence-gate8 evidence-gate9 evidence-gate10 evidence-gate11 \
+.PHONY: evidence-lanes supersample-oracle visual-dynamics-oracle all clean ffi-shared test selftest guardians spine-check header-check determinism crypto-oracle sha-backend-oracle abi-check hardening media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle supersample-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle commercial-claims-check ffmpeg-delivery-smoke benchmark-core gate11-benchmark-observation evidence evidence-extension013 evidence-gate0 evidence-gate1 evidence-gate2 evidence-gate3 evidence-gate4 evidence-gate5 evidence-gate6 evidence-gate7 evidence-gate8 evidence-gate9 evidence-gate10 evidence-gate11 \
 	repro analyze-gcc test-gcc test-clang asan-gcc asan-clang tsan-gcc \
 	gate0-local gate0 gate1-local gate1 gate2 gate3 gate4 gate5 gate6 gate7 gate8-local gate8 gate9-local gate9 gate10-local gate10 gate11-local gate11
 
@@ -373,6 +373,44 @@ evidence-extension013:
 		--binary build/final013-gcc/odpar-music \
 		--output evidence/extension013_evidence.json
 
+
+# ---------------------------------------------------------------------------
+# Registros de lane para la evidencia de los Gates 6-10.
+#
+# collect_gate{6..10}_evidence.py los exige, pero ningun target sabia
+# producirlos: la evidencia de esos gates era, literalmente, no regenerable.
+# Es el mismo defecto que ya aparecio en commercial-claims-check y en la
+# comparacion de contadores del Spine -- una compuerta que solo puede pasar si
+# alguien guardo a mano el resultado de una ejecucion anterior no es estricta,
+# esta rota.
+#
+# Cada lane se ejecuta por separado y emite un registro atado al source_id, de
+# modo que ensamblar la evidencia no depende de un unico proceso de varios
+# minutos que puede morir a la mitad.
+#
+#   make evidence-lanes GATE=6
+# ---------------------------------------------------------------------------
+GATE ?= 6
+GATE_LANES_DIR := evidence/gate$(GATE)_lanes
+GATE_BUILD_DIR := build/gate$(GATE)-final-gcc
+
+evidence-lanes:
+	@mkdir -p $(GATE_LANES_DIR)
+	$(MAKE) BUILD_DIR=$(GATE_BUILD_DIR) CC=gcc all
+	$(PYTHON) tools/run_evidence_lane.py --root . --name strict_gcc \
+		--output $(GATE_LANES_DIR)/strict_gcc.json --timeout 1800 -- $(MAKE) test-gcc
+	$(PYTHON) tools/run_evidence_lane.py --root . --name strict_clang \
+		--output $(GATE_LANES_DIR)/strict_clang.json --timeout 1800 -- $(MAKE) test-clang
+	$(PYTHON) tools/run_evidence_lane.py --root . --name asan_ubsan_gcc \
+		--output $(GATE_LANES_DIR)/asan_ubsan_gcc.json --timeout 1800 -- $(MAKE) asan-gcc
+	$(PYTHON) tools/run_evidence_lane.py --root . --name asan_ubsan_clang \
+		--output $(GATE_LANES_DIR)/asan_ubsan_clang.json --timeout 1800 -- $(MAKE) asan-clang
+	$(PYTHON) tools/run_evidence_lane.py --root . --name tsan_gcc \
+		--output $(GATE_LANES_DIR)/tsan_gcc.json --timeout 1800 -- $(MAKE) tsan-gcc
+	$(PYTHON) tools/run_evidence_lane.py --root . --name gcc_analyzer \
+		--output $(GATE_LANES_DIR)/gcc_analyzer.json --timeout 1800 -- $(MAKE) analyze-gcc
+	$(PYTHON) tools/run_evidence_lane.py --root . --name reproducibility \
+		--output $(GATE_LANES_DIR)/reproducibility.json --timeout 1800 -- $(MAKE) repro
 
 evidence-gate0:
 	$(PYTHON) tools/collect_gate0_evidence.py --root . \

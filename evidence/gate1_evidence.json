@@ -12,7 +12,7 @@
     "system": "Linux"
   },
   "schema": "odm_gate1_evidence_v1",
-  "source_id": "sha256:14fa1d101f2c3939425ae570deab529792e040d90d46be9a3380e4b3689ac9e5",
+  "source_id": "sha256:351f8b3c6d668eb02f0c01d64220a576bbe604809262644d2686f115ca3e8fb2",
   "spine_summary": {
     "capabilities": 128,
     "compiler": "gcc-13.3.0",
@@ -32,8 +32,8 @@
     "schema": "odm_spine_summary_v1",
     "security_investigations": 96,
     "source_files": 68,
-    "source_id": "sha256:14fa1d101f2c3939425ae570deab529792e040d90d46be9a3380e4b3689ac9e5",
-    "source_lines": 23682,
+    "source_id": "sha256:351f8b3c6d668eb02f0c01d64220a576bbe604809262644d2686f115ca3e8fb2",
+    "source_lines": 23748,
     "state_models": 11,
     "version": "0.33.0-radial-morphology-v2-visual-dynamics-v1-wip-local"
   },
@@ -54,14 +54,14 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "d1a7d3e4ce9263eb677eca3f0f7db6ae7c99b4b24a05bfdd7157b092779431e0",
+      "stdout_sha256": "b275b87d52ab40851b01256cb1783ff1cf1df976f739ccd7e68ef6d69007bc38",
       "stdout_tail": [
-        "Package content B SHA-256: d5485e3c5838b3f0bc36fcd17ad8f23ce7fc67b9fe7b720d556ee9aee5e4fa81",
-        "Project ID SHA-256: e8282778eccd2fa5d0a23405fed5fef92603c2a827c849a23055e1cef3ced180",
-        "Revision 0 ID SHA-256: 201baeaf74a6ce9553f84c904a8bdf5cda3fcbf20607f35ef3c192aca810670a",
-        "Revision 1 ID SHA-256: 5977da196e0c8f57d49cf2271f18f20a975cd45079c623d5c04a3c71e9453b18",
-        "Approval ID SHA-256: 73556c74e81c1220c4d2c1070e5fca607642f96d2c27145b9f5e60d318f8c059",
-        "package_a=3033 package_b=3033 resigned=3033 revision=576 approval=320 preview=16",
+        "Frame root SHA-256: 4d9377ed81677bc316c33cc454954031eb26eb9b89a66c5906e3d4297081a5ae",
+        "Soundtrack SHA-256: dd7cf98889b205b9b65a9e06414a8c2313e8b02a58fe0a056f5df22bb4d38276",
+        "Receipt SHA-256: 2d1a791e90f906380d62fc28074d5fa4727befbfa69145a01ef4ba8deb631307",
+        "Controller public key: 79b5562e8fe654f94078b112e8a98ba7901f853ae695bed7e0e3910bad049664",
+        "frames=2 audio=3200 quote=3232 output=26432 scratch=3296\\n",
+        "ABI v1 golden reconciliation: pass (11 structs, 7 constants)",
         "Resampler oracle: pass (720896 full coefficients across 3 rates)",
         "  44100 Hz: taps=64 coeffs=65536 sha256=21e84b064573c930946e3edff82ad47cfafd4f26196b1859d017160c3cc10ebe",
         "  96000 Hz: taps=128 coeffs=131072 sha256=6daaa5dbdb2c543c88f9b76449a1d9da714429f7ae3ec1c13b30d3af7e938427",
@@ -164,11 +164,11 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "bb13a2b1f62a08888e13807e59fdc38fda7e22034b94edb403ca8b3e1e56776f",
+      "stdout_sha256": "08e514a4554ce5812d8188286c757904bcec23ea9bb5d226a03a9a953718d18a",
       "stdout_tail": [
         "make[1]: Entering directory '.'",
         "python3 tests/determinism/check_reproducible.py --root . --cc cc",
-        "reproducible build: pass (3/3 byte-identical; binary sha256:9182b01751af8e6ccfaab59935577e983eadb1cdc41aff1b917e7709779893fc)",
+        "reproducible build: pass (3/3 byte-identical; binary sha256:6730db763598b4dd5b78767ae6fbed40d7159f5b5ac683538552c411695af9df)",
         "make[1]: Leaving directory '.'"
       ]
     },
@@ -176,17 +176,17 @@
       "benchmark": {
         "executor": {
           "allocation_bytes": 246080,
-          "nanoseconds": 82942346,
+          "nanoseconds": 59635529,
           "tasks": 100000,
-          "tasks_per_second": 1205656,
+          "tasks_per_second": 1676852,
           "workers": 4
         },
         "measurement_only": false,
         "schema": "odm_core_benchmark_v1",
         "sha256": {
           "bytes": 268435456,
-          "bytes_per_second": 188203883,
-          "nanoseconds": 1426301362
+          "bytes_per_second": 242774620,
+          "nanoseconds": 1105698182
         },
         "sink": 89,
         "status": "pass",
@@ -196,9 +196,9 @@
           "wire_payload_bytes_per_second": 50000000
         },
         "wire_record": {
-          "nanoseconds": 708209220,
+          "nanoseconds": 568383290,
           "payload_bytes": 67108864,
-          "payload_bytes_per_second": 94758529
+          "payload_bytes_per_second": 118069734
         }
       },
       "command": [
@@ -213,19 +213,12 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "ea1382829e46ffd52e2c081582f4b024b24aa7215f28c450504ddcf1efde8067",
+      "stdout_sha256": "8470af886333033d8ccf473439823df75a7b7cd262f776bfb7e7caf451db85d6",
       "stdout_tail": [
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/compositor/hud.c -o build/bench-gcc/obj/src/compositor/hud.o",
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/compositor/render.c -o build/bench-gcc/obj/src/compositor/render.o",
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/compositor/supersample.c -o build/bench-gcc/obj/src/compositor/supersample.o",
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/spine/spine_registry.c -o build/bench-gcc/obj/src/spine/spine_registry.o",
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/spine/spine.c -o build/bench-gcc/obj/src/spine/spine.o",
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/spine/spine_impact.c -o build/bench-gcc/obj/src/spine/spine_impact.o",
-        "gcc -Iinclude -Isrc/cli -Isrc/spine -Isrc/media -Isrc/music_map -Isrc/music_inference -Isrc/ir -Isrc/package -Isrc/renderer -Isrc/visual -Isrc/visual_dynamics -Isrc/preview -Isrc/master -Isrc/studio -Isrc/delivery -Isrc/export -Isrc/compositor -Itests -Ibuild/bench-gcc/generated -I/usr/include/libpng16   -DODM_SHA256_OPENSSL_ACCEL=1 -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. -c src/core/ffi.c -o build/bench-gcc/obj/src/core/ffi.o",
-        "ar rcsD build/bench-gcc/libodpar_music.a build/bench-gcc/obj/src/core/status.o build/bench-gcc/obj/src/core/version.o build/bench-gcc/obj/src/core/hash.o build/bench-gcc/obj/src/core/time.o build/bench-gcc/obj/src/core/fixed.o build/bench-gcc/obj/src/core/rng.o build/bench-gcc/obj/src/core/wire.o build/bench-gcc/obj/src/core/limits.o build/bench-gcc/obj/src/core/memory_budget.o build/bench-gcc/obj/src/core/arena.o build/bench-gcc/obj/src/core/ownership.o build/bench-gcc/obj/src/core/progress.o build/bench-gcc/obj/src/core/job.o build/bench-gcc/obj/src/core/executor.o build/bench-gcc/obj/src/media/media_limits.o build/bench-gcc/obj/src/media/media_facts.o build/bench-gcc/obj/src/media/pcm.o build/bench-gcc/obj/src/media/wav.o build/bench-gcc/obj/src/media/png_crc.o build/bench-gcc/obj/src/media/png.o build/bench-gcc/obj/src/media/media_probe.o build/bench-gcc/obj/src/media/media_dispatch.o build/bench-gcc/obj/src/media/decode_adapter.o build/bench-gcc/obj/src/music_map/resample.o build/bench-gcc/obj/src/music_map/analysis.o build/bench-gcc/obj/src/music_map/analysis_wire.o build/bench-gcc/obj/src/music_inference/reaction_spine.o build/bench-gcc/obj/src/score/score.o build/bench-gcc/obj/src/score/compiler.o build/bench-gcc/obj/src/ir/ir.o build/bench-gcc/obj/src/ir/frame_state.o build/bench-gcc/obj/src/package/deflate.o build/bench-gcc/obj/src/package/sign.o build/bench-gcc/obj/src/package/odparms.o build/bench-gcc/obj/src/renderer/color.o build/bench-gcc/obj/src/renderer/sampler.o build/bench-gcc/obj/src/renderer/reference.o build/bench-gcc/obj/src/renderer/frame_root.o build/bench-gcc/obj/src/visual/event_history.o build/bench-gcc/obj/src/visual/procedural.o build/bench-gcc/obj/src/visual_dynamics/response.o build/bench-gcc/obj/src/visual_dynamics/scene.o build/bench-gcc/obj/src/preview/preview.o build/bench-gcc/obj/src/preview/ffi_preview.o build/bench-gcc/obj/src/master/master.o build/bench-gcc/obj/src/master/receipt.o build/bench-gcc/obj/src/master/controller_sign.o build/bench-gcc/obj/src/studio/revision.o build/bench-gcc/obj/src/studio/approval.o build/bench-gcc/obj/src/studio/workflow.o build/bench-gcc/obj/src/delivery/contract.o build/bench-gcc/obj/src/export/export.o build/bench-gcc/obj/src/compositor/math.o build/bench-gcc/obj/src/compositor/reaction.o build/bench-gcc/obj/src/compositor/style.o build/bench-gcc/obj/src/compositor/layout.o build/bench-gcc/obj/src/compositor/background.o build/bench-gcc/obj/src/compositor/core.o build/bench-gcc/obj/src/compositor/field.o build/bench-gcc/obj/src/compositor/hud.o build/bench-gcc/obj/src/compositor/render.o build/bench-gcc/obj/src/compositor/supersample.o build/bench-gcc/obj/src/spine/spine_registry.o build/bench-gcc/obj/src/spine/spine.o build/bench-gcc/obj/src/spine/spine_impact.o build/bench-gcc/obj/src/core/ffi.o",
-        "gcc -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Werror -O2 -fstack-protector-strong -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 -fPIC   -ffile-prefix-map=.=. build/bench-gcc/obj/bench/benchmark_core.o build/bench-gcc/libodpar_music.a -pthread   -lpng16  -lssl -lcrypto  -o build/bench-gcc/odm-core-benchmark",
+        "make[1]: Entering directory '.'",
+        "python3 tools/gen_build_meta.py --output build/bench-gcc/generated/odm_build_meta.h",
         "build/bench-gcc/odm-core-benchmark",
-        "{\"schema\":\"odm_core_benchmark_v1\",\"measurement_only\":false,\"thresholds\":{\"sha256_bytes_per_second\":100000000,\"wire_payload_bytes_per_second\":50000000,\"executor_tasks_per_second\":100000},\"sha256\":{\"bytes\":268435456,\"nanoseconds\":1426301362,\"bytes_per_second\":188203883},\"wire_record\":{\"payload_bytes\":67108864,\"nanoseconds\":708209220,\"payload_bytes_per_second\":94758529},\"executor\":{\"workers\":4,\"tasks\":100000,\"nanoseconds\":82942346,\"tasks_per_second\":1205656,\"allocation_bytes\":246080},\"sink\":89,\"status\":\"pass\"}",
+        "{\"schema\":\"odm_core_benchmark_v1\",\"measurement_only\":false,\"thresholds\":{\"sha256_bytes_per_second\":100000000,\"wire_payload_bytes_per_second\":50000000,\"executor_tasks_per_second\":100000},\"sha256\":{\"bytes\":268435456,\"nanoseconds\":1105698182,\"bytes_per_second\":242774620},\"wire_record\":{\"payload_bytes\":67108864,\"nanoseconds\":568383290,\"payload_bytes_per_second\":118069734},\"executor\":{\"workers\":4,\"tasks\":100000,\"nanoseconds\":59635529,\"tasks_per_second\":1676852,\"allocation_bytes\":246080},\"sink\":89,\"status\":\"pass\"}",
         "make[1]: Leaving directory '.'"
       ]
     },
@@ -245,7 +238,7 @@
       "status": "pass",
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stderr_tail": [],
-      "stdout_sha256": "6b9665ccc92114bcab2810b095bce993fb25a428c1fee6a3127edbe0597b5c66",
+      "stdout_sha256": "296b1ae41cd49cc7bd67c69348c5bd57a83fc24e0a052e4d1a723ba0d8281c68",
       "stdout_tail": [
         "Project ID SHA-256: e8282778eccd2fa5d0a23405fed5fef92603c2a827c849a23055e1cef3ced180",
         "Revision 0 ID SHA-256: 201baeaf74a6ce9553f84c904a8bdf5cda3fcbf20607f35ef3c192aca810670a",
