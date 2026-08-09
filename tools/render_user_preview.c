@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <unistd.h>
 
 typedef struct {
@@ -51,6 +52,9 @@ typedef struct {
     char audio_path[1024];
     char receipt_path[1024];
     int active;
+    int enc_fd;              /* tuberia hacia el codificador de video */
+    pid_t enc_pid;           /* proceso codificador, corre en paralelo */
+    char enc_out[1024];      /* mp4 solo-video producido por el codificador */
     uint32_t ss_factor;      /* factor de supermuestreo en curso */
     uint32_t ss_width;       /* anchura del raster de alta resolucion */
     uint32_t ss_height;
@@ -291,20 +295,94 @@ static odm_status core_provider(void *user, uint64_t frame_index, int64_t sample
     return ODM_STATUS_OK;
 }
 
+
+/* Arranca el codificador de video leyendo fotogramas crudos por una tuberia.
+ *
+ * argv fijo, sin shell. El video sale sin audio; el audio se mezcla al final,
+ * cuando ya existe, en una operacion de copia de flujo que cuesta segundos. */
+static int encoder_start(file_sink *s, const odm_export_recipe *recipe) {
+    char size_arg[64], fps_arg[32];
+    char *argv[40];
+    uint32_t n = 0u;
+    int fds[2];
+
+    if (!s || !recipe) return 0;
+    if (snprintf(size_arg, sizeof(size_arg), "%ux%u", recipe->width, recipe->height) < 0) return 0;
+    if (snprintf(fps_arg, sizeof(fps_arg), "%d", recipe->fps) < 0) return 0;
+    if (snprintf(s->enc_out, sizeof(s->enc_out), "%s/video.mp4", s->stage_dir) < 0) return 0;
+
+    argv[n++] = (char *)"ffmpeg";
+    argv[n++] = (char *)"-hide_banner"; argv[n++] = (char *)"-loglevel"; argv[n++] = (char *)"error";
+    argv[n++] = (char *)"-nostdin"; argv[n++] = (char *)"-y";
+    argv[n++] = (char *)"-f"; argv[n++] = (char *)"rawvideo";
+    argv[n++] = (char *)"-pixel_format"; argv[n++] = (char *)"rgba";
+    argv[n++] = (char *)"-video_size"; argv[n++] = size_arg;
+    argv[n++] = (char *)"-framerate"; argv[n++] = fps_arg;
+    argv[n++] = (char *)"-i"; argv[n++] = (char *)"pipe:0";
+    argv[n++] = (char *)"-an";
+    argv[n++] = (char *)"-c:v"; argv[n++] = (char *)"libx264";
+    argv[n++] = (char *)"-preset"; argv[n++] = (char *)"veryfast";
+    argv[n++] = (char *)"-crf"; argv[n++] = (char *)"18";
+    argv[n++] = (char *)"-pix_fmt"; argv[n++] = (char *)"yuv420p";
+    argv[n++] = (char *)"-colorspace"; argv[n++] = (char *)"bt709";
+    argv[n++] = (char *)"-color_primaries"; argv[n++] = (char *)"bt709";
+    argv[n++] = (char *)"-color_trc"; argv[n++] = (char *)"bt709";
+    argv[n++] = (char *)"-movflags"; argv[n++] = (char *)"+faststart";
+    argv[n++] = s->enc_out;
+    argv[n] = NULL;
+
+    if (pipe(fds) != 0) return 0;
+    s->enc_pid = fork();
+    if (s->enc_pid < 0) { close(fds[0]); close(fds[1]); return 0; }
+    if (s->enc_pid == 0) {
+        int devnull = open("/dev/null", O_RDWR);
+        close(fds[1]);
+        if (devnull >= 0) { dup2(devnull, STDOUT_FILENO); if (devnull > 2) close(devnull); }
+        if (dup2(fds[0], STDIN_FILENO) < 0) _exit(127);
+        close(fds[0]);
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+    close(fds[0]);
+    s->enc_fd = fds[1];
+    return 1;
+}
+
+/* Cierra la tuberia y espera al codificador. Devuelve 1 solo si termino bien. */
+static int encoder_finish(file_sink *s) {
+    int status = 0;
+    if (!s || s->enc_fd < 0) return 0;
+    close(s->enc_fd); s->enc_fd = -1;
+    if (waitpid(s->enc_pid, &status, 0) < 0) return 0;
+    s->enc_pid = -1;
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
 static odm_status sink_begin(void *user, const odm_export_recipe *recipe) {
     file_sink *s = (file_sink *)user;
-    (void)recipe;
-    if (!s) return ODM_STATUS_INVALID_ARGUMENT;
+    if (!s || !recipe) return ODM_STATUS_INVALID_ARGUMENT;
     remove_tree(s->stage_dir);
     remove_tree(s->final_dir);
     if (mkdir(s->stage_dir, 0700) != 0) return ODM_STATUS_INTERNAL_ERROR;
-    s->v = fopen(s->video_path, "wb");
-    if (!s->v) { rmdir(s->stage_dir); return ODM_STATUS_INTERNAL_ERROR; }
     s->a = fopen(s->audio_path, "wb");
-    if (!s->a) {
-        fclose(s->v); s->v = NULL;
-        remove(s->video_path);
-        rmdir(s->stage_dir);
+    if (!s->a) { rmdir(s->stage_dir); return ODM_STATUS_INTERNAL_ERROR; }
+    /* El video NO se materializa en disco.
+     *
+     * Antes se escribia el flujo crudo completo y solo despues se codificaba:
+     * una cancion de cuatro minutos a 720p30 son 15,8 GB, y a 1080p serian 35.
+     * Eso no es un detalle de implementacion, es un techo: el motor no podia
+     * exportar una pista larga en una maquina normal, y el disco se convertia
+     * en el cuello de botella.
+     *
+     * Ahora cada fotograma va directo al codificador por una tuberia. Ademas de
+     * eliminar el I/O, la codificacion corre EN PARALELO con el render: mientras
+     * el compositor trabaja en el fotograma N, el codificador esta con el N-1.
+     *
+     * Sigue siendo transaccional: si algo falla, se mata el codificador y no se
+     * publica nada. */
+    if (!encoder_start(s, recipe)) {
+        fclose(s->a); s->a = NULL;
+        remove(s->audio_path); rmdir(s->stage_dir);
         return ODM_STATUS_INTERNAL_ERROR;
     }
     s->active = 1;
@@ -315,7 +393,7 @@ static odm_status sink_write_video(void *user, uint64_t frame_index, int64_t sam
                                    const uint8_t *rgba8, uint64_t bytes) {
     file_sink *s = (file_sink *)user;
     (void)frame_index; (void)sample;
-    if (!s || !s->v || (!rgba8 && bytes)) return ODM_STATUS_INVALID_ARGUMENT;
+    if (!s || s->enc_fd < 0 || (!rgba8 && bytes)) return ODM_STATUS_INVALID_ARGUMENT;
     /* El compositor rendered a resolucion `factor` veces mayor. Aqui se resuelve
      * al tamano de entrega promediando en luz lineal, que es el unico dominio en
      * el que la media de dos colores es el color medio. */
@@ -330,7 +408,15 @@ static odm_status sink_write_video(void *user, uint64_t frame_index, int64_t sam
             return ODM_STATUS_INTERNAL_ERROR;
         return ODM_STATUS_OK;
     }
-    if (fwrite(rgba8, 1u, (size_t)bytes, s->v) != (size_t)bytes) return ODM_STATUS_INTERNAL_ERROR;
+    {
+        const uint8_t *p = rgba8;
+        uint64_t left = bytes;
+        while (left != 0u) {
+            ssize_t n = write(s->enc_fd, p, left > (1u << 20) ? (1u << 20) : (size_t)left);
+            if (n < 0) { if (errno == EINTR) continue; return ODM_STATUS_INTERNAL_ERROR; }
+            p += n; left -= (uint64_t)n;
+        }
+    }
     return ODM_STATUS_OK;
 }
 
@@ -347,9 +433,9 @@ static odm_status sink_commit(void *user, const uint8_t *receipt, uint64_t recei
     file_sink *s = (file_sink *)user;
     FILE *rf = NULL;
     if (!s || !s->active) return ODM_STATUS_INVALID_STATE;
-    if (s->v && fclose(s->v) != 0) { s->v = NULL; return ODM_STATUS_INTERNAL_ERROR; }
+    if (!encoder_finish(s)) return ODM_STATUS_INTERNAL_ERROR;
     if (s->a && fclose(s->a) != 0) { s->a = NULL; return ODM_STATUS_INTERNAL_ERROR; }
-    s->v = NULL; s->a = NULL;
+    s->a = NULL;
     rf = fopen(s->receipt_path, "wb");
     if (!rf) return ODM_STATUS_INTERNAL_ERROR;
     if (fwrite(receipt, 1u, (size_t)receipt_bytes, rf) != (size_t)receipt_bytes || fclose(rf) != 0) {
@@ -364,10 +450,11 @@ static void sink_abort(void *user, odm_status reason) {
     file_sink *s = (file_sink *)user;
     fprintf(stderr, "sink_abort reason=%d\n", (int)reason);
     if (!s) return;
-    if (s->v) fclose(s->v);
+    if (s->enc_fd >= 0) { close(s->enc_fd); s->enc_fd = -1; }
+    if (s->enc_pid > 0) { kill(s->enc_pid, SIGKILL); (void)waitpid(s->enc_pid, NULL, 0); s->enc_pid = -1; }
     if (s->a) fclose(s->a);
-    s->v = NULL; s->a = NULL;
-    remove(s->video_path);
+    s->a = NULL;
+    remove(s->enc_out);
     remove(s->audio_path);
     remove(s->receipt_path);
     rmdir(s->stage_dir);
@@ -513,43 +600,50 @@ static int build_config(odm_layered_config *out_config, uint32_t width, uint32_t
     return 1;
 }
 
-static int run_ffmpeg_bound(const odm_export_recipe *recipe,
-                            const char *video_path,
-                            const char *audio_path,
-                            const char *output_path,
-                            const char *argv_dump_path) {
-    char argb[ODM_EXPORT_ARGV_MAX_BYTES];
-    uint32_t offs[ODM_EXPORT_ARGV_MAX_TOKENS];
-    uint64_t need = 0u;
-    uint32_t count = 0u;
-    char *argvv[ODM_EXPORT_ARGV_MAX_TOKENS + 1u];
-    FILE *dump = NULL;
+/* Mezcla final: el video ya esta codificado, asi que solo se copia su flujo y
+ * se codifica el audio. Cuesta segundos, no minutos, porque no se vuelve a
+ * comprimir imagen. */
+static int run_ffmpeg_mux(const odm_export_recipe *recipe,
+                          const char *video_mp4, const char *audio_path,
+                          const char *output_path, const char *argv_dump_path) {
+    char rate[32], bitrate[32];
+    char *argv[40];
+    uint32_t n = 0u;
     pid_t pid;
     int status;
-    uint32_t i;
-    if (odm_export_ffmpeg_argv_bind(recipe, video_path, audio_path, output_path,
-                                    argb, sizeof(argb), &need, &count,
-                                    offs, ODM_EXPORT_ARGV_MAX_TOKENS) != ODM_STATUS_OK) {
-        return 0;
-    }
+
+    if (!recipe || !video_mp4 || !audio_path || !output_path) return 0;
+    if (snprintf(rate, sizeof(rate), "%u", recipe->audio_sample_rate) < 0) return 0;
+    if (snprintf(bitrate, sizeof(bitrate), "%uk", recipe->audio_bitrate_kbps) < 0) return 0;
+
+    argv[n++] = (char *)"ffmpeg";
+    argv[n++] = (char *)"-hide_banner"; argv[n++] = (char *)"-loglevel"; argv[n++] = (char *)"error";
+    argv[n++] = (char *)"-nostdin"; argv[n++] = (char *)"-y";
+    argv[n++] = (char *)"-i"; argv[n++] = (char *)video_mp4;
+    argv[n++] = (char *)"-f"; argv[n++] = (char *)"s32le";
+    argv[n++] = (char *)"-ar"; argv[n++] = rate;
+    argv[n++] = (char *)"-ac"; argv[n++] = (char *)"2";
+    argv[n++] = (char *)"-i"; argv[n++] = (char *)audio_path;
+    argv[n++] = (char *)"-map"; argv[n++] = (char *)"0:v:0";
+    argv[n++] = (char *)"-map"; argv[n++] = (char *)"1:a:0";
+    argv[n++] = (char *)"-c:v"; argv[n++] = (char *)"copy";
+    argv[n++] = (char *)"-c:a"; argv[n++] = (char *)"aac";
+    argv[n++] = (char *)"-b:a"; argv[n++] = bitrate;
+    argv[n++] = (char *)"-movflags"; argv[n++] = (char *)"+faststart";
+    argv[n++] = (char *)output_path;
+    argv[n] = NULL;
+
     if (argv_dump_path) {
-        dump = fopen(argv_dump_path, "wb");
+        FILE *dump = fopen(argv_dump_path, "wb");
         if (dump) {
-            for (i = 0u; i < count; ++i) {
-                fputs(argb + offs[i], dump);
-                fputc('\n', dump);
-            }
+            uint32_t i;
+            for (i = 0u; i < n; ++i) { fputs(argv[i], dump); fputc('\0', dump); }
             fclose(dump);
         }
     }
-    for (i = 0u; i < count; ++i) argvv[i] = argb + offs[i];
-    argvv[count] = NULL;
     pid = fork();
     if (pid < 0) return 0;
-    if (pid == 0) {
-        execvp(argvv[0], argvv);
-        _exit(127);
-    }
+    if (pid == 0) { execvp(argv[0], argv); _exit(127); }
     if (waitpid(pid, &status, 0) < 0) return 0;
     return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
@@ -986,6 +1080,9 @@ core_ready:
     run_request.core_user = &cctx;
     run_request.canonical_pcm = preview_pcm;
     run_request.canonical_pcm_frames = preview_pcm_frames;
+    /* Paralelismo de filas. El compositor ya sabia repartirse entre nucleos,
+     * pero nadie se lo pedia: el render iba monohilo en una maquina de 4. */
+    run_request.flags |= ODM_EXPORT_RUN_FLAG_ROW_PARALLEL_4;
     run_request.quality_tier = quality_tier;
     run_request.job_ticket = NULL;
 
@@ -1017,8 +1114,12 @@ core_ready:
      * que el flujo crudo que ve el codificador ya esta a tamano de entrega. El
      * argv debe declarar ESE tamano: si declarara el del raster interno, ffmpeg
      * leeria los bytes desalineados y produciria basura. */
-    if (!run_ffmpeg_bound(&recipe, final_video, final_audio, out_mp4, argv_dump)) {
-        fprintf(stderr, "ffmpeg encode failed\n"); return 28;
+    {
+        char final_video_mp4[1200];
+        if (snprintf(final_video_mp4, sizeof(final_video_mp4), "%s/video.mp4", final_dir) < 0) return 28;
+        if (!run_ffmpeg_mux(&recipe, final_video_mp4, final_audio, out_mp4, argv_dump)) {
+            fprintf(stderr, "ffmpeg mux failed\n"); return 28;
+        }
     }
     {
         char receipt_src[1024];

@@ -1018,6 +1018,9 @@ odm_status odm_export_run(
      * asignaciones en el bucle mas caliente del motor. */
     uint32_t ss_factor = 1u;
     odm_layered_config ss_config;
+    odm_layered_render_admission ss_admission;
+    odm_layered_worker_pool ss_pool;
+    int ss_pool_active = 0;
     uint8_t *ss_frame = NULL, *ss_scratch = NULL;
     uint64_t ss_frame_bytes = 0u, ss_scratch_bytes = 0u;
     odm_sha256_digest ss_digest;
@@ -1031,6 +1034,8 @@ odm_status odm_export_run(
     memset(&admitted_pcm_hash, 0, sizeof(admitted_pcm_hash));
     memset(&render_pool, 0, sizeof(render_pool));
     memset(&ss_config, 0, sizeof(ss_config));
+    memset(&ss_admission, 0, sizeof(ss_admission));
+    memset(&ss_pool, 0, sizeof(ss_pool));
     memset(&ss_digest, 0, sizeof(ss_digest));
     if (!out_receipt_required) return ODM_STATUS_INVALID_ARGUMENT;
     *out_receipt_required = ODM_EXPORT_RUN_RECEIPT_BYTES;
@@ -1230,6 +1235,18 @@ odm_status odm_export_run(
             st = ODM_STATUS_OUT_OF_MEMORY;
             goto hash_setup_fail;
         }
+        /* La rejilla fina cuesta factor^2 veces mas que la de entrega: es el
+         * bucle mas caro del motor y tiene que repartirse entre los nucleos.
+         * Sin esto, pedir calidad convertia el render en monohilo. */
+        st = odm_layered_render_admit(&ss_config,
+                                      ODM_LAYERED_PIXEL_RGBA8_SRGB_BLACK_COMPOSITE,
+                                      &ss_admission);
+        if (st != ODM_STATUS_OK) goto hash_setup_fail;
+        if (row_workers > 1u) {
+            st = odm_layered_worker_pool_init(&ss_pool, row_workers);
+            if (st != ODM_STATUS_OK) goto hash_setup_fail;
+            ss_pool_active = 1;
+        }
     }
 
     if (row_workers > 1u) {
@@ -1288,14 +1305,25 @@ odm_status odm_export_run(
                 st = odm_supersample_scale(run_request->config, &plan, ss_factor,
                                            &ss_config, &hi_plan);
                 if (st != ODM_STATUS_OK) goto fail;
-                st = odm_layered_render_frame(&ss_config, &hi_plan, &surface,
-                                              run_request->job_ticket,
-                                              ODM_LAYERED_PIXEL_RGBA8_SRGB_BLACK_COMPOSITE,
-                                              ss_scratch, ss_scratch_bytes,
-                                              ss_frame, ss_frame_bytes,
-                                              &hi_required, &hi_scratch_required,
-                                              &ss_digest);
-                if (st != ODM_STATUS_OK) goto fail;
+                {
+                    const uint8_t *hi_stream = ss_frame;
+                    if (ss_pool_active) {
+                        st = odm_layered_render_frame_stream_stage_admitted_pool(
+                            &ss_config, &ss_admission, &hi_plan, &surface,
+                            run_request->job_ticket, ss_scratch, ss_scratch_bytes,
+                            &ss_pool, &hi_stream, &hi_required, &hi_scratch_required);
+                    } else {
+                        st = odm_layered_render_frame_stream_stage_admitted_workers(
+                            &ss_config, &ss_admission, &hi_plan, &surface,
+                            run_request->job_ticket, ss_scratch, ss_scratch_bytes,
+                            row_workers, &hi_stream, &hi_required, &hi_scratch_required);
+                    }
+                    if (st != ODM_STATUS_OK) goto fail;
+                    if (hi_stream != ss_frame) {
+                        if (hi_required > ss_frame_bytes) { st = ODM_STATUS_INVARIANT_BROKEN; goto fail; }
+                        memcpy(ss_frame, hi_stream, (size_t)hi_required);
+                    }
+                }
                 st = odm_supersample_resolve_rgba8_srgb(
                     ss_frame, hi_required, ss_config.canvas.width, ss_config.canvas.height,
                     ss_factor, frame, need_frame,
@@ -1440,6 +1468,7 @@ odm_status odm_export_run(
     memcpy(receipt_buffer, receipt_local, (size_t)receipt_required);
     *out_receipt_required = receipt_required;
     if (out_receipt) *out_receipt = receipt;
+    if (ss_pool_active) { odm_layered_worker_pool_destroy(&ss_pool); ss_pool_active = 0; }
     free(ss_frame); ss_frame = NULL;
     free(ss_scratch); ss_scratch = NULL;
     if (render_pool_active) {
@@ -1453,6 +1482,7 @@ odm_status odm_export_run(
     return ODM_STATUS_OK;
 
 prebegin_fail:
+    if (ss_pool_active) { odm_layered_worker_pool_destroy(&ss_pool); ss_pool_active = 0; }
     free(ss_frame); ss_frame = NULL;
     free(ss_scratch); ss_scratch = NULL;
     if (render_pool_active) {
@@ -1466,6 +1496,7 @@ prebegin_fail:
     return st;
 
 hash_setup_fail:
+    if (ss_pool_active) { odm_layered_worker_pool_destroy(&ss_pool); ss_pool_active = 0; }
     free(ss_frame); ss_frame = NULL;
     free(ss_scratch); ss_scratch = NULL;
     if (render_pool_active) {
