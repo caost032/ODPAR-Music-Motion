@@ -1,0 +1,13 @@
+build/
+*.o
+*.a
+*.so
+*.dylib
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+evidence/
+artifacts/
+out/
+*.tmp

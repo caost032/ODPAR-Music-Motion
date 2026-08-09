@@ -1,0 +1,69 @@
+{
+  "abi_version": 6,
+  "claim_boundary": "WIP; this checkpoint does not claim beat/BPM/semantic musical understanding or public FINAL status.",
+  "key_change": {
+    "dominant_pulse_q31": "sample-decayed strength of newly captured dominant event at the exact presentation sample",
+    "double_fire_prevention": "coarse 100 Hz event authority cannot retrigger a sample-domain event",
+    "immutable_event_salience": "kept for provenance/ranking"
+  },
+  "oracles": [
+    "Music-Reaction Policy v11 PASS",
+    "Contextual Salience PASS",
+    "Reaction Presentation Projection 24/25/30/50/60/100/120 fps PASS",
+    "STRICT_CAUSAL PASS",
+    "Radial Provenance 96->48 PASS",
+    "Radial Timescale Geometry PASS",
+    "Multiscale Radial Raster pixel-exact PASS",
+    "Causal Trace PASS",
+    "Visual Policy v8 byte-exact PASS",
+    "Composition PASS",
+    "Director PASS",
+    "Layered PASS",
+    "Reaction Matrix PASS",
+    "Spine reconciliation PASS",
+    "Determinism PASS",
+    "ABI reconciliation PASS"
+  ],
+  "policies": {
+    "layered": 10,
+    "music_reaction": 11,
+    "visual": 8
+  },
+  "preview": {
+    "audio_channels": 2,
+    "audio_sample_rate": 48000,
+    "duration_seconds": 24.0,
+    "file": "ODPAR_MUSIC_0_24_SAMPLE_ACCURATE_CAUSAL_PREVIEW.mp4",
+    "fps": 30,
+    "height": 540,
+    "music_ticks_full_track": 25420,
+    "music_visible_range_seconds": [
+      54,
+      78
+    ],
+    "note": "FFmpeg is used only at media decode/encode boundaries; ODPAR computes analysis, causal projection, composition and raster.",
+    "offline_events_full_track": 506,
+    "sha256": "251192f7a9208e1a6e9c946bd8ea9566a83c5cbd192eacf9ead52864957fdff3",
+    "width": 540
+  },
+  "schema": "odpar.music.checkpoint-status.v1",
+  "source_identity": {
+    "algorithm": "sha256(path_len_be32 || path_utf8 || file_len_be64 || file_bytes), sorted paths; excludes build/ and CHECKPOINT_STATUS.json",
+    "file_count": 288,
+    "sha256": "f0adf036f3bd67c9afeeea1019f9f88c7faf5bde4eb622cada2c09b678dae5da"
+  },
+  "spine": {
+    "capabilities": 128,
+    "dependencies": 240,
+    "invariants": 141,
+    "investigations": 96,
+    "modules": 64
+  },
+  "state": "WIP_CHECKPOINT",
+  "tests": {
+    "checks": 8764484,
+    "failed": 0,
+    "passed": 8764484
+  },
+  "version": "0.24.0-sample-accurate-causal-presentation-v1-wip-local"
+}

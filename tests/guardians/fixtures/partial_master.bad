@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_PARTIAL_MASTER */
+void forbidden_partial_output(void) { publish_partial_master(); }

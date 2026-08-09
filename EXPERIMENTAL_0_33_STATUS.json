@@ -1,0 +1,19 @@
+{
+  "important_note": "This working tree produced the 0.33 experimental preview. Inherited CHECKPOINT_STATUS.json and include/odm_version.h still identify the older 0.24 base and have NOT been reconciled as an official 0.33 checkpoint/release. Do not treat those inherited identities as the identity of this experimental package.",
+  "label": "0.33 Spectral Trajectory Novelty experimental working tree",
+  "origin_working_tree": "odpar033_real",
+  "packaging": {
+    "excluded": [
+      "build/",
+      "tools/__pycache__/",
+      "*.pyc",
+      "*.pyo"
+    ],
+    "source_content_identity_algorithm": "sha256(path_len_be32 || path_utf8 || file_len_be64 || file_bytes), sorted paths; excludes CHECKPOINT_STATUS.json and EXPERIMENTAL_0_33_STATUS.json",
+    "source_content_sha256": "bd4051ad386f1a8236d9f65f7b70bd21d4bdb3605745471c2e580634ae2d83fc",
+    "source_file_count": 283
+  },
+  "preview_artifact": "ODPAR_MUSIC_0_33_SPECTRAL_TRAJECTORY_PREVIEW_REAL.mp4",
+  "schema": "odpar.music.experimental-preview-status.v1",
+  "state": "EXPERIMENTAL_WIP_NOT_RELEASE"
+}

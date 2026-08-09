@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "ffi_abi_version": 1,
+  "endian_marker": 16909060,
+  "runtime_feature_bits": 63,
+  "layouts": {
+    "odm_ffi_preview_abi_info": {
+      "size": 128,
+      "fields": {
+        "struct_size": 0,
+        "schema_version": 4,
+        "ffi_abi_version": 8,
+        "endian_marker": 12,
+        "preview_config_size": 16,
+        "preview_asset_resource_size": 20,
+        "preview_asset_frame_size": 24,
+        "preview_plan_size": 28,
+        "preview_frame_info_size": 32,
+        "progress_snapshot_size": 36,
+        "job_storage_alignment": 40,
+        "music_analysis_tick_size": 44,
+        "job_storage_bytes": 48,
+        "feature_bits": 56,
+        "reserved_u64": 64
+      }
+    },
+    "odm_preview_config": {
+      "size": 32,
+      "fields": {
+        "schema_version": 0,
+        "raster_class": 4,
+        "pixel_format": 8,
+        "flags": 12,
+        "reserved": 16
+      }
+    },
+    "odm_preview_asset_resource": {
+      "size": 64,
+      "fields": {
+        "resource_id": 0,
+        "kind": 4,
+        "frame_count": 8,
+        "first_frame": 12,
+        "flags": 16,
+        "source_sha256": 32
+      }
+    },
+    "odm_preview_asset_frame": {
+      "size": 80,
+      "fields": {
+        "width": 0,
+        "height": 4,
+        "pixel_format": 8,
+        "primaries": 12,
+        "transfer": 16,
+        "alpha_mode": 20,
+        "flags": 24,
+        "start_sample": 32,
+        "end_sample": 40,
+        "pixel_offset": 48,
+        "pixel_bytes": 56,
+        "reserved": 64
+      }
+    },
+    "odm_preview_plan": {
+      "size": 128,
+      "fields": {
+        "schema_version": 0,
+        "raster_class": 4,
+        "pixel_format": 8,
+        "semantics_class": 12,
+        "source_width": 16,
+        "source_height": 20,
+        "output_width": 24,
+        "output_height": 28,
+        "divisor": 32,
+        "fps": 36,
+        "frame_index": 40,
+        "sample": 48,
+        "canonical_frame_bytes": 56,
+        "output_frame_bytes": 64,
+        "scratch_bytes": 72,
+        "work_units": 80,
+        "render_ir_sha256": 88,
+        "reserved": 120
+      }
+    },
+    "odm_preview_frame_info": {
+      "size": 128,
+      "fields": {
+        "schema_version": 0,
+        "raster_class": 4,
+        "pixel_format": 8,
+        "semantics_class": 12,
+        "source_width": 16,
+        "source_height": 20,
+        "output_width": 24,
+        "output_height": 28,
+        "fps": 32,
+        "flags": 36,
+        "frame_index": 40,
+        "sample": 48,
+        "output_bytes": 56,
+        "canonical_frame_sha256": 64,
+        "preview_pixel_sha256": 96
+      }
+    },
+    "odm_progress_snapshot": {
+      "size": 56,
+      "fields": {
+        "schema_version": 0,
+        "state": 4,
+        "phase": 8,
+        "error_code": 12,
+        "cancel_requested": 16,
+        "progress_millionths": 20,
+        "reserved": 24,
+        "generation": 32,
+        "work_done": 40,
+        "work_total": 48
+      }
+    },
+    "odm_music_analysis_tick": {
+      "size": 128,
+      "fields": {
+        "tick_index": 0,
+        "center_sample": 8,
+        "rms_left_q31": 16,
+        "rms_right_q31": 20,
+        "rms_mid_q31": 24,
+        "rms_side_q31": 28,
+        "band_energy_q31": 32,
+        "total_energy_q31": 56,
+        "envelope_short_q31": 60,
+        "envelope_medium_q31": 64,
+        "envelope_long_q31": 68,
+        "spectral_flux_q31": 72,
+        "spectral_centroid_bin_q16_16": 76,
+        "energy_delta_q31": 80,
+        "silence": 88,
+        "stereo_balance_q31": 92,
+        "stereo_width_q31": 96,
+        "reserved": 100
+      }
+    }
+  }
+}

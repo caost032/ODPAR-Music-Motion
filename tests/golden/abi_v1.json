@@ -1,0 +1,59 @@
+{
+  "abi_version": 1,
+  "constants": {
+    "ODM_FFI_ABI_VERSION": 1,
+    "ODM_FFI_ENDIAN_MARKER": 16909060,
+    "ODM_STATUS_OK": 0,
+    "ODM_STATUS_VERSION_MISMATCH": 14,
+    "ODM_WIRE_RECORD_HEADER_BYTES": 64,
+    "ODM_WIRE_VERSION_MAJOR": 1,
+    "ODM_WIRE_VERSION_MINOR": 0
+  },
+  "layouts": {
+    "odm_admission_result": {
+      "fields": {"dimension": 8, "limit": 24, "observed": 16, "reserved": 12, "schema_version": 0, "verdict": 4},
+      "size": 32
+    },
+    "odm_executor_config": {
+      "fields": {"flags": 4, "schema_version": 0, "task_capacity": 12, "worker_count": 8},
+      "size": 16
+    },
+    "odm_executor_snapshot": {
+      "fields": {"accepting": 4, "allocation_bytes": 56, "collected_total": 48, "completed_tasks": 28, "completed_total": 40, "outstanding_tasks": 16, "queued_tasks": 20, "running_tasks": 24, "schema_version": 0, "submitted_total": 32, "task_capacity": 12, "worker_count": 8},
+      "size": 64
+    },
+    "odm_executor_task_handle": {
+      "fields": {"id": 0, "reserved": 12, "slot": 8},
+      "size": 16
+    },
+    "odm_executor_task_snapshot": {
+      "fields": {"id": 16, "job_generation": 24, "reserved": 12, "result_status": 8, "schema_version": 0, "state": 4},
+      "size": 32
+    },
+    "odm_ffi_abi_info": {
+      "fields": {"abi_version": 4, "admission_result_size": 36, "digest_size": 16, "endian_marker": 8, "executor_config_size": 40, "executor_task_handle_size": 44, "feature_bits": 48, "progress_snapshot_size": 20, "reserved_u64_0": 56, "resource_limits_size": 28, "resource_request_size": 32, "status_size": 12, "struct_size": 0, "wire_record_info_size": 24},
+      "size": 64
+    },
+    "odm_progress_snapshot": {
+      "fields": {"cancel_requested": 16, "error_code": 12, "generation": 32, "phase": 8, "progress_millionths": 20, "reserved": 24, "schema_version": 0, "state": 4, "work_done": 40, "work_total": 48},
+      "size": 56
+    },
+    "odm_resource_limits": {
+      "fields": {"flags": 4, "max_input_bytes": 8, "max_jobs": 48, "max_memory_bytes": 24, "max_output_bytes": 16, "max_queue_items": 40, "max_recursion_depth": 52, "max_workers": 44, "max_work_units": 32, "schema_version": 0},
+      "size": 56
+    },
+    "odm_resource_request": {
+      "fields": {"flags": 4, "input_bytes": 8, "jobs": 48, "memory_bytes": 24, "output_bytes": 16, "queue_items": 40, "recursion_depth": 52, "schema_version": 0, "workers": 44, "work_units": 32},
+      "size": 56
+    },
+    "odm_sha256_digest": {
+      "fields": {"bytes": 0},
+      "size": 32
+    },
+    "odm_wire_record_info": {
+      "fields": {"flags": 12, "kind": 8, "payload_bytes": 24, "payload_sha256": 32, "schema_version_major": 16, "schema_version_minor": 20, "wire_version_major": 0, "wire_version_minor": 4},
+      "size": 64
+    }
+  },
+  "runtime_feature_bits": 31
+}

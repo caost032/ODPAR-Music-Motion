@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_TIMESTAMP_BUILD_ID */
+static const char forbidden_build_id[] = __TIMESTAMP__;

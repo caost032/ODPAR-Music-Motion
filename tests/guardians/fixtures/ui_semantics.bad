@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_UI_SEMANTICS_IN_ENGINE */
+void forbidden_engine_ui(void) { ui_button; }

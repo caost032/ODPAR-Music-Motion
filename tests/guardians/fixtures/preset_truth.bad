@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_PRESET_AS_TRUTH */
+int forbidden_preset_truth(void) { return preset_is_truth; }

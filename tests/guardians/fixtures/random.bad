@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_UNSEEDED_RANDOMNESS */
+int forbidden_randomness(void) { return rand(); }

@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_WALLCLOCK_IN_RENDER_CORE */
+long forbidden_render_clock(void) { return performance.now(); }

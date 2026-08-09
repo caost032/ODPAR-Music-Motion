@@ -1,0 +1,12 @@
+KAOST032 SIGNAL STUDIO DEFINITIVE
+
+Puntos fuertes:
+- autosave
+- copiar/pegar config
+- descargar/cargar config .json
+- halo premium
+- timeline viva
+- grid reactiva
+
+Nota:
+Los archivos locales suelen requerir volver a cargarse por seguridad del navegador, pero la configuración sí queda guardada.

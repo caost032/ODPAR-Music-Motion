@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_DIRECT_AUDIO_IN_VISUAL_EFFECTS */
+void forbidden_visual_audio(void) { decode_audio(); }

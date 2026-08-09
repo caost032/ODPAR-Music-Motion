@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="KAOST032 Signal Studio Definitive — visualizador musical limpio, profesional y exportador de video.">
+  <title>KAOST032 Signal Studio Director's Cut</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <p class="eyebrow">KAOST032 DEFINITIVE SYSTEM</p>
+          <h1>SIGNAL STUDIO <span>DEFINITIVE</span></h1>
+        </div>
+      </div>
+      <div class="status-group">
+        <div class="info-pill">HALO CORE • PERSISTENT MEMORY</div>
+        <div class="engine-status" id="engineStatus"><span></span> READY</div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="preview-column" aria-label="Vista previa del video">
+        <div class="stage-shell" id="stageShell">
+          <canvas id="visualizerCanvas" width="720" height="720" aria-label="Visualizador reactivo"></canvas>
+          <div class="stage-sheen" aria-hidden="true"></div>
+          <button class="fullscreen-button" id="fullscreenButton" type="button" title="Pantalla completa" aria-label="Pantalla completa">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+          </button>
+        </div>
+
+        <div class="transport-panel">
+          <button class="play-button" id="playButton" type="button" aria-label="Reproducir">
+            <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>
+          </button>
+          <div class="timeline-wrap">
+            <canvas id="waveformCanvas" width="900" height="86" aria-label="Forma de onda"></canvas>
+            <input id="seekRange" class="seek-range" type="range" min="0" max="1000" value="0" aria-label="Posición de reproducción">
+          </div>
+          <div class="timecode"><span id="currentTime">00:00</span><b>/</b><span id="durationTime">02:44</span></div>
+        </div>
+
+        <div class="hotkeys-card">
+          <span>ESPACIO: reproducir / pausar</span>
+          <span>F: pantalla completa</span>
+          <span>E: exportar video</span>
+          <span id="directorStatus">Scene: HALO RING</span>
+        </div>
+
+        <div class="export-progress" id="exportProgress" hidden>
+          <div class="export-progress-top">
+            <span id="exportStatus">PREPARANDO RENDER</span>
+            <span id="exportPercent">0%</span>
+          </div>
+          <div class="progress-track"><i id="exportProgressBar"></i></div>
+          <p>La exportación conserva audio sincronizado y la dirección visual limpia de esta edición.</p>
+          <button class="text-button danger" id="cancelExportButton" type="button">Cancelar render</button>
+        </div>
+
+        <div class="download-card" id="downloadCard" hidden>
+          <div>
+            <p class="eyebrow">VIDEO TERMINADO</p>
+            <strong id="downloadFilename">THE-BODY-KNOWS-KAOST032.webm</strong>
+          </div>
+          <a class="primary-button compact" id="downloadLink" download>Descargar video</a>
+        </div>
+      </section>
+
+      <aside class="control-panel" aria-label="Controles de diseño">
+        <nav class="tabs" aria-label="Secciones de configuración">
+          <button class="tab active" data-tab="media" type="button">MEDIA</button>
+          <button class="tab" data-tab="design" type="button">DISEÑO</button>
+          <button class="tab" data-tab="fx" type="button">FX</button>
+          <button class="tab" data-tab="director" type="button">SCENES</button>
+          <button class="tab" data-tab="export" type="button">EXPORTAR</button>
+        </nav>
+
+        <div class="tab-content active" data-panel="media">
+          <section class="control-section">
+            <div class="section-title"><span>01</span><h2>ARCHIVOS</h2></div>
+            <label class="drop-field" for="visualInput">
+              <input id="visualInput" type="file" accept="image/*,video/*">
+              <span class="drop-icon">＋</span>
+              <span><b>Imagen o video central</b><small id="visualFilename">the-body-knows-visual.mp4</small></span>
+            </label>
+            <label class="drop-field" for="audioInput">
+              <input id="audioInput" type="file" accept="audio/*">
+              <span class="drop-icon">♫</span>
+              <span><b>Música</b><small id="audioFilename">The Body Knows.mp3</small></span>
+            </label>
+          </section>
+
+          <section class="control-section">
+            <div class="section-title"><span>02</span><h2>IDENTIDAD</h2></div>
+            <label class="field-label">Título<input id="titleInput" type="text" value="THE BODY KNOWS" maxlength="60"></label>
+            <div class="field-row">
+              <label class="field-label">Artista<input id="artistInput" type="text" value="KAOST032" maxlength="40"></label>
+              <label class="field-label">Descriptor<input id="descriptorInput" type="text" value="BLACK / WHITE / BLUE" maxlength="44"></label>
+            </div>
+            <label class="field-label">Crédito de autor<input id="creditInput" type="text" value="Original work by KAOST032." maxlength="80"></label>
+            <label class="field-label">Derechos<input id="rightsInput" type="text" value="© 2026 KAOST032. All rights reserved." maxlength="100"></label>
+          </section>
+        </div>
+
+        <div class="tab-content" data-panel="design">
+          <section class="control-section">
+            <div class="section-title"><span>03</span><h2>SISTEMA VISUAL</h2></div>
+            <label class="field-label">Tema maestro
+              <select id="styleProfileSelect">
+                <option value="obsidian" selected>Obsidian Blue</option>
+                <option value="cobalt">Cobalt Cathedral</option>
+                <option value="ink">Ink White</option>
+                <option value="deep">Deep Focus</option>
+                <option value="monochrome">Monochrome Editorial</option>
+                <option value="blueprint">Blueprint Pulse</option>
+                <option value="frost">Frost Signal</option>
+                <option value="museum">Museum Mono</option>
+                <option value="afterblue">Afterblue Luxe</option>
+              </select>
+            </label>
+            <label class="field-label">Composición principal
+              <select id="presetSelect">
+                <option value="frame">Precision Frame</option>
+                <option value="halo" selected>Halo Ring</option>
+                <option value="haloPlus">Halo Pulse Chamber</option>
+                <option value="bars">Monolith Bars</option>
+                <option value="line">Wave Line</option>
+                <option value="minimal">Minimal Focus</option>
+              </select>
+            </label>
+            <label class="field-label">Forma del centro
+              <select id="shapeSelect">
+                <option value="rounded">Cuadrado editorial</option>
+                <option value="square">Cuadrado preciso</option>
+                <option value="circle" selected>Círculo</option>
+              </select>
+            </label>
+            <div class="range-field"><span>Intensidad</span><output id="intensityOutput">92%</output><input id="intensityRange" type="range" min="20" max="150" value="92"></div>
+            <div class="range-field"><span>Sensibilidad</span><output id="sensitivityOutput">122%</output><input id="sensitivityRange" type="range" min="50" max="220" value="122"></div>
+            <div class="range-field"><span>Suavizado</span><output id="smoothingOutput">84%</output><input id="smoothingRange" type="range" min="20" max="95" value="84"></div>
+            <div class="range-field"><span>Densidad</span><output id="densityOutput">148</output><input id="densityRange" type="range" min="32" max="220" step="4" value="148"></div>
+            <div class="range-field"><span>Pulse Zoom</span><output id="zoomOutput">34%</output><input id="zoomRange" type="range" min="0" max="100" value="34"></div>
+          </section>
+
+          <section class="control-section">
+            <div class="section-title"><span>04</span><h2>PALETA</h2></div>
+            <div class="palette-grid four-cols">
+              <label><span>Negro</span><input id="bgColor" type="color" value="#000000"></label>
+              <label><span>Blanco</span><input id="primaryColor" type="color" value="#f4f7fb"></label>
+              <label><span>Azul</span><input id="accentAColor" type="color" value="#2f7cff"></label>
+              <label><span>Azul suave</span><input id="accentBColor" type="color" value="#8bb7ff"></label>
+            </div>
+            <button class="secondary-button" id="resetDesignButton" type="button">Restaurar sistema Obsidian</button>
+          </section>
+        </div>
+
+        <div class="tab-content" data-panel="fx">
+          <section class="control-section">
+            <div class="section-title"><span>05</span><h2>EFECTOS FINOS</h2></div>
+            <div class="range-field"><span>Glow</span><output id="bloomOutput">58%</output><input id="bloomRange" type="range" min="0" max="100" value="58"></div>
+            <div class="range-field"><span>Trails</span><output id="trailsOutput">24%</output><input id="trailsRange" type="range" min="0" max="100" value="24"></div>
+            <div class="range-field"><span>Chroma</span><output id="chromaOutput">12%</output><input id="chromaRange" type="range" min="0" max="100" value="12"></div>
+            <div class="range-field"><span>Partículas</span><output id="particlesOutput">54%</output><input id="particlesRange" type="range" min="0" max="100" value="54"></div>
+            <div class="range-field"><span>Vignette</span><output id="vignetteOutput">54%</output><input id="vignetteRange" type="range" min="0" max="100" value="54"></div>
+            <div class="toggle-grid">
+              <button class="toggle-chip active" id="gridToggle" type="button" aria-pressed="true">Grid</button>
+              <button class="toggle-chip" id="noiseToggle" type="button" aria-pressed="false">Noise</button>
+              <button class="toggle-chip" id="orbitToggle" type="button" aria-pressed="false">Orbit</button>
+              <button class="toggle-chip active" id="statsToggle" type="button" aria-pressed="true">HUD</button>
+              <button class="toggle-chip active" id="ribbonToggle" type="button" aria-pressed="true">Ribbon</button>
+              <button class="toggle-chip active" id="flashToggle" type="button" aria-pressed="true">Beat Flash</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="tab-content" data-panel="director">
+          <section class="control-section">
+            <div class="section-title"><span>06</span><h2>SCENE DIRECTOR</h2></div>
+            <div class="toggle-grid single-column">
+              <button class="toggle-chip" id="autoDirectorToggle" type="button" aria-pressed="false">Auto Director</button>
+              <button class="toggle-chip active" id="introToggle" type="button" aria-pressed="true">Intro card</button>
+              <button class="toggle-chip active" id="outroToggle" type="button" aria-pressed="true">Outro card</button>
+              <button class="toggle-chip active" id="cleanModeToggle" type="button" aria-pressed="true">Clean Mode</button>
+            </div>
+            <div class="range-field"><span>Director strength</span><output id="directorStrengthOutput">62%</output><input id="directorStrengthRange" type="range" min="0" max="100" value="62"></div>
+            <div class="range-field"><span>Title Scale</span><output id="typeScaleOutput">100%</output><input id="typeScaleRange" type="range" min="70" max="145" value="100"></div>
+            <p class="mini-note">Director's Cut prioriza Halo Ring, suma una variante Halo Pulse Chamber y una dirección visual más cinematográfica, viva y premium.</p>
+          </section>
+        </div>
+
+        <div class="tab-content" data-panel="export">
+          <section class="control-section">
+            <div class="section-title"><span>07</span><h2>FORMATO FINAL</h2></div>
+            <div class="format-grid" id="formatGrid">
+              <button class="format-option active" data-format="square" type="button"><i class="ratio-square"></i><b>1:1</b><small>Portada / feed</small></button>
+              <button class="format-option" data-format="vertical" type="button"><i class="ratio-vertical"></i><b>9:16</b><small>TikTok / Reels</small></button>
+              <button class="format-option" data-format="landscape" type="button"><i class="ratio-landscape"></i><b>16:9</b><small>YouTube</small></button>
+            </div>
+            <label class="field-label">Resolución
+              <select id="qualitySelect">
+                <option value="1080">Alta — 1080</option>
+                <option value="720">Ligera — 720</option>
+              </select>
+            </label>
+            <div class="export-specs">
+              <div><span>Salida</span><b id="resolutionLabel">1080 × 1080</b></div>
+              <div><span>Fotogramas</span><b>30 FPS</b></div>
+              <div><span>Audio</span><b>ESTÉREO</b></div>
+              <div><span>Contenedor</span><b id="containerLabel">AUTO</b></div>
+            </div>
+          </section>
+          <section class="control-section export-section">
+            <button class="primary-button" id="exportButton" type="button"><span>GENERAR VIDEO</span><small id="exportHint">Duración aproximada: 02:44</small></button>
+            <p class="compatibility-note" id="compatibilityNote">Esta edición está optimizada para estética limpia: negro dominante, blanco estructural y azul como acento controlado.</p>
+          </section>
+          <section class="control-section">
+            <div class="section-title"><span>08</span><h2>MEMORIA DEL PROYECTO</h2></div>
+            <p class="mini-note">La configuración se guarda automáticamente en este navegador. También puedes copiarla, pegarla, descargarla y volver a cargarla cuando quieras.</p>
+            <label class="field-label">Config JSON
+              <textarea id="configBox" class="config-box" spellcheck="false"></textarea>
+            </label>
+            <div class="config-actions">
+              <button class="secondary-button compact-button" id="copyConfigButton" type="button">Copiar config</button>
+              <button class="secondary-button compact-button" id="pasteConfigButton" type="button">Pegar config</button>
+              <button class="secondary-button compact-button" id="applyConfigButton" type="button">Aplicar desde caja</button>
+              <button class="secondary-button compact-button" id="downloadConfigButton" type="button">Descargar .json</button>
+              <button class="secondary-button compact-button" id="restoreAutosaveButton" type="button">Restaurar autosave</button>
+              <button class="secondary-button compact-button" id="clearAutosaveButton" type="button">Limpiar autosave</button>
+            </div>
+            <div class="config-footer-row">
+              <button class="text-button" id="loadConfigFileButton" type="button">Cargar config desde archivo</button>
+              <span class="config-status" id="configStatus">Autosave activo.</span>
+            </div>
+            <input id="configFileInput" type="file" accept="application/json,.json" hidden>
+          </section>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <audio id="audioElement" preload="auto" src="assets/the-body-knows.mp3"></audio>
+  <video id="videoElement" preload="auto" src="assets/the-body-knows-visual.mp4" poster="assets/poster.webp" muted loop playsinline></video>
+  <img id="imageElement" alt="" hidden>
+  <script src="app.js" defer></script>
+</body>
+</html>

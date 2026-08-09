@@ -1,0 +1,2 @@
+/* EXPECT_GUARDIAN: NO_NATIVE_FLOAT_IN_CANONICAL_IR */
+typedef struct { double forbidden_coordinate; } bad_ir;
