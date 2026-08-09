@@ -1,0 +1,37 @@
+{
+  "command": [
+    "make",
+    "asan-clang"
+  ],
+  "elapsed_ns_observation_only": 1870960236,
+  "exit_code": 0,
+  "last_test_totals": {
+    "checks": 8904773,
+    "failed": 0,
+    "passed": 8904773
+  },
+  "name": "asan_ubsan_clang",
+  "schema": "odm_evidence_lane_v1",
+  "source_id_after": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_id_before": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_stable": true,
+  "status": "pass",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_tail": [],
+  "stdout_sha256": "06138b0617590066daf0339b991d719e27f438543a6a4df206c947f32e69f58d",
+  "stdout_tail": [
+    "make[1]: Entering directory '.'",
+    "make -j4 BUILD_DIR=build/asan-clang CC=clang OPT_FLAGS=\"-O1 -g1\" \\",
+    "\tHARDEN_FLAGS= SANITIZER_FLAGS=\"-fsanitize=address,undefined -fno-omit-frame-pointer\" \\",
+    "\tbuild/asan-clang/odm-tests build/asan-clang/odpar-music",
+    "make[2]: Entering directory '.'",
+    "python3 tools/gen_build_meta.py --output build/asan-clang/generated/odm_build_meta.h",
+    "make[2]: 'build/asan-clang/odpar-music' is up to date.",
+    "make[2]: Leaving directory '.'",
+    "ASAN_OPTIONS=\"detect_leaks=0:halt_on_error=1\" UBSAN_OPTIONS=\"halt_on_error=1:print_stacktrace=1\" build/asan-clang/odm-tests",
+    "ODM TESTS checks=8904773 passed=8904773 failed=0",
+    "ASAN_OPTIONS=\"detect_leaks=0:halt_on_error=1\" UBSAN_OPTIONS=\"halt_on_error=1:print_stacktrace=1\" build/asan-clang/odpar-music selftest",
+    "{\"schema\":\"odm_selftest_v1\",\"checks\":12,\"passed\":12,\"failed\":0,\"status\":\"pass\",\"failed_check\":null,\"error\":\"ok\"}",
+    "make[1]: Leaving directory '.'"
+  ]
+}

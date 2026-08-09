@@ -1,0 +1,13 @@
+make[1]: Entering directory '.'
+make -j4 BUILD_DIR=build/asan-gcc CC=gcc OPT_FLAGS="-O1 -g1" \
+	HARDEN_FLAGS= SANITIZER_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+	build/asan-gcc/odm-tests build/asan-gcc/odpar-music
+make[2]: Entering directory '.'
+python3 tools/gen_build_meta.py --output build/asan-gcc/generated/odm_build_meta.h
+make[2]: 'build/asan-gcc/odpar-music' is up to date.
+make[2]: Leaving directory '.'
+ASAN_OPTIONS="detect_leaks=0:halt_on_error=1" UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1" build/asan-gcc/odm-tests
+ODM TESTS checks=8904773 passed=8904773 failed=0
+ASAN_OPTIONS="detect_leaks=0:halt_on_error=1" UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1" build/asan-gcc/odpar-music selftest
+{"schema":"odm_selftest_v1","checks":12,"passed":12,"failed":0,"status":"pass","failed_check":null,"error":"ok"}
+make[1]: Leaving directory '.'

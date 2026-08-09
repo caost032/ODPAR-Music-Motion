@@ -1,0 +1,23 @@
+{
+  "command": [
+    "make",
+    "repro"
+  ],
+  "elapsed_ns_observation_only": 9558684235,
+  "exit_code": 0,
+  "name": "reproducibility",
+  "schema": "odm_evidence_lane_v1",
+  "source_id_after": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_id_before": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_stable": true,
+  "status": "pass",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_tail": [],
+  "stdout_sha256": "fe3fea5d06bc6886d1fbc593e06f1854b55375deb07c84701175edf3df421552",
+  "stdout_tail": [
+    "make[1]: Entering directory '.'",
+    "python3 tests/determinism/check_reproducible.py --root . --cc cc",
+    "reproducible build: pass (3/3 byte-identical; binary sha256:71b8e84938ae5c7efc8fe14c1c056eaf5f25a754f196617c6d63affd52565cd5)",
+    "make[1]: Leaving directory '.'"
+  ]
+}

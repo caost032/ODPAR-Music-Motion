@@ -10,6 +10,7 @@
 #include "odm_visual.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -33,6 +34,12 @@ typedef struct {
     uint64_t frame_count;
     uint64_t bytes_per_frame;
     int64_t samples_per_frame;
+    /* Ritmo propio del video de origen. El fotograma se elige por MUESTRA, no
+     * por indice de salida: si se eligiera por indice, un video de 60 fps
+     * reproducido a 30 fps de salida correria al doble de velocidad. La linea
+     * de 48 kHz es la unica autoridad temporal. */
+    uint32_t video_fps_num;
+    uint32_t video_fps_den;
 } core_ctx;
 
 typedef struct {
@@ -131,12 +138,145 @@ static odm_status state_provider(void *user, uint64_t frame_index, int64_t sampl
     return ODM_STATUS_OK;
 }
 
+
+/* Lee el ritmo declarado del video como fraccion exacta. Se mantiene racional
+ * a proposito: 30000/1001 no es 29.97, y redondearlo introduce deriva. */
+static int probe_video_fps(const char *path, uint32_t *out_num, uint32_t *out_den) {
+    char *argv[12];
+    uint32_t n = 0u;
+    int fds[2];
+    pid_t pid;
+    char text[128];
+    ssize_t got;
+    unsigned long a = 0u, b = 0u;
+
+    if (!path || !out_num || !out_den) return 0;
+    *out_num = 0u; *out_den = 1u;
+    argv[n++] = (char *)"ffprobe";
+    argv[n++] = (char *)"-v"; argv[n++] = (char *)"error";
+    argv[n++] = (char *)"-select_streams"; argv[n++] = (char *)"v:0";
+    argv[n++] = (char *)"-show_entries"; argv[n++] = (char *)"stream=r_frame_rate";
+    argv[n++] = (char *)"-of"; argv[n++] = (char *)"default=nw=1:nk=1";
+    argv[n++] = (char *)path;
+    argv[n] = NULL;
+
+    if (pipe(fds) != 0) return 0;
+    pid = fork();
+    if (pid < 0) { close(fds[0]); close(fds[1]); return 0; }
+    if (pid == 0) {
+        int devnull = open("/dev/null", O_RDWR);
+        close(fds[0]);
+        if (devnull >= 0) { dup2(devnull, STDIN_FILENO); dup2(devnull, STDERR_FILENO); if (devnull > 2) close(devnull); }
+        if (dup2(fds[1], STDOUT_FILENO) < 0) _exit(127);
+        close(fds[1]);
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+    close(fds[1]);
+    memset(text, 0, sizeof(text));
+    got = read(fds[0], text, sizeof(text) - 1u);
+    close(fds[0]);
+    { int status = 0; (void)waitpid(pid, &status, 0); }
+    if (got <= 0) return 0;
+    if (sscanf(text, "%lu/%lu", &a, &b) != 2 || a == 0u || b == 0u) return 0;
+    if (a > UINT32_MAX || b > UINT32_MAX) return 0;
+    *out_num = (uint32_t)a; *out_den = (uint32_t)b;
+    return 1;
+}
+
+/* Extrae un video completo a una secuencia RGBA8 cuadrada.
+ *
+ * Se canonicaliza a un tamano fijo una sola vez: reescalar por fotograma
+ * durante el render seria a la vez mas lento y peor, porque cada pasada
+ * anadiria su propio error de remuestreo. El escalado usa Lanczos en el
+ * adaptador, que es la frontera donde el remuestreo esta permitido.
+ *
+ * Devuelve 0 si el archivo no es un video decodificable. */
+static int load_video_sequence(const char *path, uint32_t size,
+                               uint8_t **out_rgba, uint64_t *out_count,
+                               uint32_t *out_fps_num, uint32_t *out_fps_den) {
+    char filter[256];
+    char size_arg[64];
+    char *argv[32];
+    uint32_t n = 0u;
+    int fds[2];
+    pid_t pid;
+    uint8_t *buf = NULL;
+    size_t cap = 0u, len = 0u;
+    uint64_t frame_bytes = (uint64_t)size * size * 4u;
+
+    if (!path || !out_rgba || !out_count || size == 0u) return 0;
+    *out_rgba = NULL; *out_count = 0u;
+    *out_fps_num = 0u; *out_fps_den = 1u;
+
+    if (snprintf(filter, sizeof(filter),
+                 "scale=%u:%u:force_original_aspect_ratio=increase:flags=lanczos,crop=%u:%u",
+                 size, size, size, size) < 0) return 0;
+    if (snprintf(size_arg, sizeof(size_arg), "%ux%u", size, size) < 0) return 0;
+
+    argv[n++] = (char *)"ffmpeg";
+    argv[n++] = (char *)"-hide_banner"; argv[n++] = (char *)"-loglevel"; argv[n++] = (char *)"error";
+    argv[n++] = (char *)"-nostdin";
+    argv[n++] = (char *)"-i"; argv[n++] = (char *)path;
+    argv[n++] = (char *)"-map"; argv[n++] = (char *)"0:v:0";
+    argv[n++] = (char *)"-vf"; argv[n++] = filter;
+    argv[n++] = (char *)"-pix_fmt"; argv[n++] = (char *)"rgba";
+    argv[n++] = (char *)"-f"; argv[n++] = (char *)"rawvideo";
+    argv[n++] = (char *)"-";
+    argv[n] = NULL;
+
+    if (pipe(fds) != 0) return 0;
+    pid = fork();
+    if (pid < 0) { close(fds[0]); close(fds[1]); return 0; }
+    if (pid == 0) {
+        int devnull = open("/dev/null", O_RDWR);
+        close(fds[0]);
+        if (devnull >= 0) { dup2(devnull, STDIN_FILENO); dup2(devnull, STDERR_FILENO); if (devnull > 2) close(devnull); }
+        if (dup2(fds[1], STDOUT_FILENO) < 0) _exit(127);
+        close(fds[1]);
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+    close(fds[1]);
+    for (;;) {
+        ssize_t got;
+        if (len + (1u << 20) > cap) {
+            size_t next = cap ? cap * 2u : (size_t)(8u << 20);
+            uint8_t *grown;
+            while (next < len + (1u << 20)) next *= 2u;
+            grown = (uint8_t *)realloc(buf, next);
+            if (!grown) { free(buf); buf = NULL; break; }
+            buf = grown; cap = next;
+        }
+        got = read(fds[0], buf + len, 1u << 20);
+        if (got < 0) { if (errno == EINTR) continue; free(buf); buf = NULL; break; }
+        if (got == 0) break;
+        len += (size_t)got;
+    }
+    close(fds[0]);
+    { int status = 0; (void)waitpid(pid, &status, 0); }
+    if (!buf || frame_bytes == 0u || len < frame_bytes) { free(buf); return 0; }
+
+    *out_rgba = buf;
+    *out_count = (uint64_t)len / frame_bytes;
+    /* Se asume el ritmo declarado por el contenedor; si no se pudo leer, el
+     * proveedor cae al indice de fotograma, que es el comportamiento previo. */
+    if (!probe_video_fps(path, out_fps_num, out_fps_den)) { *out_fps_num = 0u; *out_fps_den = 1u; }
+    return 1;
+}
+
 static odm_status core_provider(void *user, uint64_t frame_index, int64_t sample,
                                 odm_render_surface_frame *out_surface) {
     core_ctx *ctx = (core_ctx *)user;
     uint64_t idx;
     if (!ctx || !out_surface || !ctx->rgba || ctx->frame_count == 0u) return ODM_STATUS_INVALID_ARGUMENT;
-    idx = frame_index % ctx->frame_count;
+    if (ctx->video_fps_num != 0u && ctx->video_fps_den != 0u && sample >= 0) {
+        /* idx = floor(sample * fps / 48000) mod frame_count, en enteros. */
+        uint64_t num = (uint64_t)sample * (uint64_t)ctx->video_fps_num;
+        idx = (num / ((uint64_t)48000 * (uint64_t)ctx->video_fps_den)) % ctx->frame_count;
+    } else {
+        idx = frame_index % ctx->frame_count;
+    }
     memset(out_surface, 0, sizeof(*out_surface));
     out_surface->width = ctx->width;
     out_surface->height = ctx->height;
@@ -614,7 +754,8 @@ int main(int argc, char **argv) {
     for (i = 0u; i < tick_count; ++i) {
         if (odm_composition_resolve_music_reaction(&ticks[i], &refined_frames[i],
                                                    &comp_frames[i]) != ODM_STATUS_OK) {
-            fprintf(stderr, "music-reaction composition failed at tick %llu\n", (unsigned long long)i); return 18;
+            fprintf(stderr, "music-reaction composition failed at tick %llu\n", (unsigned long long)i);
+            return 18;
         }
         if (odm_director_resolve_tick(&dir_state, &comp_frames[i], &dir_frames[i]) != ODM_STATUS_OK) {
             fprintf(stderr, "director resolve failed at tick %llu\n", (unsigned long long)i); return 19;
@@ -641,6 +782,23 @@ int main(int argc, char **argv) {
         odm_media_adapter_provenance core_prov;
         uint64_t need = 0u;
         odm_status st;
+        uint64_t vframes = 0u;
+        uint32_t vnum = 0u, vden = 1u;
+        uint8_t *vrgba = NULL;
+        /* El nucleo acepta video. Se canonicaliza una sola vez a una secuencia
+         * cuadrada; el fotograma que toca en cada instante se elige por muestra,
+         * asi que el video conserva su propia velocidad con independencia del
+         * FPS de salida y se repite en bucle si es mas corto que la pista. */
+        if (load_video_sequence(core_raw_path, 768u, &vrgba, &vframes, &vnum, &vden) && vframes > 1u) {
+            core_rgba = vrgba;
+            source_w = 768u; source_h = 768u;
+            core_raw_size = vframes * (uint64_t)768u * 768u * 4u;
+            cctx.video_fps_num = vnum; cctx.video_fps_den = vden;
+            fprintf(stderr, "core: video %llu fotogramas @ %u/%u fps (768x768)\n",
+                    (unsigned long long)vframes, vnum, vden);
+            goto core_ready;
+        }
+        if (vrgba) free(vrgba);
         memset(&core_facts, 0, sizeof(core_facts));
         st = odm_media_load_image_rgba8(core_raw_path, NULL, 0u, &need, &core_facts, &core_prov);
         if (st == ODM_STATUS_BUFFER_TOO_SMALL || st == ODM_STATUS_OK) {
@@ -657,6 +815,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "failed to read core input\n"); return 18;
         }
     }
+core_ready:
     cctx.width = source_w;
     cctx.height = source_h;
     cctx.bytes_per_frame = (uint64_t)source_w * source_h * 4u;

@@ -1,0 +1,25 @@
+{
+  "command": [
+    "make",
+    "analyze-gcc"
+  ],
+  "elapsed_ns_observation_only": 37241699086,
+  "exit_code": 0,
+  "name": "gcc_analyzer",
+  "schema": "odm_evidence_lane_v1",
+  "source_id_after": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_id_before": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_stable": true,
+  "status": "pass",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_tail": [],
+  "stdout_sha256": "f5d2070e24e352f80bf95ba4c07ebdfce1f343e20039c255041668d24bbddf2e",
+  "stdout_tail": [
+    "make[1]: Entering directory '.'",
+    "python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h",
+    "python3 tools/check_gcc_analyzer.py --root . --cc gcc \\",
+    "\t--generated build/generated",
+    "GCC analyzer: pass (68 production units)",
+    "make[1]: Leaving directory '.'"
+  ]
+}

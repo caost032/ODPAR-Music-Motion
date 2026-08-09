@@ -1,0 +1,34 @@
+{
+  "command": [
+    "make",
+    "tsan-gcc"
+  ],
+  "elapsed_ns_observation_only": 3877830060,
+  "exit_code": 0,
+  "last_test_totals": {
+    "checks": 8904773,
+    "failed": 0,
+    "passed": 8904773
+  },
+  "name": "tsan_gcc",
+  "schema": "odm_evidence_lane_v1",
+  "source_id_after": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_id_before": "sha256:7cf38e363d5a1e2e3ea71484bd8353986fa70b9dca8680639c8973b4bc74bea1",
+  "source_stable": true,
+  "status": "pass",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_tail": [],
+  "stdout_sha256": "58c119f907d0bc7401d1e45462f10895f64161dd4978dfa553498849336421ad",
+  "stdout_tail": [
+    "make[1]: Entering directory '.'",
+    "make -j4 BUILD_DIR=build/tsan-gcc CC=gcc OPT_FLAGS=\"-O1 -g1\" \\",
+    "\tHARDEN_FLAGS= SANITIZER_FLAGS=\"-fsanitize=thread -fno-omit-frame-pointer\" \\",
+    "\tbuild/tsan-gcc/odm-tests",
+    "make[2]: Entering directory '.'",
+    "python3 tools/gen_build_meta.py --output build/tsan-gcc/generated/odm_build_meta.h",
+    "make[2]: Leaving directory '.'",
+    "TSAN_OPTIONS=\"halt_on_error=1\" build/tsan-gcc/odm-tests",
+    "ODM TESTS checks=8904773 passed=8904773 failed=0",
+    "make[1]: Leaving directory '.'"
+  ]
+}

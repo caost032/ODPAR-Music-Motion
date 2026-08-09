@@ -13,7 +13,9 @@ extern "C" {
 #endif
 
 #define ODM_MUSIC_ANALYSIS_VERSION 1u
-#define ODM_MUSIC_POLICY_VERSION 1u
+/* v2: las razones con signo (balance estereo, anchura) se publican en el rango
+ * simetrico [-INT32_MAX, +INT32_MAX]. Ver src/music_map/analysis.c. */
+#define ODM_MUSIC_POLICY_VERSION 2u
 #define ODM_MUSIC_SAMPLE_RATE 48000u
 #define ODM_MUSIC_TICK_RATE 100u
 #define ODM_MUSIC_TICK_SAMPLES 480u

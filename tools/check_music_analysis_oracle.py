@@ -311,7 +311,9 @@ def build_expected():
     wh=hashlib.sha256(wb).digest(); th=hashlib.sha256(tb).digest()
     policy=bytearray()
     policy += b'ODMPOL1\0'
-    vals=[1,48000,100,480,2048,1025,1,1,1,1,1,1024,64,512,30,23,25,6]
+    # v2: las razones con signo se publican en rango simetrico
+    # [-INT32_MAX, +INT32_MAX]. Ver src/music_map/analysis.c.
+    vals=[2,48000,100,480,2048,1025,1,1,1,1,1,1024,64,512,30,23,25,6]
     policy += struct.pack('<'+'I'*len(vals),*vals)
     policy += struct.pack('<'+'I'*7,*EDGES)
     policy += struct.pack('<III',*ENV)

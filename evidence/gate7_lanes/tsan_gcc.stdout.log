@@ -1,0 +1,10 @@
+make[1]: Entering directory '.'
+make -j4 BUILD_DIR=build/tsan-gcc CC=gcc OPT_FLAGS="-O1 -g1" \
+	HARDEN_FLAGS= SANITIZER_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
+	build/tsan-gcc/odm-tests
+make[2]: Entering directory '.'
+python3 tools/gen_build_meta.py --output build/tsan-gcc/generated/odm_build_meta.h
+make[2]: Leaving directory '.'
+TSAN_OPTIONS="halt_on_error=1" build/tsan-gcc/odm-tests
+ODM TESTS checks=8904773 passed=8904773 failed=0
+make[1]: Leaving directory '.'

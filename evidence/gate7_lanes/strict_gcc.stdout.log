@@ -1,0 +1,306 @@
+make[1]: Entering directory '.'
+make -j4 BUILD_DIR=build/gcc CC=gcc build/gcc/libodpar_music.a build/gcc/libodpar_music.so build/gcc/odpar-music build/gcc/odm-tests
+make[2]: Entering directory '.'
+python3 tools/gen_build_meta.py --output build/gcc/generated/odm_build_meta.h
+make[2]: 'build/gcc/libodpar_music.so' is up to date.
+make[2]: 'build/gcc/odpar-music' is up to date.
+make[2]: 'build/gcc/odm-tests' is up to date.
+make[2]: Leaving directory '.'
+make -j1 BUILD_DIR=build/gcc CC=gcc test selftest guardians spine-check header-check determinism hardening
+make[2]: Entering directory '.'
+python3 tools/gen_build_meta.py --output build/gcc/generated/odm_build_meta.h
+build/gcc/odm-tests
+ODM TESTS checks=8904773 passed=8904773 failed=0
+build/gcc/odpar-music selftest
+{"schema":"odm_selftest_v1","checks":12,"passed":12,"failed":0,"status":"pass","failed_check":null,"error":"ok"}
+python3 tools/guardian.py --root .
+architectural guardians: pass (8 rules)
+python3 tools/guardian.py --root . --negative-fixtures
+guardian negative controls: pass (8/8)
+python3 tools/check_spine.py --root . --binary build/gcc/odpar-music --library build/gcc/libodpar_music.a
+Spine reconciliation: pass (68 modules, 254 edges, 141 invariants, 7 ownership records, 8 guardians, 128 capabilities, 96 scoped investigations)
+python3 tools/check_headers.py --root . --cc gcc --generated build/gcc/generated
+public header check: pass (33 standalone + aggregate)
+python3 tests/determinism/check_outputs.py --binary build/gcc/odpar-music \
+	--tests build/gcc/odm-tests
+deterministic outputs: pass (74 streams, sha256:feb5e4cca568da4bf6cfdabb3613818302d0d03ad6d2be002192d89807f1259d)
+python3 tools/check_hardening.py --root . --binary build/gcc/odpar-music
+ELF hardening: pass (PIE, full RELRO/NOW, NX stack, canary, FORTIFY, no TEXTREL, no linker build-id)
+make[2]: Leaving directory '.'
+make -j4 BUILD_DIR=build/gcc CC=gcc crypto-oracle sha-backend-oracle media-oracle resampler-oracle music-analysis-oracle music-reaction-oracle contextual-salience-oracle reaction-projection-oracle strict-causal-oracle multi-axis-visual-oracle radial-provenance-oracle radial-timescale-geometry-oracle multiscale-radial-raster-oracle causal-trace-oracle render-ir-oracle frame-state-oracle odparms-oracle renderer-oracle renderer-property-oracle visual-oracle visual-dynamics-oracle supersample-oracle composition-oracle director-oracle visual-policy-oracle layered-oracle style-oracle reaction-oracle layer-output-oracle layered-raster-oracle radial-geometry-oracle radial-hires-geometry-oracle particle-geometry-oracle strict-causal-field-oracle perspective-grid-oracle hud-geometry-oracle srgb-lut-check export-engine-oracle export-ffmpeg-smoke export-run-smoke preview-oracle preview-ffi flutter-preview-binding master-oracle studio-oracle delivery-oracle abi-check
+make[2]: Entering directory '.'
+python3 tools/check_sha256_backends.py --root . --cc gcc
+python3 tools/gen_layered_srgb_lut.py --check
+python3 tools/check_flutter_preview_ffi.py --root . \
+	--golden tests/golden/preview_ffi_v1.json --binding flutter/odpar_music_ffi.dart
+python3 tools/gen_build_meta.py --output build/gcc/generated/odm_build_meta.h
+python3 tools/check_sha256_oracle.py --root . --cc gcc \
+	--library build/gcc/libodpar_music.a
+Flutter FFI binding: static parity pass; runtime/analyzer BLOCKED_MISSING_DART_TOOLCHAIN
+Flutter runtime lane: BLOCKED_MISSING_FLUTTER_TOOLCHAIN
+python3 tools/check_media_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+layered sRGB LUT exact: 65536/65536
+python3 tools/check_resampler_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+SHA-256 independent oracle: pass (1024 vectors, 5245957 bytes, corpus sha256:7c5c47f9e59944fa850020b0abdda93ac22f911cfa6198aaa34eab571715eb89)
+python3 tools/check_music_analysis_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Media Truth independent oracle: pass (25004 duration vectors, 60 WAV vectors, 16 PNG vectors)
+python3 tools/check_music_reaction_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+MUSIC REACTION ORACLE: PASS
+  policy v11: 576 canonical bytes, sha256=dd43420436880c6d33141bb5c6b17378124895ef91a8691a362d132b366ab0ea
+  96 spectral lanes: frozen contiguous topology, DC excluded, 23.4 Hz..18 kHz
+  locality: FFT bin 10 -> lane 9 only; lane 40 -> high-resolution radial 40 only
+  robust refs: magnitude P99=1100000, positive-attack P95=100000 despite INT32_MAX outlier
+  provenance: legacy radial 20 -> lanes 40/41; hires radial 40 -> lane 40 exactly
+  event provenance: broadband + strongest two canonical families + score/threshold/raw/context fields reconstructed exactly
+  strict causal isolation: project-time changed; phase/ring stayed zero, flags include HIRES|STRICT_CAUSAL|RADIAL_PROVENANCE|RADIAL_TIMESCALE, radial amplitude byte-identical
+  frequency-aware release: SUB=1968526677, AIR=1610612736, broadband=1879048192
+  attack headroom: P95 reference -> 1576607346/2147483647; absolute Q1.31 max -> 2147483647/2147483647
+  causal projection: 20/20 source ticks consumed exactly once at 800-sample presentation cadence; seek replays no historical impulse
+  offline onset refinement: candidate-median gate preserves local maxima at ticks 7 and 25; no beat/BPM claim
+  contextual salience: full-track macro lane is separate from raw causal event evidence and carries explicit stream flags
+Music analysis oracle: pass (2048 Hann coefficients, 1024 complex twiddles, 3 exact feature ticks, full analysis.bin)
+Music policy SHA-256: cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec
+analysis.bin SHA-256: 0a1fce8b9fa2a3b33e5307de04668f135f1cd59c11dbbfcba700d984903bf7fc
+python3 tools/check_contextual_salience_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_reaction_projection_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+CONTEXTUAL SALIENCE ORACLE: PASS
+  published events=11, salience distinct=10, range=214748365..2147483647 Q1.31
+  exact reconstruction: local peaks -> candidate median gate -> refractory publication -> P10..P90/P99 knots -> piecewise salience
+  negative control: suppressed 0.90 vs 1.00 outlier has zero event fields and cannot recalibrate published salience
+REACTION PRESENTATION PROJECTION ORACLE: PASS
+  24/25/30/50/60/100/120 fps: every 100 Hz source tick captured exactly once
+  instantaneous lane/family/broadband attacks: interval-max preserved
+  event flags/strength + contextual macro salience: interval-captured; raw/macro pulses: held from causal source tick
+  mixed evidence-only/contextual stream: rejected before projection
+  invalid non-monotonic schedule: transactional output preserved
+python3 tools/check_strict_causal_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_multi_axis_visual_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+MULTI-AXIS VISUAL CAUSALITY ORACLE: PASS
+  low attack -> Core breath/border; mid/body -> Grid; presence/air -> particles/accent; exceptional contextual salience -> structural fracture
+  moderate salience cannot fracture; local radial evidence is byte-identical across macro-authority perturbations
+  strict Director: unity radial gain cannot masquerade as activity; 96-radial mean drives ORBIT, with legacy gain as negative control
+  six synthetic authority-isolation cases reconstructed integer-exact from independent Q1.31 formulas
+python3 tools/check_radial_provenance_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+STRICT CAUSAL ORACLE: PASS
+  strict: identical Background+Field pixels across seed, sample/tick, composition phase/ring, Director orbit/asymmetry perturbations
+  orthogonality: STRICT_CAUSAL verified independently of RADIAL_HIRES
+  negative control: non-strict Background and Field remain sensitive to procedural authorities
+  strict_background sha256=1b9c9b25d3beb6cc0a2ba1d68975288fd88280d19a8cb918dc2f9b57ff9563f0
+  strict_field sha256=4acdf02b5766eec139db49d956af5459df0858fecd3d206cd2775f81c62c889f
+  control_background sha256=3786ecdc966e7131a1c79a955d07f389fb615c87d5f4ac2c6651f31f51b5c4ca
+  control_field sha256=e48778affd09ffc6ec94e678323c1f37e2419146aa793c42c1050952d25eb832
+python3 tools/check_radial_timescale_geometry_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+RADIAL PROVENANCE ORACLE: PASS
+  lane40 final/body/release/attack=(574113142, 495000000, 293746895, 0); lane41=(2019818414, 87088784, 600000000, 2000000000)
+  96 path: final/body/release/attack copied 1:1
+  48 path: adjacent pair selects one complete winning tuple; no cross-lane morphology mixing
+  render boundary: forged release inconsistent with final provenance is rejected as INVALID_DATA
+python3 tools/check_multiscale_radial_raster_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+RADIAL TIMESCALE GEOMETRY ORACLE: PASS
+  final/body/release/attack=(1214503094, 405000000, 900000000, 800000000)
+  body/release/final lengths q16=(148315, 241916, 444764)
+  independently reconstructed: body segment + slow-fast release segment + attack tip + exact premul blend
+  stream sha256=27b7c8a694bdf9a5f902631e5aaaaafbef55fe5b9f536411f04673dad4591cf8
+python3 tools/check_causal_trace_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+CAUSAL TRACE ORACLE: PASS
+  reaction trace: slow + fast + attack exposed; legacy 48 trace remains explicitly a candidate-pair summary
+  native 96: radial 40 -> lane 40 tuple=(574113142, 495000000, 293746895, 0)
+  reduced 48: radial 20 candidates 40/41 -> exact winning lane 41 tuple=(2019818414, 87088784, 600000000, 2000000000)
+  forged plan tuple, changed winner composition, and mismatched config identity: all rejected as INVALID_DATA
+  reaction trace size remains 64 bytes while former reserved slot becomes fast-envelope evidence
+MULTISCALE RADIAL RASTER ORACLE: PASS
+  body: secondary/full field opacity; release: secondary/release-weighted opacity; attack: primary/attack-weighted tip
+  three separated sectors reconstructed pixel-exact with 96-sector phase geometry
+  stream sha256=2033821ae2e72305bab112005307ce48351c3695f6a9c4da4402bd69e300eb53
+python3 tools/check_render_ir_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_frame_state_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Render IR oracle: pass (2032 bytes exact)
+Score SHA-256: 84b7439726ea121a5aeb2a7de34db9ccfde15cdb27f10a56e22f86e7d48c4207
+Capability SHA-256: 26987f408c4c5bdbaa589741de7f1e697f479b8f6efa1251a3a62ca9c6bfe4a6
+Music policy SHA-256: cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec
+Render IR SHA-256: a51e4a883722a5dc71f50e3545064fcfe7a6160fe3abad78bb2328886eb64cd8
+python3 tools/check_odparms_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Frame State oracle: pass (30 frames, 83 node states, 1 transfer events)
+python3 tools/check_renderer_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+.odparms oracle: pass (4191 bytes, 6 ZIP entries, 4 signed manifest entries)
+Package SHA-256: adaa77fcabe1b40d3fc237275023ba7131bae8787f8762194ea847990353276f
+Manifest SHA-256: dca95ad5e3f2830a314d9e83baee2d4651bfb4e6bd77074e7c1f23c452e74fe5
+Ed25519 public key: d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a
+Music policy SHA-256: cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec
+DATA raw=1984 deflate=54
+python3 tools/check_renderer_property_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Renderer oracle: pass (256 color vectors, 5 transform samples, 6 frames, 384 pixels / 1536 channels exact)
+Asset set SHA-256: 378767a6d5c52a1935e07fafd7c0f4a3b52b910299831674bc2ea0f24d703222
+Frame 0 SHA-256: 8560f74f9ad473506163102ca5b00c96b95f1c8854dbb437cd20468c473faf32
+Frame 1 SHA-256: fb6e3743e3151580abdeceb77bfbf65606553e11034bafb5b3a29d17eab27f58
+Frame 2 SHA-256: 0f26bc78b12306cb07ea5967c5f984760cf12b63343b0a6458e1e50a3d092785
+Frame 3 SHA-256: 301c3427d0ac2954e7618d6b415bcee81d60832979868fb70747e69f53142db8
+Frame 4 SHA-256: c0ca43f61d351e6d33b7cae801bf80899f4ed71dc719775a95199fd73f69760e
+Frame 5 SHA-256: 5913b891a3e8172088484d72a9d03174ca97c5428399e0dab48bab055ed0c39f
+Frame root SHA-256: fbb830c1a41773ff2f7d8f8e6723445757b16d86a08fcf5d8f8eb7fed5e269ea
+python3 tools/check_visual_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Visual oracle: pass (37 event records, 2 frames, 2048 pixels / 8192 channels exact)
+Frame 20 SHA-256: 40d698d4e7256310c2f4e82d2d7f6e65dad93fca0edca68868b74c3884c2df4e
+Frame 21 SHA-256: c45b09ae8db2c658243320cf491c878a5c681ed016a2ee8946b6d32a302cbc65
+python3 tools/check_visual_dynamics_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+SHA BACKEND ORACLE: PASS (100 size/chunk cases; scalar == provider == hashlib)
+VISUAL DYNAMICS ORACLE: PASS
+  4837 responses reconstructed integer-exact from the specification
+  silence produces stillness; one impact survives and decays monotonically to rest
+  response is a function of the sample coordinate: 24/25/30/50/60/120 fps agree
+  refractory rejects equal and weaker retriggers; a stronger event still wins
+  retrigger mid-release is continuous: the new response departs from the current level
+python3 tools/check_supersample_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_composition_oracle.py --shared build/gcc/libodpar_music.so
+SUPERSAMPLE ORACLE: PASS
+  la escala multiplica geometria y no toca ningun valor Q1.31 de reaccion
+  resolve por area reconstruido byte a byte desde la especificacion
+  energia de borde por nivel de calidad (menos = menos dentado):
+    tier 0 (1x):   16,776,760   -  0.0%
+    tier 1 (2x):   15,618,702   -  6.9%
+    tier 2 (3x):   15,441,344   -  8.0%
+    tier 3 (4x):   15,362,044   -  8.4%
+python3 tools/check_director_oracle.py --shared build/gcc/libodpar_music.so
+{"compared_values": 82080, "fields_per_tick": 80, "glitch_gates_profiled": 4, "glitch_gates_raw": 4, "profile_refs": {"bands": [555924648, 556778017, 555654924, 556661476, 552639448, 553950952], "env_medium": 855123353, "env_short": 1133054033, "flux": 700000000, "positive_delta": 650000000}, "profiled_stream_sha256": "140f08fdd617c5f0958e95c947a39b7fe53984afbc091d5f41b501f54fd9297c", "raw_stream_sha256": "0c9f873d6564c58a3fe872b37442f1097ed6c812e575cc6c0df835550f8bb37f", "sizeof_frame": 1704, "sizeof_profile": 112, "sizeof_state": 72, "sizeof_tick": 128, "status": "pass", "ticks": 513}
+python3 tools/check_visual_policy_oracle.py --library build/gcc/libodpar_music.so
+VISUAL POLICY ORACLE: PASS
+  canonical bytes: 1024
+  encoded semantic bytes: 973 (remaining canonical zero)
+  independent reconstruction: byte-exact
+  sha256: 448bb121e8dcf9cd27ed9872846130a05ab3e2f8e1eef8060975addd61d4c36d
+python3 tools/check_layered_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+LAYERED ORACLE: PASS
+  config: 1024 bytes, sha256=9acf6f61dd3203e4ac17e5247fa6d435e042f747130ffb5e0df863e5ae9297c2
+  policy: 1536 bytes, sha256=518d2822171fdb6a37eb144b8162adfa3984223dcbb6da6a9ad82b3c3ab257ba
+  frame plan: independent fixed-point reconstruction exact
+  progress: arbitrary-precision oracle exact through INT64_MAX
+  export timeline: 31 frames / 49,600 samples exact
+python3 tools/check_style_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+STYLE ORACLE: PASS
+  preset 1: 512 bytes sha256=3fc28a3181cf8c66596c1ea9ec8e53c2b9c3e44cf514604082def2c584bc04e0
+  preset 2: 512 bytes sha256=fca1451f376bc62d191f537b2f5fcfe9fe2a7d0603cc88b37127ffbe27d5a0d9
+  preset 3: 512 bytes sha256=1723a20e767f9aa38833119084289f7da9d4b878f7824c35f8befefe5724e445
+  preset 4: 512 bytes sha256=24c6dbff55f815220aa575fceaf567eed3cb2814e42773e1f7171f1bc54028af
+  VOID_CINEMATIC -> 1080x1080 config sha256=b0769ff88370277c3c533dcb2838e81af2d1af41c37a1fbe3a1953647bb71bc9
+  style application: independent Python materialization byte-exact
+python3 tools/check_reaction_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+REACTION MATRIX ORACLE: PASS
+  A_ONLY sources checked: 26
+  binary combinations checked: 3125
+  operators: MAX/MIN/AVERAGE/MUL/ABS_DIFF
+  hostile routes + selected non-Q1.31 signals: fail-closed and output-transactional
+  stream sha256=57aac475129318abafdc2a5c362bb5a4acc2f9044cd878fc18bd1740fc3c004e
+python3 tools/check_layer_output_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+{"compared_fields_per_tick": 40, "compared_values": 336000, "impact_ticks": 1, "layout_shifts": 7, "layouts_seen": [0, 1, 2, 3, 4, 5, 6], "recoveries": 1, "sizeof_composition_frame": 1704, "sizeof_director_frame": 128, "sizeof_director_state": 88, "status": "pass", "stream_sha256": "bb685d12507f68cbc365561874ea48885a2a0d458cbe37a5147c138f311cc60b", "strict_causal_ticks": 5000, "strict_seed_phase_invariance": "pass", "strict_stagnation_alternates": 0, "strict_stream_sha256": "2774beb7c519ca359f3650c3255b89430bdcaffcd9d8eb48934cebb94fea5279", "ticks": 8400, "transactional_negative": "pass"}
+python3 tools/check_layered_raster_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Renderer property oracle: pass (64 transforms, 4096 pixels / 16384 channels exact)
+LAYER OUTPUT ORACLE: PASS
+  canvas: 32x32; layers=4; pixels/layer=1024; channels checked=16384
+  BACKGROUND sha256=413d9b9fc9f7c9598b736cf704ac1232a2f12a125df77f81493ab13f2ae3c88b
+  CORE sha256=548188489b8597bec3f9481ec260aed3a511e8a802aad8344e1b0039f8baf6bb
+  FIELD sha256=b7167c10f1535828643e9228794569788463e808975455fcda68b457d7a126b1
+  HUD sha256=6a7fc42efe20dc7577276caf8c3e30b504350578171caf1ff7cfe9e7ee38932b
+  semantics: each public layer independently reconstructed over transparent black
+  CANONICAL STACK sha256=df4d6432a1f6bf6b5f576f78f42bb167e288ccc4eec29586b6380f5cbd00a0a0 (direct authority-order reconstruction)
+  nonclaim: flattened integer-alpha layer recomposition is not assumed associative
+python3 tools/check_radial_geometry_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_radial_hires_geometry_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+LAYERED RASTER ORACLE: PASS
+  canvas: 32x32, pixels=1024, channels=4096
+  layers: solid background + circular feathered core + exact orbit ring + progress HUD
+  note: frame-plan scalars are independently verified by check_layered_oracle.py
+python3 tools/check_particle_geometry_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+RADIAL HIRES GEOMETRY ORACLE: PASS
+  segments: 96, pixels=4096, channels=16384
+  independently reconstructed: CORDIC + endpoints + Q24.8 projection + coverage + premul blend
+  stream sha256=3f96c6abafe991a4fc2c227c5147c8da86b957ff4f78cfafc98b3981b11bca6a
+RADIAL GEOMETRY ORACLE: PASS
+  segments: 48, pixels=4096, channels=16384
+  independently reconstructed: CORDIC + endpoints + Q24.8 projection + coverage + premul blend
+  stream sha256=92792e68c3e4f9f8b2cdc317cf56dd1491a3b6612d7308626a7aa3c82a97d88c
+python3 tools/check_strict_causal_field_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_perspective_grid_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+PARTICLE GEOMETRY ORACLE: PASS
+  vectors: 7 samples, including INT64_MAX-4096
+  pixels: 28672, channels: 114688
+  independently reconstructed: seed/mix64 + sample phase + CORDIC + disk feather + premul blend
+  stream sha256=e654a036eec47873ffe51883947a5df142e6bee5a6ef4eb3e9418d9793f8d65a
+python3 tools/check_hud_geometry_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+PERSPECTIVE GRID ORACLE: PASS
+  reactive raster: 1536 pixels / 12288 bytes sha256=57e43f5f88770e772aa32327816a7129085b1b208d659fd0afc1a57f5cc7e7da
+  symmetric raster: 1536 pixels / 12288 bytes sha256=a12e462765e9c7a439c02556a52c709a00449145b8d00ba6db91c3235748a977
+  independent fixed-point projection + horizon suppression + RGBA16 reconstruction exact
+STRICT CAUSAL FIELD ORACLE: PASS
+  96 particles / 96 radial sectors reconstructed pixel-exact
+  sample, tick, ring phase and config seed perturbations: byte-identical under held music
+  changing radial lane 40 changes particle geometry/opacity deterministically
+  baseline sha256=a1e79d09a62b10a9d9bed23ea557e256b0b2544fb1366a975d5ca0d839939042
+  changed  sha256=40d9d4e1bd1106b9c2b0ab60dec90fcff22330d3dc1e4a93ad06fbbfb5d21c3e
+python3 tools/check_export_engine_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+python3 tools/check_export_ffmpeg_smoke.py --root . --cc gcc --library build/gcc/libodpar_music.a
+HUD GEOMETRY ORACLE: PASS
+  raster: 32x32 / 8192 bytes / sha256=45f0c651750abcfa5c86ea6ab79dde020275cd6d798dabe45d539ebad590a47d
+  capsule track/fill: independent integer-SDF + 1px-AA reconstruction exact
+python3 tools/check_export_run_smoke.py --root . --cc gcc --library build/gcc/libodpar_music.a
+EXPORT ENGINE ORACLE: PASS
+  export policy: 1024 bytes sha256=1aecce212f79de534423d4f193b3a464e9f90dc3817b13299040593884156740
+  profile: 256 bytes sha256=56776e2f1bf16165b9d9d4116d61f52b0b7108d9c57b8f4c0ad143ebb57a8c1e
+  recipe: 512 bytes sha256=2a3cb40bccff4dd69f19b5aa4fa3e8551263fa6f02e5136532685981130b5182
+  recipe identity: 2e3728087c464a32e06fb118e7f8043423ebe08407cec834232f9e339c99799d
+  frame 30 -> sample 48,000 exact
+  S32LE tail: 2 source frames + 3 exact silent frames
+  ffmpeg argv: 59 shell-free tokens / 457 bytes / no -shortest / explicit stream maps
+python3 tools/check_preview_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+EXPORT FFMPEG SMOKE: PASS (local adapter observation only)
+  engine-bound argv executed directly; no shell, no manual placeholder substitution and no hidden FFmpeg flags
+  ffprobe: 32x32 @ 30 fps, exactly 2 video frames, AAC 48 kHz stereo
+  final video frame preserved by padded audio; no -shortest
+python3 tools/check_preview_ffi.py --root . --cc gcc \
+	--golden tests/golden/preview_ffi_v1.json --shared build/gcc/libodpar_music.so
+Preview FFI oracle: pass (8 structs, shared ABI loaded, base ABI preserved, caller-owned lifecycle)
+Preview job storage: 56 bytes align 8; feature_bits=63
+python3 tools/check_master_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+EXPORT RUN SMOKE PASS
+frames=4 video_bytes=16384 audio_frames=6400 audio_bytes=51200 argv_tokens=59
+video_sha256=b4b5f22c090e2e24065d799643ed13af086f371edb98b382c724eaaf553b13fd
+audio_sha256=42c0e3ef57b9c472cb38731ffd2e9a3fd00eaebd3b17bafff2fbd59e4d8e0042
+mp4_sha256=f35d929eb19d7730705360d2a83ad0aadd58d31bce5a380a21a5aa62fe1d0eb8
+receipt_sha256=73503927289529da5f92c1ddaeea70e6000363d4326787b2358ceb6e9dc248b6
+ffprobe_frames=4 audio_rate=48000
+python3 tools/check_studio_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Preview oracle: pass (8 frame/class vectors, 680 RGBA8 bytes exact)
+Canonical frame 0 SHA-256: 24f06e28e1b8fe3b144360406b47d9afc259bc9da45103407f2225d8f68ec672
+Canonical frame 4 SHA-256: 83537dc20d5dc40bbbd13aad9dd13c302cd0d8fd53a8a96be26a2b4a2fd3c1e5
+python3 tools/check_delivery_oracle.py --root . --cc gcc --library build/gcc/libodpar_music.a
+Delivery oracle: pass (receipt + 384-byte contract + 256-byte artifact)
+video_descriptor_sha256=82e179147c0b218f43b0e6cd6771199cccc0e697632923f29aad3fe09875e780
+audio_descriptor_sha256=6110db50e3c583f3de7f719f4733436950e0941302443be4feb4fe5944e577c4
+settings_sha256=0d91a362aced9612d34dc42c40fb5f1c71035dc53e969ca101622c15f01e4f3b
+delivery_contract_id=e4c7265f31772ec19eaade5caa90c8b931639edd2df41e88c08212b2cdb4339b
+contract_record_sha256=8a2c4c63a80ba1756d61c12eb12866dbb44c4b5f07b4077ed13d725ef7d14322
+artifact_id=911d4b09c01287c97659c8a38c03685e126c5e44d9a875267f30e85f2b26fabb
+artifact_record_sha256=3b816ce77816e2dcc9c6afdc62d0e61e0c1a105fe01fa223fa8fe22a17388fdb
+python3 tools/check_abi.py --root . --cc gcc \
+	--library build/gcc/libodpar_music.a --golden tests/golden/abi_v1.json
+Master oracle: pass (2 frames, 256 video bytes, 25600 audio bytes, 576-byte receipt)
+Render ID SHA-256: f799d28cee291669d15b398a7aa14e4cc78668b3762281c2c9966e0cbc3b4bd0
+Frame root SHA-256: 4d9377ed81677bc316c33cc454954031eb26eb9b89a66c5906e3d4297081a5ae
+Soundtrack SHA-256: dd7cf98889b205b9b65a9e06414a8c2313e8b02a58fe0a056f5df22bb4d38276
+Receipt SHA-256: 2d1a791e90f906380d62fc28074d5fa4727befbfa69145a01ef4ba8deb631307
+Controller public key: 79b5562e8fe654f94078b112e8a98ba7901f853ae695bed7e0e3910bad049664
+frames=2 audio=3200 quote=3232 output=26432 scratch=3296\n
+Studio oracle: pass (3 signed packages, 2 revisions, 1 approval, 16 preview bytes)
+Package content A SHA-256: 73ad246a85b5548efea28e558a8273fc6105eb9f0e51f3b75f6048a41a41e024
+Package content B SHA-256: d5485e3c5838b3f0bc36fcd17ad8f23ce7fc67b9fe7b720d556ee9aee5e4fa81
+Project ID SHA-256: e8282778eccd2fa5d0a23405fed5fef92603c2a827c849a23055e1cef3ced180
+Revision 0 ID SHA-256: 201baeaf74a6ce9553f84c904a8bdf5cda3fcbf20607f35ef3c192aca810670a
+Revision 1 ID SHA-256: 5977da196e0c8f57d49cf2271f18f20a975cd45079c623d5c04a3c71e9453b18
+Approval ID SHA-256: 73556c74e81c1220c4d2c1070e5fca607642f96d2c27145b9f5e60d318f8c059
+package_a=3033 package_b=3033 resigned=3033 revision=576 approval=320 preview=16
+ABI v1 golden reconciliation: pass (11 structs, 7 constants)
+Resampler oracle: pass (720896 full coefficients across 3 rates)
+  44100 Hz: taps=64 coeffs=65536 sha256=21e84b064573c930946e3edff82ad47cfafd4f26196b1859d017160c3cc10ebe
+  96000 Hz: taps=128 coeffs=131072 sha256=6daaa5dbdb2c543c88f9b76449a1d9da714429f7ae3ec1c13b30d3af7e938427
+  384000 Hz: taps=512 coeffs=524288 sha256=cdace5dffa0ada7fe9382dbe5fb888d21b9838f60e314fea8575ae5242d9b5af
+make[2]: Leaving directory '.'
+make[1]: Leaving directory '.'

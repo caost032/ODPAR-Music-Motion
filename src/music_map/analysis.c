@@ -517,6 +517,20 @@ static uint32_t music_envelope_step(uint32_t previous, uint32_t current,
     }
 }
 
+/* Razon con signo publicada como evidencia musical.
+ *
+ * El rango es SIMETRICO: [-INT32_MAX, +INT32_MAX]. Q1.31 puede representar
+ * -1.0 exacto como INT32_MIN, pero ese valor no tiene negativo representable en
+ * complemento a dos, y una evidencia con signo cuyo opuesto no existe es una
+ * bomba: cualquier consumidor que la refleje, la invierta o compruebe simetria
+ * de canales desborda.
+ *
+ * No es hipotetico. Una razon de exactamente -1.0 aparece en cuanto un canal
+ * queda en silencio absoluto -- es decir, al final de practicamente cualquier
+ * cancion -- y el limite de composicion rechazaba el tick, haciendo imposible
+ * analizar una pista completa. Se satura a -INT32_MAX: un balance de -1.0 y uno
+ * de -0.9999999995 son indistinguibles como evidencia, y la simetria es una
+ * propiedad de la que depende el resto del motor. */
 static int32_t music_ratio_q31(int64_t numerator, uint64_t denominator) {
     odm_q1_31 value = 0;
     if (denominator == 0u || denominator > (uint64_t)INT64_MAX) return 0;
@@ -525,6 +539,7 @@ static int32_t music_ratio_q31(int64_t numerator, uint64_t denominator) {
     if (odm_q1_31_from_ratio(numerator, (int64_t)denominator, &value) != ODM_STATUS_OK) {
         return 0;
     }
+    if (value == INT32_MIN) value = -INT32_MAX;
     return value;
 }
 

@@ -1,0 +1,4 @@
+make[1]: Entering directory '.'
+python3 tests/determinism/check_reproducible.py --root . --cc cc
+reproducible build: pass (3/3 byte-identical; binary sha256:fedde7753c9d206805026b0021bc6a600c874cfb98ebb1e5ec378742843158a8)
+make[1]: Leaving directory '.'

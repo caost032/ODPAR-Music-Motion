@@ -1,0 +1,6 @@
+make[1]: Entering directory '.'
+python3 tools/gen_build_meta.py --output build/generated/odm_build_meta.h
+python3 tools/check_gcc_analyzer.py --root . --cc gcc \
+	--generated build/generated
+GCC analyzer: pass (68 production units)
+make[1]: Leaving directory '.'
