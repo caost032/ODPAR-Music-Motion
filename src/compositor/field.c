@@ -308,9 +308,9 @@ void odm_layered_field_render(const odm_layered_config *c,
                      * from leaving a static white crown around the Core. */
                     uint32_t local_activity = p->radial_attack_q31[i];
                     uint32_t tail_activity = field_mul_q31(p->radial_release_q31[i],
-                                                          UINT32_C(1395864371)); /* 0.65 */
+                                                          LAYER_RADIAL_TAIL_WEIGHT);
                     uint32_t activity = local_activity > tail_activity ? local_activity : tail_activity;
-                    uint32_t authority = UINT32_C(322122547); /* 0.15 floor */
+                    uint32_t authority = LAYER_RADIAL_AUTHORITY_FLOOR;
                     authority += field_mul_q31((uint32_t)INT32_MAX - authority, activity);
                     draw_segment(frame,p->width,p->height,ax,ay,bdx,bdy,
                                  (int32_t)c->field.bar_width_q16,

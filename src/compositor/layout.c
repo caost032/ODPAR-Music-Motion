@@ -785,16 +785,30 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, 1u)); /* pair reduction selects one coherent provenance tuple */
     LP(odm_wire_write_u32(&w, 1u)); /* transient tip begins at held-body endpoint */
     LP(odm_wire_write_u32(&w, 1u)); /* transient tip ends at exact final radial endpoint */
-    LP(odm_wire_write_u32(&w, 1u)); /* transient tip opacity is exact same-lane attack */
+    /* v11: transient tip opacity is QUADRATIC in same-lane attack. Policy v10
+     * asserted "exact same-lane attack" while the tree already squared it —
+     * see docs/RADIAL_MORPHOLOGY_V2.md section 4.3. Tip *length* stays linear,
+     * so geometry remains exact evidence and only luminance is shaped. */
+    LP(odm_wire_write_u32(&w, 2u)); /* tip opacity curve id: quadratic in attack */
     LP(odm_wire_write_u32(&w, 1u)); /* no provenance flag => historical bar raster */
     LP(odm_wire_write_u32(&w, 1u)); /* provenance bars have zero autonomous minimum length */
     LP(odm_wire_write_u32(&w, 1u)); /* full-scale radial maps exactly to bar_max_q16 */
     LP(odm_wire_write_u32(&w, 1u)); /* strict render boundary rejects nonzero ring phase */
     LP(odm_wire_write_u32(&w, 1u)); /* strict render boundary rejects nonzero grid offsets */
     LP(odm_wire_write_u32(&w, ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE));
-    LP(odm_wire_write_u32(&w, 1u)); /* release provenance = exact slow-fast same-lane excess */
+    LP(odm_wire_write_u32(&w, 1u)); /* release provenance basis = exact slow-fast same-lane excess */
     LP(odm_wire_write_u32(&w, 1u)); /* 96->48 preserves final/body/release/attack tuple */
     LP(odm_wire_write_u32(&w, 1u)); /* release raster lies between body and attack tip */
+    /* v11: dual-domain optical authority for the held body. Under v10 a
+     * sustained lane drew its body at full field opacity, so a dense track
+     * degenerated into a static bright crown around the Core. Brightness now
+     * requires same-lane transient or release activity, over a floor that keeps
+     * held spectrum legible. See docs/RADIAL_MORPHOLOGY_V2.md section 4.1. */
+    LP(odm_wire_write_u32(&w, 1u)); /* body opacity = field_opacity x activity authority */
+    LP(odm_wire_write_u32(&w, LAYER_RADIAL_AUTHORITY_FLOOR));
+    LP(odm_wire_write_u32(&w, LAYER_RADIAL_TAIL_WEIGHT));
+    LP(odm_wire_write_u32(&w, 1u)); /* activity = max(attack, weighted release) */
+    LP(odm_wire_write_u32(&w, 1u)); /* radial segment lengths remain linear in Q31 */
 #undef LP
     return odm_wire_writer_finish(&w, req);
 }

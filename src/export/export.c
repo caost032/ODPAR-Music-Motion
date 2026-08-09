@@ -6,7 +6,7 @@
 
 #include <limits.h>
 #include <stddef.h>
-#include <stdio.h>
+#include <stdio.h>   /* snprintf for delivery argv construction */
 #include <string.h>
 
 #if defined(ODM_SHA256_OPENSSL_ACCEL)
@@ -1229,21 +1229,20 @@ odm_status odm_export_run(
         memset(&surface, 0, sizeof(surface));
         st = run_request->state_provider(run_request->state_user, frame_index, sample,
                                      &composition, &director);
-        if (st != ODM_STATUS_OK) { fprintf(stderr, "DBG export frame=%llu state_provider st=%d sample=%lld\n", (unsigned long long)frame_index, (int)st, (long long)sample); goto fail; }
+        if (st != ODM_STATUS_OK) { goto fail; }
         if (composition.schema_version != ODM_COMPOSITION_SCHEMA_VERSION ||
             director.schema_version != ODM_DIRECTOR_SCHEMA_VERSION ||
             composition.tick_index != tick_index || director.tick_index != tick_index ||
             composition.center_sample != tick_index * (uint64_t)ODM_MUSIC_TICK_SAMPLES) {
             st = ODM_STATUS_INVALID_DATA;
-            fprintf(stderr, "DBG export frame=%llu state_contract st=%d sample=%lld tick=%llu comp_tick=%llu dir_tick=%llu center=%llu schema=%u/%u\n", (unsigned long long)frame_index, (int)st, (long long)sample, (unsigned long long)tick_index, (unsigned long long)composition.tick_index, (unsigned long long)director.tick_index, (unsigned long long)composition.center_sample, composition.schema_version, director.schema_version);
             goto fail;
         }
         st = run_request->core_provider(run_request->core_user, frame_index, sample, &surface);
-        if (st != ODM_STATUS_OK) { fprintf(stderr, "DBG export frame=%llu core_provider st=%d sample=%lld\n", (unsigned long long)frame_index, (int)st, (long long)sample); goto fail; }
+        if (st != ODM_STATUS_OK) { goto fail; }
         st = odm_layered_resolve_frame_plan(run_request->config, &composition, &director,
                                             sample, run_request->recipe->project_end_sample,
                                             &plan);
-        if (st != ODM_STATUS_OK) { fprintf(stderr, "DBG export frame=%llu resolve_plan st=%d sample=%lld\n", (unsigned long long)frame_index, (int)st, (long long)sample); goto fail; }
+        if (st != ODM_STATUS_OK) { goto fail; }
         {
             const uint8_t *stream_frame = frame;
             if (render_pool_active) {
@@ -1257,7 +1256,7 @@ odm_status odm_export_run(
                     run_request->job_ticket, scratch, scratch_bytes, row_workers,
                     &stream_frame, &required_frame, &required_scratch);
             }
-            if (st != ODM_STATUS_OK) { fprintf(stderr, "DBG export frame=%llu render st=%d sample=%lld\n", (unsigned long long)frame_index, (int)st, (long long)sample); goto fail; }
+            if (st != ODM_STATUS_OK) { goto fail; }
             if (!direct_staging) {
                 if (export_ranges_overlap(frame, need_frame,
                                           surface.pixels, surface.pixel_bytes)) {
@@ -1414,7 +1413,6 @@ hash_setup_fail:
     return st;
 
 fail:
-    fprintf(stderr, "DBG export FAIL st=%d frame_index=%llu frame_count=%llu audio_pos=%llu work_done=%llu video_bytes=%llu audio_bytes=%llu\n", (int)st, (unsigned long long)frame_index, (unsigned long long)run_request->recipe->frame_count, (unsigned long long)audio_pos, (unsigned long long)work_done, (unsigned long long)video_bytes, (unsigned long long)audio_bytes);
     export_abort_sink(run_sink, active, st);
     if (render_pool_active) {
         odm_layered_worker_pool_destroy(&render_pool);

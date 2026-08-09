@@ -59,10 +59,13 @@ int main(void){
 '''
 
 def mulq(a:int,b:int)->int:return min(Q,(a*b+Q//2)//Q)
-def morph(slow:int,fast:int,attack:int):
-    body=mulq(fast,C045); release=slow-fast; rel=mulq(release,C035)
-    after=body+mulq(Q-body,rel); final=after+mulq(Q-after,attack)
-    return final,body,release,attack
+import sys as _sys
+_sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import odm_radial_spec as _spec
+
+# Radial Morphology v2 / Visual Policy v9. Reconstructed independently in
+# tools/odm_radial_spec.py from docs/RADIAL_MORPHOLOGY_V2.md.
+morph = _spec.morphology
 
 def main()->int:
     ap=argparse.ArgumentParser();ap.add_argument('--root',required=True);ap.add_argument('--cc',default='gcc');ap.add_argument('--library',required=True);a=ap.parse_args()

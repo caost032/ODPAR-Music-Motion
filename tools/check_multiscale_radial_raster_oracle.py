@@ -7,8 +7,10 @@ published Q24.8 segment raster model. No production C source is parsed and no C
 output is used to derive expected values.
 """
 from __future__ import annotations
-import argparse, hashlib, pathlib, struct, subprocess, tempfile
+import argparse, hashlib, pathlib, struct, subprocess, sys, tempfile
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import check_radial_hires_geometry_oracle as g
+import odm_radial_spec as spec
 
 Q=2147483647
 C035=751619277
@@ -72,23 +74,24 @@ def expected()->bytes:
         body_len=(barmax*body+Q//2)//Q
         rb=r0+body_len
         bdx=center+g.cdiv(rb*cs,Q); bdy=center+g.cdiv(rb*sn,Q)
+        # Layered Policy v11 optics (docs/RADIAL_MORPHOLOGY_V2.md section 4).
         if body_len>0:
-            g.draw_segment(frame,ax,ay,bdx,bdy,width,SECONDARY,FIELD_OP)
-        release_mix=mulq(release,C035)
-        release_base=min(Q,body+mulq(Q-body,release_mix))
+            g.draw_segment(frame,ax,ay,bdx,bdy,width,SECONDARY,
+                           spec.body_opacity(FIELD_OP,attack,release))
+        release_base=spec.release_base(body,release)
         release_len=(barmax*release_base+Q//2)//Q
         rdx,rdy=bdx,bdy
         if release_len>body_len and release:
             rr=r0+release_len
             rdx=center+g.cdiv(rr*cs,Q);rdy=center+g.cdiv(rr*sn,Q)
-            release_opacity=mulq(FIELD_OP,release)
+            release_opacity=spec.release_opacity(FIELD_OP,release)
             if release_opacity:
                 g.draw_segment(frame,bdx,bdy,rdx,rdy,width,SECONDARY,release_opacity)
         final_len=(barmax*final+Q//2)//Q
         if final_len>release_len and attack:
             rf=r0+final_len
             tx=center+g.cdiv(rf*cs,Q);ty=center+g.cdiv(rf*sn,Q)
-            tip_opacity=mulq(FIELD_OP,attack)
+            tip_opacity=spec.tip_opacity(FIELD_OP,attack)
             if tip_opacity:
                 g.draw_segment(frame,rdx,rdy,tx,ty,width,PRIMARY,tip_opacity)
     return b''.join(struct.pack('<HHHH',*px) for px in frame)

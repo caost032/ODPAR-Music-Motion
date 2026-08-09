@@ -6,7 +6,10 @@ control values are reconstructed here from frozen literal constants; this file
 does not parse procedural.c or consume C policy bytes as expectations.
 """
 from __future__ import annotations
-import argparse, pathlib, subprocess, tempfile
+import argparse, pathlib, subprocess, sys, tempfile
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import odm_radial_spec as _spec
 
 Q=2147483647
 C008=171798692; C010=214748365; C018=386547057; C020=429496730
@@ -79,10 +82,17 @@ def expected(kind:int):
     mode=IMPACT if sal>=C055 else FLOW
     flags=FLAG_HIRES|FLAG_STRICT|FLAG_PROVENANCE|FLAG_TIMESCALE|(FLAG_GLITCH if sal>=C085 else 0)
     core_scale=lerp(C048,C058,low)
-    core_breath=add(mul(lowa,C020),mul(battack,C008))
+    # Visual Policy v9 timescale separation. Core breath is a punch plus a
+    # causal bleed-back: low-frequency attack owns the fast expansion, and
+    # contextual pulse memory owns a smaller, slower return tail — a MAX, so the
+    # tail cannot stack on top of the punch. Grid is a scene-timescale response
+    # driven by sustained mid/body level plus a small memory term; same-tick mid
+    # attack is deliberately absent so the background cannot whip at Halo speed
+    # on every onset.
+    core_breath=max(mul(lowa,C035),mul(mg,C018))
     core_border=add(mul(lowa,C025),mul(ag,C018))
     halo=max(battack,add(mul(higha,C035),mul(mg,C025)))
-    grid=add(mul(mid,C020),mul(mida,C025))
+    grid=add(mul(mid,C025),mul(mg,C008))
     particles=higha
     memory=mul(mg,C055)
     fracture=mul(sg,C070)
@@ -91,11 +101,8 @@ def expected(kind:int):
     vignette=lerp(C055,C070,Q-fam[4])
     void=mul(C018,Q-broad)
     accent=max(atk[4],mul(ig,C070))
-    radial_body=mul(300000000,C045)
-    release=500000000-300000000
-    release_mix=mul(release,C035)
-    radial_base=add(radial_body,mul(Q-radial_body,release_mix))
-    radial40=add(radial_base,mul(Q-radial_base,200000000)); radial41=0
+    # Radial Morphology v2 / Visual Policy v9 — see docs/RADIAL_MORPHOLOGY_V2.md.
+    radial40=_spec.morphology(500000000,300000000,200000000)[0]; radial41=0
     return [mode,flags,core_scale,core_breath,core_border,halo,grid,particles,memory,fracture,chroma,scan,vignette,void,accent,radial40,radial41]
 
 def main()->int:

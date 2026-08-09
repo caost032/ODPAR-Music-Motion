@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Independent oracle for multiscale radial provenance and coherent 96->48 reduction.
 
-The engine is observed only through public APIs. Expected Q1.31 morphology is
-reconstructed here from frozen literals: fast-body ceiling 0.45, exact
-slow-fast release excess, release influence 0.35, then same-lane attack consumes
-only remaining headroom. Reduction must select one complete tuple; it may not
-mix body/release/attack from adjacent lanes.
+The engine is observed only through public APIs. Expected Q1.31 morphology comes
+from tools/odm_radial_spec.py, which is written from docs/RADIAL_MORPHOLOGY_V2.md
+(Visual Policy v9): perceptual knees gate body/release/attack, the fast envelope
+owns a 0.45-ceiling body, the exact slow-fast excess owns release at 0.35
+influence, and same-lane attack consumes only the remaining headroom. Reduction
+must select one complete tuple; it may not mix body/release/attack from adjacent
+lanes.
+
+Negative controls below prove the knees are real dead zones and that lane
+isolation holds.
 """
 from __future__ import annotations
-import argparse, pathlib, subprocess, tempfile
+import argparse, pathlib, subprocess, sys, tempfile
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import odm_radial_spec as spec
 
 Q=2147483647
 C045=966367642
@@ -42,6 +50,15 @@ static int build_comp(odm_composition_frame_state *c){
     r.lane_q31[41]=UINT32_C(900000000);
     r.lane_fast_q31[41]=UINT32_C(300000000);
     r.lane_attack_q31[41]=UINT32_C(2000000000);
+    /* Dead-zone negative controls observed in the engine itself, not only in
+       the Python spec. Lane 10 sits strictly below every v9 knee; lane 11 sits
+       strictly above the attack knee with otherwise identical envelopes. */
+    r.lane_q31[10]=UINT32_C(150000000);
+    r.lane_fast_q31[10]=UINT32_C(100000000);   /* < body knee lo 107374182 */
+    r.lane_attack_q31[10]=UINT32_C(150000000); /* < attack knee lo 171798692 */
+    r.lane_q31[11]=UINT32_C(150000000);
+    r.lane_fast_q31[11]=UINT32_C(100000000);
+    r.lane_attack_q31[11]=UINT32_C(600000000); /* > attack knee hi 536870912 */
     return odm_composition_resolve_music_reaction(&b,&r,c)==ODM_STATUS_OK ? 0 : 1;
 }
 static void dir(odm_director_frame_state *d){
@@ -67,11 +84,15 @@ static int emit_plan(uint32_t segments){
     printf("P,%u,%u," /* segments,flags */
            "%u,%u,%u,%u," /* lane40 */
            "%u,%u,%u,%u," /* lane41 */
-           "%u,%u,%u,%u\n", /* chosen tuple */
+           "%u,%u,%u,%u," /* chosen tuple */
+           "%u,%u,%u,%u," /* lane10 sub-knee control */
+           "%u,%u,%u,%u\n", /* lane11 above-knee control */
       segments,p.flags,
       c.radial_q31[40],c.radial_body_q31[40],c.radial_release_q31[40],c.radial_attack_q31[40],
       c.radial_q31[41],c.radial_body_q31[41],c.radial_release_q31[41],c.radial_attack_q31[41],
-      p.radial_q31[idx],p.radial_body_q31[idx],p.radial_release_q31[idx],p.radial_attack_q31[idx]);
+      p.radial_q31[idx],p.radial_body_q31[idx],p.radial_release_q31[idx],p.radial_attack_q31[idx],
+      c.radial_q31[10],c.radial_body_q31[10],c.radial_release_q31[10],c.radial_attack_q31[10],
+      c.radial_q31[11],c.radial_body_q31[11],c.radial_release_q31[11],c.radial_attack_q31[11]);
     for(i=segments;i<ODM_COMPOSITION_RADIAL_SEGMENTS_MAX;i++){
       if(p.radial_q31[i]||p.radial_body_q31[i]||p.radial_release_q31[i]||p.radial_attack_q31[i])return 12;
     }
@@ -98,14 +119,34 @@ int main(void){int rc=emit_plan(96u);if(rc)return rc;return emit_plan(48u);}
 def mulq(a:int,b:int)->int:
     return min(Q,(a*b+Q//2)//Q)
 
-def morph(slow:int,fast:int,attack:int):
-    if not 0 <= fast <= slow <= Q: raise ValueError((slow,fast,attack))
-    body=mulq(fast,C045)
-    release=slow-fast
-    release_mix=mulq(release,C035)
-    after_release=body+mulq(Q-body,release_mix)
-    final=after_release+mulq(Q-after_release,attack)
-    return final,body,release,attack
+morph = spec.morphology
+
+def negative_controls()->None:
+    """Prove the v9 knees are dead zones, not decoration, and that a lane's
+    morphology depends on that lane alone."""
+    # 1. Sub-knee attack publishes exactly zero, not a small value.
+    assert spec.morphology(Q//2, Q//4, spec.KNEE_ATTACK_LO)[3] == 0, 'attack knee leaks at lo'
+    assert spec.morphology(Q//2, Q//4, spec.KNEE_ATTACK_LO-1)[3] == 0, 'attack knee leaks below lo'
+    # 2. At/above the upper knee the gate is exactly unity: real events unattenuated.
+    assert spec.morphology(Q, Q//2, spec.KNEE_ATTACK_HI)[3] == spec.KNEE_ATTACK_HI, 'attack attenuated at hi'
+    assert spec.morphology(Q, Q//2, Q)[3] == Q, 'full-scale attack attenuated'
+    # 3. Sub-knee release publishes exactly zero.
+    slow = Q//4 + spec.KNEE_RELEASE_LO
+    assert spec.morphology(slow, Q//4, 0)[2] == 0, 'release knee leaks at lo'
+    # 4. Sub-knee body publishes exactly zero.
+    assert spec.morphology(spec.KNEE_BODY_LO, spec.KNEE_BODY_LO, 0)[1] == 0, 'body knee leaks at lo'
+    # 5. Headroom ordering (I-RM-4): body <= after_release <= final, never > Q.
+    for s,f,a in ((Q,Q,Q),(Q,Q//2,Q//3),(Q//3,Q//7,Q),(Q,0,0),(0,0,0)):
+        final,body,release,attack = spec.morphology(s,f,a)
+        base = spec.add(body, spec.mul(Q-body, spec.mul(release, spec.RELEASE_INFLUENCE)))
+        if not body <= base <= final <= Q:
+            raise SystemExit(f'headroom ordering broken for ({s},{f},{a}): {body},{base},{final}')
+    # 6. Monotonicity in attack (I-RM-5).
+    prev = -1
+    for a in range(0, Q, Q//64):
+        cur = spec.morphology(Q, Q//2, a)[0]
+        if cur < prev: raise SystemExit('final is not monotone in attack')
+        prev = cur
 
 def main()->int:
     ap=argparse.ArgumentParser(); ap.add_argument('--root',required=True); ap.add_argument('--cc',default='gcc'); ap.add_argument('--library',required=True); a=ap.parse_args()
@@ -117,11 +158,18 @@ def main()->int:
         if c.returncode: raise SystemExit('radial provenance probe compile failed\n'+c.stdout+c.stderr)
         x=subprocess.run([str(exe)],cwd=root,capture_output=True,text=True)
         if x.returncode: raise SystemExit(f'radial provenance probe failed rc={x.returncode}\n{x.stdout}\n{x.stderr}')
+    negative_controls()
     rows=[ln.split(',') for ln in x.stdout.splitlines() if ln.strip()]
     plans={int(r[1]):list(map(int,r[2:])) for r in rows if r[0]=='P'}
     a40=morph(1400000000,1100000000,100000000)
     a41=morph(900000000,300000000,2000000000)
+    a10=morph(150000000,100000000,150000000)
+    a11=morph(150000000,100000000,600000000)
     if a40[0] >= a41[0]: raise SystemExit(f'oracle fixture invalid: lane40 final {a40[0]} >= lane41 {a41[0]}')
+    if a10 != (0,0,0,0):
+        raise SystemExit(f'oracle fixture invalid: lane10 is not fully below the v9 knees: {a10}')
+    if a11[3] != 600000000:
+        raise SystemExit(f'oracle fixture invalid: lane11 attack should pass the knee unattenuated: {a11}')
     expected_flags=FLAG_HIRES|FLAG_STRICT|FLAG_PROV|FLAG_TIMESCALE
     for seg in (96,48):
         got=plans.get(seg)
@@ -129,8 +177,17 @@ def main()->int:
         flags=got[0]
         if flags != expected_flags: raise SystemExit(f'{seg}: flags {flags} != {expected_flags}')
         c40=tuple(got[1:5]); c41=tuple(got[5:9]); chosen=tuple(got[9:13])
+        c10=tuple(got[13:17]); c11=tuple(got[17:21])
         if c40 != a40 or c41 != a41:
             raise SystemExit(f'{seg}: composition morphology mismatch c40={c40}/{a40} c41={c41}/{a41}')
+        # Engine-side dead-zone controls: sub-knee evidence must publish nothing
+        # at all, and an above-knee attack on the same envelopes must publish
+        # a visible, unattenuated component. This is what makes the knee a real
+        # perceptual gate rather than a rescale.
+        if c10 != (0,0,0,0):
+            raise SystemExit(f'{seg}: sub-knee lane published a visible component: {c10}')
+        if c11 != a11 or c11[3] == 0:
+            raise SystemExit(f'{seg}: above-knee lane did not publish attack: got={c11} expected={a11}')
         if seg==96:
             if chosen != a40: raise SystemExit(f'96: 1:1 provenance mismatch chosen={chosen} expected={a40}')
         else:

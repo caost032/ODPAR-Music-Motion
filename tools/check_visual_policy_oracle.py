@@ -20,6 +20,10 @@ Q = 2147483647
 C005=107374182; C008=171798692; C010=214748365; C012=257698038
 C015=322122547; C018=386547057; C020=429496730; C025=536870912
 C030=644245094; C035=751619277; C045=966367642; C048=1030792151
+# Radial Morphology v2 knees (Visual Policy v9) — docs/RADIAL_MORPHOLOGY_V2.md
+KNEE_BODY_LO=107374182;    KNEE_BODY_HI=429496729
+KNEE_ATTACK_LO=171798692;  KNEE_ATTACK_HI=536870912
+KNEE_RELEASE_LO=64424509;  KNEE_RELEASE_HI=322122547
 C050=1073741824; C055=1181116006; C058=1245540516; C060=1288490189
 C065=1395864371; C070=1503238553; C075=1610612735; C080=1717986918; C085=1825361100; C090=1932735282
 D002=42949673; D004=85899346; D008=171798692; D022=472446402
@@ -49,7 +53,7 @@ def u64(out: bytearray, v: int) -> None:
 def expected_policy() -> bytes:
     out = bytearray(b'ODMVPOL1')
     # Identity/header.
-    for v in (8, 1, 3, 100, Q, 6, 48, 96, 4, 8, 1, 1, 1, 1, 1,
+    for v in (9, 1, 3, 100, Q, 6, 48, 96, 4, 8, 1, 1, 1, 1, 1,
               1, 1, 1, 1, 1,
               C020, C055, C080, C035, C085, 1, 1, 96,
               4, 7, 1, 2, 3, 1, 1, 1):
@@ -85,10 +89,21 @@ def expected_policy() -> bytes:
         u32(out, layout)
         for v in row: u32(out, v)
 
-    # Multiscale causal radial morphology/provenance contract.
-    # Independent literals: morphology=3, provenance=16, timescale=32,
-    # fast-body ceiling=0.45 Q31, release weight=0.35 Q31, then four invariants.
-    for v in (3, 16, 32, C045, C035, 1, 1, 1, 1): u32(out, v)
+    # Multiscale causal radial morphology/provenance contract (Visual Policy v9).
+    # Independent literals: morphology=4 (knee-gated), provenance=16,
+    # timescale=32, fast-body ceiling=0.45 Q31, release weight=0.35 Q31, then
+    # four invariants.
+    for v in (4, 16, 32, C045, C035, 1, 1, 1, 1): u32(out, v)
+    # v9 perceptual admission knees. Curve id 1 = smoothstep 3t^2-2t^3, then the
+    # six Q1.31 knee bounds in body/attack/release order, then two invariants:
+    # published provenance is post-gate, and sub-knee evidence publishes zero.
+    # Values are the frozen literals of docs/RADIAL_MORPHOLOGY_V2.md section 3.1;
+    # note the body upper knee is one ULP below C020 by design.
+    for v in (1,
+              KNEE_BODY_LO, KNEE_BODY_HI,
+              KNEE_ATTACK_LO, KNEE_ATTACK_HI,
+              KNEE_RELEASE_LO, KNEE_RELEASE_HI,
+              1, 1): u32(out, v)
 
     if len(out) > POLICY_BYTES:
         raise AssertionError(f'oracle policy overflow: {len(out)} > {POLICY_BYTES}')

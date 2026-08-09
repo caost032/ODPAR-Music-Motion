@@ -401,8 +401,22 @@ void odm_test_visual(odm_test_context *context){
         ODM_TEST_CHECK(context, out.mode == ODM_COMPOSITION_MODE_IMPACT);
         ODM_TEST_CHECK(context, (out.flags & ODM_COMPOSITION_FLAG_GLITCH_GATE) != 0u);
         ODM_TEST_CHECK(context, out.fracture_q31 != 0u);
+        /* Radial Morphology v2 (Visual Policy v9, docs/RADIAL_MORPHOLOGY_V2.md).
+         * Lane 40 carries a full-scale attack: it is above the 0.25 upper knee
+         * and is therefore published unattenuated. Lane 39 carries 50000000
+         * (~0.023 of full scale), strictly below the 0.08 attack knee, so the
+         * perceptual dead zone publishes exactly zero rather than a faint tip.
+         * The property under test is lane isolation: a neighbour's transient
+         * must never leak across, in either direction. */
         ODM_TEST_CHECK(context, out.radial_attack_q31[40] == UINT32_C(1200000000));
-        ODM_TEST_CHECK(context, out.radial_attack_q31[39] == UINT32_C(50000000));
+        ODM_TEST_CHECK(context, out.radial_attack_q31[39] == 0u);
+        ODM_TEST_CHECK(context, out.radial_attack_q31[41] == 0u);
+        ODM_TEST_CHECK(context,
+            out.radial_attack_q31[39] != out.radial_attack_q31[40]);
+        /* Sub-knee lanes still publish their own sustained body/release: the
+         * knee gates the transient, it does not silence the lane. */
+        ODM_TEST_CHECK(context, out.radial_body_q31[39] != 0u);
+        ODM_TEST_CHECK(context, out.radial_q31[40] > out.radial_q31[39]);
 
         /* Same local projection with no newly captured event: no second macro
          * impact, while the sample-domain pulse may keep memory alive. */
@@ -457,7 +471,10 @@ void odm_test_visual(odm_test_context *context){
         ODM_TEST_CHECK(context, odm_visual_policy_current_sha256(&digest) == ODM_STATUS_OK);
         ODM_TEST_CHECK(context, odm_sha256_to_hex(&digest, hex, sizeof(hex), &hex_required) == ODM_STATUS_OK);
         ODM_TEST_CHECK(context, hex_required == ODM_SHA256_HEX_BUFFER_BYTES);
-        ODM_TEST_CHECK(context, strcmp(hex, "07088616242b45547b46278de634f9284e524858c15c86b74c2e9ebf373c0387") == 0);
+        ODM_TEST_CHECK(context, strcmp(hex, /* Visual Policy v9 (Radial Morphology v2). Independently reconstructed by
+ * tools/check_visual_policy_oracle.py; this hash is that oracle's output, not
+ * a value read back from the encoder under test. */
+                    "448bb121e8dcf9cd27ed9872846130a05ab3e2f8e1eef8060975addd61d4c36d") == 0);
     }
 
     free(scratch);free(frame2);free(frame1);free(ir);

@@ -227,4 +227,11 @@ odm_status odm_layered_render_frame_stream_stage_unhashed_pool(
     uint64_t *out_required_frame_bytes,
     uint64_t *out_required_scratch_bytes);
 
+/* Radial raster optics v2 (Layered Policy v11).
+ * Normative definition: docs/RADIAL_MORPHOLOGY_V2.md section 4. Shared by the
+ * policy encoder (layout.c) and the field rasterizer (field.c) so the two
+ * cannot drift apart again. */
+#define LAYER_RADIAL_AUTHORITY_FLOOR UINT32_C(322122547)  /* 0.15 */
+#define LAYER_RADIAL_TAIL_WEIGHT     UINT32_C(1395864371) /* 0.65 */
+
 #endif

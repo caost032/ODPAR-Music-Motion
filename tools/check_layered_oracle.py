@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent ODPAR layered-config/policy/frame-plan oracle (policy v10).
+"""Independent ODPAR layered-config/policy/frame-plan oracle (policy v11).
 
 Expected bytes and fixed-point math are reconstructed here from literal contract
 values.  The C implementation is used only as the observed system under test.
@@ -91,13 +91,24 @@ def config_bytes():
 
 def policy_bytes():
     b=bytearray(b'ODMLAYR3')
-    vals0=(10,1,1,3,6,6,3,3,48,96,1,8,1,1,1)
+    vals0=(11,1,1,3,6,6,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
               1,1,1,1,1,1,1,1,1,1,1,1,1,4,1,1,1,
               6,3,3,1,1,
-              1,26,6,6,1,1,1,16,1,1,1,1,1,1,1,1,1,32,1,1,1):u32(b,v)
+              1,26,6,6,1,1,1,16,
+              # 96->48 pair reduction, tip start, tip end, then the v11 tip
+              # opacity curve id: 2 = QUADRATIC in same-lane attack. Policy v10
+              # encoded 1 ("exact same-lane attack") while the tree already
+              # squared it. See docs/RADIAL_MORPHOLOGY_V2.md section 4.3.
+              1,1,1,2,
+              1,1,1,1,1,32,1,1,1,
+              # v11 dual-domain optical authority for the held body
+              # (docs/RADIAL_MORPHOLOGY_V2.md section 4.1): opacity model id,
+              # 0.15 authority floor, 0.65 release tail weight, activity is the
+              # max of the two domains, and segment lengths stay linear.
+              1,322122547,1395864371,1,1):u32(b,v)
     if len(b)>POLICY_BYTES:raise AssertionError(len(b))
     b.extend(b'\0'*(POLICY_BYTES-len(b)))
     return bytes(b)

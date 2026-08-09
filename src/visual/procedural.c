@@ -121,6 +121,17 @@ odm_status odm_visual_procedural_pixel(const odm_frame_node_state *node,
 #define COMP_Q31_090 UINT32_C(1932735282)
 #define COMP_Q31_ONE UINT32_C(2147483647)
 
+/* Radial Morphology v2 perceptual admission knees (Visual Policy v9).
+ * Normative definition and rationale: docs/RADIAL_MORPHOLOGY_V2.md section 3.
+ * These are the literals the 0.33 tree evaluated; the body upper knee is one
+ * ULP below COMP_Q31_020 and is frozen at the literal deliberately. */
+#define COMP_RADIAL_BODY_KNEE_LO    UINT32_C(107374182)  /* 0.05 */
+#define COMP_RADIAL_BODY_KNEE_HI    UINT32_C(429496729)  /* 0.20 */
+#define COMP_RADIAL_ATTACK_KNEE_LO  UINT32_C(171798692)  /* 0.08 */
+#define COMP_RADIAL_ATTACK_KNEE_HI  UINT32_C(536870912)  /* 0.25 */
+#define COMP_RADIAL_RELEASE_KNEE_LO UINT32_C(64424509)   /* 0.03 */
+#define COMP_RADIAL_RELEASE_KNEE_HI UINT32_C(322122547)  /* 0.15 */
+
 static uint32_t comp_sat_u31(uint64_t value) {
     return value > (uint64_t)COMP_Q31_ONE ? COMP_Q31_ONE : (uint32_t)value;
 }
@@ -546,17 +557,17 @@ odm_status odm_composition_resolve_music_reaction(
          * same-tick attack owns only the final remaining headroom. No term can
          * borrow evidence from a neighboring lane or from project time. */
         uint32_t body_gate = comp_soft_knee_u31(reaction->lane_fast_q31[i],
-                                                 UINT32_C(107374182),  /* 0.05 */
-                                                 UINT32_C(429496729)); /* 0.20 */
+                                                 COMP_RADIAL_BODY_KNEE_LO,
+                                                 COMP_RADIAL_BODY_KNEE_HI);
         uint32_t attack_gate = comp_soft_knee_u31(reaction->lane_attack_q31[i],
-                                                   UINT32_C(171798692),  /* 0.08 */
-                                                   UINT32_C(536870912)); /* 0.25 */
+                                                   COMP_RADIAL_ATTACK_KNEE_LO,
+                                                   COMP_RADIAL_ATTACK_KNEE_HI);
         uint32_t radial_body = comp_mul_u31(
             comp_mul_u31(reaction->lane_fast_q31[i], body_gate), COMP_Q31_045);
         uint32_t release = reaction->lane_q31[i] - reaction->lane_fast_q31[i];
         uint32_t release_gate = comp_soft_knee_u31(release,
-                                                    UINT32_C(64424509),   /* 0.03 */
-                                                    UINT32_C(322122547)); /* 0.15 */
+                                                    COMP_RADIAL_RELEASE_KNEE_LO,
+                                                    COMP_RADIAL_RELEASE_KNEE_HI);
         uint32_t release_mix = comp_mul_u31(
             comp_mul_u31(release, release_gate), COMP_Q31_035);
         uint32_t after_release = comp_add_u31(
@@ -1553,16 +1564,34 @@ static odm_status visual_policy_encode(uint8_t *buffer, uint64_t capacity,
         VP_WRITE(odm_wire_write_u32(&w, t.layers));
         VP_WRITE(odm_wire_write_u32(&w, t.panes));
     }
-    /* Multiscale causal radial morphology/provenance contract. */
-    VP_WRITE(odm_wire_write_u32(&w, 3u)); /* morphology id: fast body -> release -> attack */
+    /* Multiscale causal radial morphology/provenance contract.
+     * Radial Morphology v2 — docs/RADIAL_MORPHOLOGY_V2.md. Policy v9 exists
+     * because v8 asserted an ungated morphology the tree no longer computed:
+     * body, release and attack are each admitted through a perceptual soft
+     * knee before publication, so a sub-threshold lane publishes exactly zero
+     * instead of a faint permanent line. */
+    VP_WRITE(odm_wire_write_u32(&w, 4u)); /* morphology id: knee-gated fast body -> release -> attack */
     VP_WRITE(odm_wire_write_u32(&w, ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE));
     VP_WRITE(odm_wire_write_u32(&w, ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE));
     VP_WRITE(odm_wire_write_u32(&w, COMP_Q31_045)); /* fast-envelope body ceiling */
     VP_WRITE(odm_wire_write_u32(&w, COMP_Q31_035)); /* slow-fast release weight */
     VP_WRITE(odm_wire_write_u32(&w, 1u)); /* same-lane body/release/attack only */
-    VP_WRITE(odm_wire_write_u32(&w, 1u)); /* release = exact slow-fast excess */
+    VP_WRITE(odm_wire_write_u32(&w, 1u)); /* release basis = exact slow-fast excess */
     VP_WRITE(odm_wire_write_u32(&w, 1u)); /* attack consumes post-release headroom */
     VP_WRITE(odm_wire_write_u32(&w, 1u)); /* full attack reaches exact full range */
+    /* v9: perceptual admission knees. Smoothstep 3t^2-2t^3 between lo and hi;
+     * hard zero at or below lo; exact unity at or above hi. Published
+     * provenance is post-gate, so `final` stays reconstructible from the
+     * published tuple and a forged component still fails closed at render. */
+    VP_WRITE(odm_wire_write_u32(&w, 1u)); /* knee curve id: smoothstep 3t^2-2t^3 */
+    VP_WRITE(odm_wire_write_u32(&w, COMP_RADIAL_BODY_KNEE_LO));
+    VP_WRITE(odm_wire_write_u32(&w, COMP_RADIAL_BODY_KNEE_HI));
+    VP_WRITE(odm_wire_write_u32(&w, COMP_RADIAL_ATTACK_KNEE_LO));
+    VP_WRITE(odm_wire_write_u32(&w, COMP_RADIAL_ATTACK_KNEE_HI));
+    VP_WRITE(odm_wire_write_u32(&w, COMP_RADIAL_RELEASE_KNEE_LO));
+    VP_WRITE(odm_wire_write_u32(&w, COMP_RADIAL_RELEASE_KNEE_HI));
+    VP_WRITE(odm_wire_write_u32(&w, 1u)); /* published release/attack are post-gate */
+    VP_WRITE(odm_wire_write_u32(&w, 1u)); /* sub-knee evidence publishes exact zero */
     VP_WRITE(odm_wire_writer_finish(&w, &written));
 #undef VP_WRITE
     if (written > ODM_VISUAL_POLICY_BYTES) return ODM_STATUS_INVARIANT_BROKEN;

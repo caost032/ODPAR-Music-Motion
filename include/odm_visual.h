@@ -56,7 +56,7 @@ odm_status odm_visual_history_resolve(
  * consumed once per frame by a renderer. All math is integer/fixed-point.
  * ------------------------------------------------------------------------- */
 
-#define ODM_VISUAL_POLICY_VERSION UINT32_C(8)
+#define ODM_VISUAL_POLICY_VERSION UINT32_C(9)
 #define ODM_VISUAL_POLICY_BYTES UINT32_C(1024)
 
 /* Canonical semantic identity for Advanced Composition + Visual Director.

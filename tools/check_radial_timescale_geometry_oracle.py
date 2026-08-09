@@ -62,13 +62,17 @@ int main(int ac,char**av){
 def mulq(a:int,b:int)->int:
     return min(Q,(a*b+Q//2)//Q)
 
+import sys as _sys
+_sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import odm_radial_spec as _spec
+
 def morphology():
-    body=mulq(FAST,C045)
-    release=SLOW-FAST
-    release_mix=mulq(release,C035)
-    after=body+mulq(Q-body,release_mix)
-    final=after+mulq(Q-after,ATTACK)
-    return final,body,release,after
+    """Radial Morphology v2 (Visual Policy v9) + the release radius authority
+    used by the raster. Reconstructed in tools/odm_radial_spec.py."""
+    final,body,release,attack=_spec.morphology(SLOW,FAST,ATTACK)
+    if attack != ATTACK:
+        raise SystemExit(f'fixture attack {ATTACK} unexpectedly gated to {attack}')
+    return final,body,release,_spec.release_base(body,release)
 
 def q(n:int,d:int)->int:return (Q*n+d//2)//d
 def ratio_px(dim:int,v:int)->int:return (dim*65536*v+Q//2)//Q
@@ -130,11 +134,18 @@ def expected():
     rx=center+r0+release_len;ry=center
     tx=center+r0+final_len;ty=center
     frame=[(0,0,0,0) for _ in range(W*H)]
-    if body_len>0:draw_segment(frame,ax,ay,bx,by,BAR_WIDTH,SECONDARY,FIELD_OP)
+    # Layered Policy v11 optics (docs/RADIAL_MORPHOLOGY_V2.md section 4):
+    # held body brightness requires same-lane transient or release activity,
+    # and the attack tip is quadratic in attack. Lengths stay linear.
+    if body_len>0:
+        draw_segment(frame,ax,ay,bx,by,BAR_WIDTH,SECONDARY,
+                     _spec.body_opacity(FIELD_OP,ATTACK,release))
     if release_len>body_len and release:
-        draw_segment(frame,bx,by,rx,ry,BAR_WIDTH,SECONDARY,mulq(FIELD_OP,release))
+        draw_segment(frame,bx,by,rx,ry,BAR_WIDTH,SECONDARY,
+                     _spec.release_opacity(FIELD_OP,release))
     if final_len>release_len and ATTACK:
-        draw_segment(frame,rx,ry,tx,ty,BAR_WIDTH,PRIMARY,mulq(FIELD_OP,ATTACK))
+        draw_segment(frame,rx,ry,tx,ty,BAR_WIDTH,PRIMARY,
+                     _spec.tip_opacity(FIELD_OP,ATTACK))
     raw=b''.join(struct.pack('<HHHH',*p) for p in frame)
     return raw,(final,body,release,ATTACK),(body_len,release_len,final_len)
 
