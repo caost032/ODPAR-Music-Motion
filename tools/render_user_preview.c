@@ -1,6 +1,8 @@
 #include "odm_compositor.h"
 #include "odm_export.h"
 #include "odm_media.h"
+#include "odm_media_adapter.h"
+#include "odm_visual_scene.h"
 #include "odm_music_map.h"
 #include "odm_music_reaction.h"
 #include "odm_status.h"
@@ -334,9 +336,9 @@ int main(int argc, char **argv) {
     const char *wav_path, *core_raw_path, *out_mp4, *work_dir;
     uint32_t out_size = 540u;
     int32_t fps = 60;
+    int dynamics_enabled = 1;   /* Visual Dynamics activo por defecto */
+    int positional = 0;
     uint32_t source_w = 256u, source_h = 256u;
-    uint8_t *wav_bytes = NULL;
-    uint64_t wav_size = 0u;
     odm_pcm_stereo_q31 *pcm = NULL;
     uint64_t pcm_frames_required = 0u;
     odm_media_facts audio_facts;
@@ -386,19 +388,35 @@ int main(int argc, char **argv) {
     const odm_pcm_stereo_q31 *preview_pcm = NULL;
     char final_dir[1024], receipt_copy[1024], argv_dump[1024], final_video[1024], final_audio[1024];
 
-    if (argc != 5 && argc != 7) {
-        fprintf(stderr, "usage: %s <wav> <core.rgba> <out.mp4> <work_dir> [start_sec duration_sec]\n", argv[0]);
+    if (argc < 5) {
+        fprintf(stderr,
+            "uso: %s <audio> <imagen|core.rgba> <salida.mp4> <dir_trabajo>\n"
+            "        [inicio_seg duracion_seg] [--no-dynamics] [--fps N] [--size N]\n"
+            "\n"
+            "  audio  : wav, mp3, m4a/aac, flac, ogg, opus, aiff, mp4...\n"
+            "  imagen : png, jpeg, webp... o un volcado RGBA8 crudo\n"
+            "  --no-dynamics : control A/B, desactiva Visual Dynamics\n",
+            argv[0]);
         return 2;
+    }
+    {
+        int a;
+        for (a = 5; a < argc; ++a) {
+            if (strcmp(argv[a], "--no-dynamics") == 0) { dynamics_enabled = 0; }
+            else if (strcmp(argv[a], "--fps") == 0 && a + 1 < argc) { fps = (int32_t)atoi(argv[++a]); }
+            else if (strcmp(argv[a], "--size") == 0 && a + 1 < argc) { out_size = (uint32_t)atoi(argv[++a]); }
+            else if (positional == 0) { preview_start_sec = strtoull(argv[a], NULL, 10); positional = 1; }
+            else if (positional == 1) { preview_duration_sec = strtoull(argv[a], NULL, 10); positional = 2; }
+        }
+        if (positional == 2 && preview_duration_sec == 0u) {
+            fprintf(stderr, "duration must be positive\n"); return 2;
+        }
     }
     wav_path = argv[1];
     core_raw_path = argv[2];
     out_mp4 = argv[3];
     work_dir = argv[4];
-    if (argc == 7) {
-        preview_start_sec = (uint64_t)strtoull(argv[5], NULL, 10);
-        preview_duration_sec = (uint64_t)strtoull(argv[6], NULL, 10);
-        if (preview_duration_sec == 0u) { fprintf(stderr, "duration must be positive\n"); return 2; }
-    }
+
 
     memset(&audio_facts, 0, sizeof(audio_facts));
     memset(&analysis_plan, 0, sizeof(analysis_plan));
@@ -418,20 +436,34 @@ int main(int argc, char **argv) {
     memset(&fsink, 0, sizeof(fsink));
     memset(&receipt, 0, sizeof(receipt));
 
-    if (!read_file_all(wav_path, &wav_bytes, &wav_size)) {
-        fprintf(stderr, "failed to read wav input\n"); return 3;
+    /* Cualquier contenedor soportado entra por la frontera de canonicalizacion.
+     * WAV va por el camino nativo; el resto pasa por el adaptador y vuelve a
+     * ser verificado por el mismo decodificador nativo. */
+    {
+        odm_media_adapter_provenance audio_prov;
+        odm_status st = odm_media_load_audio_q31(wav_path, NULL, 0u,
+                                                 &pcm_frames_required, &audio_facts,
+                                                 &audio_prov);
+        if (st != ODM_STATUS_BUFFER_TOO_SMALL && st != ODM_STATUS_OK) {
+            fprintf(stderr, "audio sizing failed st=%d\n", (int)st); return 4;
+        }
+        pcm = (odm_pcm_stereo_q31 *)malloc((size_t)pcm_frames_required * sizeof(*pcm));
+        if (!pcm) { fprintf(stderr, "oom pcm\n"); return 5; }
+        st = odm_media_load_audio_q31(wav_path, pcm, pcm_frames_required,
+                                      &pcm_frames_required, &audio_facts, &audio_prov);
+        if (st != ODM_STATUS_OK) {
+            fprintf(stderr, "audio decode failed st=%d\n", (int)st); return 6;
+        }
+        if (audio_prov.available && audio_prov.output_bytes) {
+            fprintf(stderr, "media adapter: %s (%llu -> %llu bytes)\n",
+                    audio_prov.identity,
+                    (unsigned long long)audio_prov.input_bytes,
+                    (unsigned long long)audio_prov.output_bytes);
+        }
+        fprintf(stderr, "audio: %llu frames @48kHz (%.2f s)\n",
+                (unsigned long long)pcm_frames_required,
+                (double)pcm_frames_required / 48000.0);
     }
-    if (odm_media_decode_audio_q31(wav_bytes, wav_size, NULL, 0u,
-                                   &pcm_frames_required, &audio_facts) != ODM_STATUS_BUFFER_TOO_SMALL) {
-        fprintf(stderr, "audio sizing failed\n"); return 4;
-    }
-    pcm = (odm_pcm_stereo_q31 *)malloc((size_t)pcm_frames_required * sizeof(*pcm));
-    if (!pcm) { fprintf(stderr, "oom pcm\n"); return 5; }
-    if (odm_media_decode_audio_q31(wav_bytes, wav_size, pcm, pcm_frames_required,
-                                   &pcm_frames_required, &audio_facts) != ODM_STATUS_OK) {
-        fprintf(stderr, "audio decode failed\n"); return 6;
-    }
-    free(wav_bytes); wav_bytes = NULL;
 
     window_q31 = (int32_t *)malloc((size_t)ODM_MUSIC_WINDOW_SAMPLES * sizeof(*window_q31));
     twiddles = (odm_music_complex_q31 *)malloc((size_t)ODM_MUSIC_FFT_TWIDDLES * sizeof(*twiddles));
@@ -515,8 +547,28 @@ int main(int argc, char **argv) {
     }
     preview_pcm = pcm + preview_start_frame;
 
-    if (!read_file_all(core_raw_path, &core_rgba, &core_raw_size)) {
-        fprintf(stderr, "failed to read core raw frames\n"); return 18;
+    /* El nucleo acepta una imagen real (PNG/JPEG/WebP/...) o un volcado .rgba
+     * crudo. La imagen se canonicaliza a RGBA8 por la misma frontera. */
+    {
+        odm_media_facts core_facts;
+        odm_media_adapter_provenance core_prov;
+        uint64_t need = 0u;
+        odm_status st;
+        memset(&core_facts, 0, sizeof(core_facts));
+        st = odm_media_load_image_rgba8(core_raw_path, NULL, 0u, &need, &core_facts, &core_prov);
+        if (st == ODM_STATUS_BUFFER_TOO_SMALL || st == ODM_STATUS_OK) {
+            core_rgba = (uint8_t *)malloc((size_t)need);
+            if (!core_rgba) { fprintf(stderr, "oom core image\n"); return 18; }
+            st = odm_media_load_image_rgba8(core_raw_path, core_rgba, need, &need,
+                                            &core_facts, &core_prov);
+            if (st != ODM_STATUS_OK) { fprintf(stderr, "core image decode failed st=%d\n", (int)st); return 18; }
+            source_w = core_facts.width;
+            source_h = core_facts.height;
+            core_raw_size = need;
+            fprintf(stderr, "core: %ux%u imagen\n", source_w, source_h);
+        } else if (!read_file_all(core_raw_path, &core_rgba, &core_raw_size)) {
+            fprintf(stderr, "failed to read core input\n"); return 18;
+        }
     }
     cctx.width = source_w;
     cctx.height = source_h;
@@ -607,6 +659,52 @@ int main(int argc, char **argv) {
         presentation_comp[i].tick_index = local_tick;
         presentation_comp[i].center_sample = local_tick * (uint64_t)ODM_MUSIC_TICK_SAMPLES;
         presentation_dir[i].tick_index = local_tick;
+    }
+
+    /* Volcado de la secuencia de composicion cruda: es la entrada que consume
+     * tools/flicker_metrics para comparar objetivamente con y sin dinamica. */
+    {
+        char dump_path[1200];
+        if (snprintf(dump_path, sizeof(dump_path), "%s/composition_frames.bin", work_dir) > 0) {
+            FILE *dh = fopen(dump_path, "wb");
+            if (dh) {
+                (void)fwrite(presentation_comp, sizeof(*presentation_comp),
+                             (size_t)recipe.frame_count, dh);
+                fclose(dh);
+            }
+        }
+    }
+
+    /* Visual Dynamics. Sin esta pasada, un valor visual existe exactamente
+     * mientras su evidencia esta alta. Con ella, la evidencia dispara una
+     * respuesta que tiene ataque, cuerpo y caida propios en dominio de muestras,
+     * asi que un golpe sigue viendose despues de que su evidencia desaparezca y
+     * la rejilla no puede latir a la velocidad del halo.
+     *
+     * La coordenada que se usa es la muestra exacta de presentacion del
+     * fotograma, no su indice: por eso cambiar los FPS reencuadra la misma
+     * envolvente en vez de producir otra reaccion. */
+    if (dynamics_enabled) {
+        odm_visual_scene scene;
+        if (odm_visual_scene_init(&scene, 0u) != ODM_STATUS_OK) {
+            fprintf(stderr, "visual scene init failed\n"); return 24;
+        }
+        for (i = 0u; i < recipe.frame_count; ++i) {
+            int64_t sample = 0;
+            if (odm_export_frame_sample(&recipe, i, &sample) != ODM_STATUS_OK || sample < 0) {
+                fprintf(stderr, "frame sample mapping failed\n"); return 24;
+            }
+            if (odm_visual_scene_apply(&scene, &presentation_comp[i], (uint64_t)sample,
+                                       &presentation_comp[i]) != ODM_STATUS_OK) {
+                fprintf(stderr, "visual scene apply failed at frame %llu\n",
+                        (unsigned long long)i);
+                return 24;
+            }
+        }
+        fprintf(stderr, "visual dynamics: aplicado a %llu fotogramas\n",
+                (unsigned long long)recipe.frame_count);
+    } else {
+        fprintf(stderr, "visual dynamics: DESACTIVADO (control A/B)\n");
     }
     sctx.composition = presentation_comp;
     sctx.director = presentation_dir;

@@ -12,8 +12,8 @@ void odm_test_spine(odm_test_context *context) {
     char *first;
     char *second;
     ODM_TEST_CHECK(context, odm_spine_validate(&summary) == ODM_STATUS_OK);
-    ODM_TEST_CHECK(context, summary.module_count == 65u);
-    ODM_TEST_CHECK(context, summary.dependency_count == 243u);
+    ODM_TEST_CHECK(context, summary.module_count == 67u);
+    ODM_TEST_CHECK(context, summary.dependency_count == 250u);
     ODM_TEST_CHECK(context, summary.invariant_count == 141u);
     ODM_TEST_CHECK(context, summary.capability_count == 128u);
     ODM_TEST_CHECK(context, summary.state_model_count == 11u);
@@ -86,7 +86,7 @@ void odm_test_spine(odm_test_context *context) {
         ODM_TEST_CHECK(context,
                        odm_spine_impact_of("time", &impact) == ODM_STATUS_OK);
         ODM_TEST_CHECK(context, impact.direct_dependents == 12u);
-        ODM_TEST_CHECK(context, impact.transitive_dependents == 28u);
+        ODM_TEST_CHECK(context, impact.transitive_dependents == 29u);
         ODM_TEST_CHECK(context, strstr(impact.dependents, "selftest") != NULL);
         ODM_TEST_CHECK(context, strstr(impact.dependents, "cli") != NULL);
         ODM_TEST_CHECK(context,

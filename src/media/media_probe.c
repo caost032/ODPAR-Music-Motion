@@ -12,6 +12,7 @@ odm_status odm_media_detect(const uint8_t *bytes, uint64_t size,
     static const uint8_t flac_sig[4] = {'f','L','a','C'};
     static const uint8_t jpeg_sig[3] = {0xffu,0xd8u,0xffu};
     static const uint8_t webm_sig[4] = {0x1au,0x45u,0xdfu,0xa3u};
+    static const uint8_t ogg_sig[4] = {'O','g','g','S'};
     odm_media_probe_result tmp = {0};
     if (!out_probe || (!bytes && size != 0u)) return ODM_STATUS_INVALID_ARGUMENT;
     if (size >= 12u && memcmp(bytes, "RIFF", 4u) == 0 &&
@@ -44,6 +45,20 @@ odm_status odm_media_detect(const uint8_t *bytes, uint64_t size,
         tmp.container = ODM_MEDIA_CONTAINER_ISOBMFF;
         tmp.support = ODM_MEDIA_SUPPORT_RECOGNIZED;
         tmp.media_kind = ODM_MEDIA_KIND_VIDEO;
+    } else if (has(bytes, size, ogg_sig, sizeof(ogg_sig))) {
+        /* Ogg transporta Vorbis, Opus, FLAC y Theora. Distinguir el codec
+         * exigiria interpretar la primera pagina; el contenedor basta para
+         * decidir que hace falta el adaptador, y el decodificador nativo
+         * seguira siendo quien valide el WAV resultante. */
+        tmp.container = ODM_MEDIA_CONTAINER_OGG;
+        tmp.support = ODM_MEDIA_SUPPORT_RECOGNIZED;
+        tmp.media_kind = ODM_MEDIA_KIND_AUDIO;
+    } else if (size >= 12u && memcmp(bytes, "FORM", 4u) == 0 &&
+               (memcmp(bytes + 8u, "AIFF", 4u) == 0 ||
+                memcmp(bytes + 8u, "AIFC", 4u) == 0)) {
+        tmp.container = ODM_MEDIA_CONTAINER_AIFF;
+        tmp.support = ODM_MEDIA_SUPPORT_RECOGNIZED;
+        tmp.media_kind = ODM_MEDIA_KIND_AUDIO;
     } else if (size >= 3u && memcmp(bytes, "ID3", 3u) == 0) {
         tmp.container = ODM_MEDIA_CONTAINER_MP3;
         tmp.support = ODM_MEDIA_SUPPORT_RECOGNIZED;

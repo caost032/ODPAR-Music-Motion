@@ -52,7 +52,7 @@ LIB_SOURCES := \
 	src/media/png_crc.c \
 	src/media/png.c \
 	src/media/media_probe.c \
-	src/media/media_dispatch.c \
+	src/media/media_dispatch.c src/media/decode_adapter.c \
 	src/music_map/resample.c \
 	src/music_map/analysis.c src/music_map/analysis_wire.c \
 	src/music_inference/reaction_spine.c \
@@ -61,7 +61,7 @@ LIB_SOURCES := \
 	src/package/deflate.c src/package/sign.c src/package/odparms.c \
 	src/renderer/color.c src/renderer/sampler.c src/renderer/reference.c src/renderer/frame_root.c \
 	src/visual/event_history.c src/visual/procedural.c \
-	src/visual_dynamics/response.c \
+	src/visual_dynamics/response.c src/visual_dynamics/scene.c \
 	src/preview/preview.c src/preview/ffi_preview.c \
 	src/master/master.c src/master/receipt.c src/master/controller_sign.c \
 	src/studio/revision.c src/studio/approval.c src/studio/workflow.c \
