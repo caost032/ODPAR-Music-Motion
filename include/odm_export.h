@@ -277,7 +277,13 @@ typedef struct {
     const odm_pcm_stereo_q31 *canonical_pcm;
     uint64_t canonical_pcm_frames;
     const odm_job_ticket *job_ticket;
-    uint32_t reserved[4];
+    /* Nivel de calidad de raster (odm_supersample.h). 0 = sin supermuestreo,
+     * que es exactamente el comportamiento historico, asi que una peticion
+     * puesta a cero sigue significando lo mismo que siempre. El nivel decide
+     * fidelidad del raster y nunca interpretacion: el recipe, el numero de
+     * fotogramas, sus bytes y su instante de muestra son los mismos. */
+    uint32_t quality_tier;
+    uint32_t reserved[3];
 } odm_export_run_request;
 
 typedef struct {

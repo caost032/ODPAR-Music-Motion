@@ -2,6 +2,7 @@
 #include "odm_export.h"
 #include "odm_media.h"
 #include "odm_media_adapter.h"
+#include "odm_supersample.h"
 #include "odm_visual_scene.h"
 #include "odm_music_map.h"
 #include "odm_music_reaction.h"
@@ -43,6 +44,11 @@ typedef struct {
     char audio_path[1024];
     char receipt_path[1024];
     int active;
+    uint32_t ss_factor;      /* factor de supermuestreo en curso */
+    uint32_t ss_width;       /* anchura del raster de alta resolucion */
+    uint32_t ss_height;
+    uint8_t *resolved;       /* destino del resolve, tamano de entrega */
+    uint64_t resolved_bytes;
 } file_sink;
 
 static uint32_t q31_ratio(uint32_t n, uint32_t d) {
@@ -170,6 +176,20 @@ static odm_status sink_write_video(void *user, uint64_t frame_index, int64_t sam
     file_sink *s = (file_sink *)user;
     (void)frame_index; (void)sample;
     if (!s || !s->v || (!rgba8 && bytes)) return ODM_STATUS_INVALID_ARGUMENT;
+    /* El compositor rendered a resolucion `factor` veces mayor. Aqui se resuelve
+     * al tamano de entrega promediando en luz lineal, que es el unico dominio en
+     * el que la media de dos colores es el color medio. */
+    if (s->ss_factor > 1u) {
+        uint64_t produced = 0u;
+        odm_status rst = odm_supersample_resolve_rgba8_srgb(
+            rgba8, bytes, s->ss_width, s->ss_height, s->ss_factor,
+            s->resolved, s->resolved_bytes,
+            s->ss_width / s->ss_factor, s->ss_height / s->ss_factor, &produced);
+        if (rst != ODM_STATUS_OK) return rst;
+        if (fwrite(s->resolved, 1u, (size_t)produced, s->v) != (size_t)produced)
+            return ODM_STATUS_INTERNAL_ERROR;
+        return ODM_STATUS_OK;
+    }
     if (fwrite(rgba8, 1u, (size_t)bytes, s->v) != (size_t)bytes) return ODM_STATUS_INTERNAL_ERROR;
     return ODM_STATUS_OK;
 }
@@ -337,6 +357,9 @@ int main(int argc, char **argv) {
     uint32_t out_size = 540u;
     int32_t fps = 60;
     int dynamics_enabled = 1;   /* Visual Dynamics activo por defecto */
+    uint32_t quality_tier = ODM_QUALITY_PREVIEW_HIGH; /* 2x por defecto: nadie deberia tener que pedir que no se vea dentado */
+    uint32_t ss_factor = 1u;
+    uint32_t render_size = 0u;
     int positional = 0;
     uint32_t source_w = 256u, source_h = 256u;
     odm_pcm_stereo_q31 *pcm = NULL;
@@ -395,7 +418,8 @@ int main(int argc, char **argv) {
             "\n"
             "  audio  : wav, mp3, m4a/aac, flac, ogg, opus, aiff, mp4...\n"
             "  imagen : png, jpeg, webp... o un volcado RGBA8 crudo\n"
-            "  --no-dynamics : control A/B, desactiva Visual Dynamics\n",
+            "  --no-dynamics : control A/B, desactiva Visual Dynamics\n"
+            "  --quality N   : 0=preview rapido 1=preview alto 2=master 3=master ultra\n",
             argv[0]);
         return 2;
     }
@@ -405,6 +429,7 @@ int main(int argc, char **argv) {
             if (strcmp(argv[a], "--no-dynamics") == 0) { dynamics_enabled = 0; }
             else if (strcmp(argv[a], "--fps") == 0 && a + 1 < argc) { fps = (int32_t)atoi(argv[++a]); }
             else if (strcmp(argv[a], "--size") == 0 && a + 1 < argc) { out_size = (uint32_t)atoi(argv[++a]); }
+            else if (strcmp(argv[a], "--quality") == 0 && a + 1 < argc) { quality_tier = (uint32_t)atoi(argv[++a]); }
             else if (positional == 0) { preview_start_sec = strtoull(argv[a], NULL, 10); positional = 1; }
             else if (positional == 1) { preview_duration_sec = strtoull(argv[a], NULL, 10); positional = 2; }
         }
@@ -580,7 +605,14 @@ int main(int argc, char **argv) {
     cctx.rgba = core_rgba;
     cctx.samples_per_frame = (int64_t)ODM_MUSIC_SAMPLE_RATE / (int64_t)fps;
 
-    if (!build_config(&config, out_size, out_size, fps, seed ^ UINT64_C(0x55aa55aa11223344))) {
+    ss_factor = odm_supersample_factor(quality_tier);
+    if (ss_factor == 0u) { fprintf(stderr, "nivel de calidad invalido\n"); return 2; }
+    render_size = out_size;   /* el export supermuestrea internamente */
+    fsink.ss_factor = 1u;     /* el sink recibe ya el fotograma de entrega */
+    fprintf(stderr, "calidad: nivel %u (raster interno %ux%u -> entrega %ux%u)\n",
+            quality_tier, out_size * ss_factor, out_size * ss_factor, out_size, out_size);
+
+    if (!build_config(&config, render_size, render_size, fps, seed ^ UINT64_C(0x55aa55aa11223344))) {
         fprintf(stderr, "build config failed\n"); return 20;
     }
     if (odm_export_plan_build(&config, (int64_t)preview_pcm_frames, preview_pcm_frames,
@@ -733,6 +765,7 @@ int main(int argc, char **argv) {
     run_request.core_user = &cctx;
     run_request.canonical_pcm = preview_pcm;
     run_request.canonical_pcm_frames = preview_pcm_frames;
+    run_request.quality_tier = quality_tier;
     run_request.job_ticket = NULL;
 
     if (odm_export_run_requirements(&run_request, &frame_bytes, &scratch_bytes, &work_units) != ODM_STATUS_OK) {
@@ -759,6 +792,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "export run failed status=%d\n", (int)run_st); return 27;
         }
     }
+    /* El compositor trabaja a `render_size` y el sink resuelve a `out_size`, asi
+     * que el flujo crudo que ve el codificador ya esta a tamano de entrega. El
+     * argv debe declarar ESE tamano: si declarara el del raster interno, ffmpeg
+     * leeria los bytes desalineados y produciria basura. */
     if (!run_ffmpeg_bound(&recipe, final_video, final_audio, out_mp4, argv_dump)) {
         fprintf(stderr, "ffmpeg encode failed\n"); return 28;
     }

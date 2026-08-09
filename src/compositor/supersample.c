@@ -7,6 +7,7 @@
 #include "odm_supersample.h"
 
 #include "compositor_internal.h"
+#include "odm_renderer.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -186,6 +187,71 @@ odm_status odm_supersample_resolve_rgba16(const uint8_t *hi_frame,
             dst[2] = (uint8_t)(g & 0xffu);       dst[3] = (uint8_t)((g >> 8) & 0xffu);
             dst[4] = (uint8_t)(b & 0xffu);       dst[5] = (uint8_t)((b >> 8) & 0xffu);
             dst[6] = (uint8_t)(a & 0xffu);       dst[7] = (uint8_t)((a >> 8) & 0xffu);
+        }
+    }
+    return ODM_STATUS_OK;
+}
+
+odm_status odm_supersample_resolve_rgba8_srgb(const uint8_t *hi_frame,
+                                              uint64_t hi_bytes,
+                                              uint32_t hi_width, uint32_t hi_height,
+                                              uint32_t factor,
+                                              uint8_t *out_frame,
+                                              uint64_t out_capacity,
+                                              uint32_t out_width, uint32_t out_height,
+                                              uint64_t *out_required_bytes) {
+    uint64_t needed;
+    uint32_t x, y, divisor;
+
+    if (!out_required_bytes) return ODM_STATUS_INVALID_ARGUMENT;
+    if (factor == 0u || factor > ODM_SUPERSAMPLE_MAX_FACTOR) return ODM_STATUS_INVALID_ARGUMENT;
+    if (out_width == 0u || out_height == 0u) return ODM_STATUS_INVALID_ARGUMENT;
+    if ((uint64_t)out_width * factor != (uint64_t)hi_width ||
+        (uint64_t)out_height * factor != (uint64_t)hi_height)
+        return ODM_STATUS_INVALID_ARGUMENT;
+
+    needed = (uint64_t)out_width * (uint64_t)out_height * 4u;
+    *out_required_bytes = needed;
+    if (!out_frame) return ODM_STATUS_BUFFER_TOO_SMALL;
+    if (out_capacity < needed) return ODM_STATUS_BUFFER_TOO_SMALL;
+    if (!hi_frame) return ODM_STATUS_INVALID_ARGUMENT;
+    if (hi_bytes < (uint64_t)hi_width * (uint64_t)hi_height * 4u)
+        return ODM_STATUS_INVALID_ARGUMENT;
+
+    if (factor == 1u) {
+        memcpy(out_frame, hi_frame, (size_t)needed);
+        return ODM_STATUS_OK;
+    }
+
+    divisor = factor * factor;
+    for (y = 0u; y < out_height; ++y) {
+        for (x = 0u; x < out_width; ++x) {
+            int64_t lr = 0, lg = 0, lb = 0;
+            uint64_t la = 0u;
+            uint32_t sy, sx;
+            uint8_t *dst;
+            for (sy = 0u; sy < factor; ++sy) {
+                const uint8_t *row = hi_frame +
+                    ((uint64_t)(y * factor + sy) * (uint64_t)hi_width +
+                     (uint64_t)(x * factor)) * 4u;
+                for (sx = 0u; sx < factor; ++sx) {
+                    const uint8_t *px = row + (uint64_t)sx * 4u;
+                    /* Decodificacion a luz lineal con la EOTF congelada. */
+                    lr += (int64_t)odm_renderer_decode_u8(px[0], ODM_COLOR_TRANSFER_SRGB);
+                    lg += (int64_t)odm_renderer_decode_u8(px[1], ODM_COLOR_TRANSFER_SRGB);
+                    lb += (int64_t)odm_renderer_decode_u8(px[2], ODM_COLOR_TRANSFER_SRGB);
+                    la += px[3];
+                }
+            }
+            lr = (lr + (int64_t)divisor / 2) / (int64_t)divisor;
+            lg = (lg + (int64_t)divisor / 2) / (int64_t)divisor;
+            lb = (lb + (int64_t)divisor / 2) / (int64_t)divisor;
+            la = (la + divisor / 2u) / divisor;
+            dst = out_frame + ((uint64_t)y * (uint64_t)out_width + (uint64_t)x) * 4u;
+            dst[0] = odm_renderer_linear_u16_to_srgb8(odm_renderer_q27_to_u16((odm_render_q4_27)lr));
+            dst[1] = odm_renderer_linear_u16_to_srgb8(odm_renderer_q27_to_u16((odm_render_q4_27)lg));
+            dst[2] = odm_renderer_linear_u16_to_srgb8(odm_renderer_q27_to_u16((odm_render_q4_27)lb));
+            dst[3] = (uint8_t)(la & 0xffu);
         }
     }
     return ODM_STATUS_OK;

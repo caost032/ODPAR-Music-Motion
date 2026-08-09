@@ -78,6 +78,24 @@ odm_status odm_supersample_resolve_rgba16(const uint8_t *hi_frame,
                                           uint32_t out_width, uint32_t out_height,
                                           uint64_t *out_required_bytes);
 
+/* Resuelve un raster RGBA8 sRGB de alta resolucion a la resolucion de salida.
+ *
+ * Promediar codigos sRGB directamente es un error de bulto: sRGB no es lineal,
+ * asi que la media de dos codigos no es el color medio. Aqui cada muestra se
+ * decodifica a luz lineal con la EOTF congelada del motor, se promedia en ese
+ * dominio y se vuelve a codificar. Esa es la unica forma de que un borde
+ * suavizado tenga la luminancia correcta en vez de verse sucio.
+ *
+ * El alfa si es lineal por definicion y se promedia tal cual. */
+odm_status odm_supersample_resolve_rgba8_srgb(const uint8_t *hi_frame,
+                                              uint64_t hi_bytes,
+                                              uint32_t hi_width, uint32_t hi_height,
+                                              uint32_t factor,
+                                              uint8_t *out_frame,
+                                              uint64_t out_capacity,
+                                              uint32_t out_width, uint32_t out_height,
+                                              uint64_t *out_required_bytes);
+
 /* Camino completo con supermuestreo. Reserva internamente el raster de alta
  * resolucion y su scratch; devuelve el frame ya resuelto en la resolucion
  * pedida. Con factor 1 es exactamente odm_layered_render_frame. */

@@ -1,4 +1,5 @@
 #include "odm_export.h"
+#include "odm_supersample.h"
 #include "compositor_internal.h"
 
 #include "odm_wire.h"
@@ -7,6 +8,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>   /* snprintf for delivery argv construction */
+#include <stdlib.h>
 #include <string.h>
 
 #if defined(ODM_SHA256_OPENSSL_ACCEL)
@@ -886,7 +888,8 @@ static odm_status export_request_validate(const odm_export_run_request *request)
         (request->flags & ~ODM_EXPORT_RUN_FLAGS_ALLOWED) != 0u ||
         ((request->flags & ODM_EXPORT_RUN_FLAG_ROW_PARALLEL_2) != 0u &&
          (request->flags & ODM_EXPORT_RUN_FLAG_ROW_PARALLEL_4) != 0u) ||
-        !zero_u32(request->reserved, 4u))
+        request->quality_tier >= (uint32_t)ODM_QUALITY_COUNT ||
+        !zero_u32(request->reserved, 3u))
         return ODM_STATUS_INVALID_DATA;
     st = odm_layered_config_validate(request->config);
     if (st != ODM_STATUS_OK) return st;
@@ -1010,6 +1013,14 @@ odm_status odm_export_run(
     odm_layered_render_admission render_admission;
     odm_layered_worker_pool render_pool;
     int render_pool_active = 0;
+    /* Estado del supermuestreo. Reservado una sola vez para todo el export:
+     * un raster de alta resolucion por fotograma seria una tormenta de
+     * asignaciones en el bucle mas caliente del motor. */
+    uint32_t ss_factor = 1u;
+    odm_layered_config ss_config;
+    uint8_t *ss_frame = NULL, *ss_scratch = NULL;
+    uint64_t ss_frame_bytes = 0u, ss_scratch_bytes = 0u;
+    odm_sha256_digest ss_digest;
     const odm_export_run_request *run_request = request;
     const odm_export_sink *run_sink = sink;
     int active = 0;
@@ -1019,6 +1030,8 @@ odm_status odm_export_run(
     memset(&source_pcm_hash, 0, sizeof(source_pcm_hash));
     memset(&admitted_pcm_hash, 0, sizeof(admitted_pcm_hash));
     memset(&render_pool, 0, sizeof(render_pool));
+    memset(&ss_config, 0, sizeof(ss_config));
+    memset(&ss_digest, 0, sizeof(ss_digest));
     if (!out_receipt_required) return ODM_STATUS_INVALID_ARGUMENT;
     *out_receipt_required = ODM_EXPORT_RUN_RECEIPT_BYTES;
     if (!sink || !sink->begin || !sink->write_video || !sink->write_audio ||
@@ -1199,6 +1212,26 @@ odm_status odm_export_run(
     st = export_sha256_stream_final(&admitted_pcm_hash, &admitted_pcm_digest);
     if (st != ODM_STATUS_OK) goto hash_setup_fail;
 
+    ss_factor = odm_supersample_factor(run_request->quality_tier);
+    if (ss_factor == 0u) { st = ODM_STATUS_INVALID_ARGUMENT; goto hash_setup_fail; }
+    if (ss_factor > 1u) {
+        odm_layered_frame_plan probe_plan;
+        memset(&probe_plan, 0, sizeof(probe_plan));
+        st = odm_supersample_scale(run_request->config, &probe_plan, ss_factor,
+                                   &ss_config, &probe_plan);
+        if (st != ODM_STATUS_OK) goto hash_setup_fail;
+        st = odm_layered_render_requirements(&ss_config,
+                                             ODM_LAYERED_PIXEL_RGBA8_SRGB_BLACK_COMPOSITE,
+                                             &ss_frame_bytes, &ss_scratch_bytes);
+        if (st != ODM_STATUS_OK) goto hash_setup_fail;
+        ss_frame = (uint8_t *)malloc((size_t)ss_frame_bytes);
+        ss_scratch = ss_scratch_bytes ? (uint8_t *)malloc((size_t)ss_scratch_bytes) : NULL;
+        if (!ss_frame || (ss_scratch_bytes && !ss_scratch)) {
+            st = ODM_STATUS_OUT_OF_MEMORY;
+            goto hash_setup_fail;
+        }
+    }
+
     if (row_workers > 1u) {
         st = odm_layered_worker_pool_init(&render_pool, row_workers);
         if (st != ODM_STATUS_OK) goto hash_setup_fail;
@@ -1245,7 +1278,34 @@ odm_status odm_export_run(
         if (st != ODM_STATUS_OK) { goto fail; }
         {
             const uint8_t *stream_frame = frame;
-            if (render_pool_active) {
+            if (ss_factor > 1u) {
+                /* Supermuestreo dentro del render: se rasteriza en una rejilla
+                 * `ss_factor` veces mas fina y se resuelve por area a la
+                 * resolucion de entrega. El recipe no cambia porque la entrega
+                 * no cambia; solo cambia con cuanta finura se dibujo. */
+                odm_layered_frame_plan hi_plan;
+                uint64_t hi_required = 0u, hi_scratch_required = 0u, resolved = 0u;
+                st = odm_supersample_scale(run_request->config, &plan, ss_factor,
+                                           &ss_config, &hi_plan);
+                if (st != ODM_STATUS_OK) goto fail;
+                st = odm_layered_render_frame(&ss_config, &hi_plan, &surface,
+                                              run_request->job_ticket,
+                                              ODM_LAYERED_PIXEL_RGBA8_SRGB_BLACK_COMPOSITE,
+                                              ss_scratch, ss_scratch_bytes,
+                                              ss_frame, ss_frame_bytes,
+                                              &hi_required, &hi_scratch_required,
+                                              &ss_digest);
+                if (st != ODM_STATUS_OK) goto fail;
+                st = odm_supersample_resolve_rgba8_srgb(
+                    ss_frame, hi_required, ss_config.canvas.width, ss_config.canvas.height,
+                    ss_factor, frame, need_frame,
+                    run_request->config->canvas.width, run_request->config->canvas.height,
+                    &resolved);
+                if (st != ODM_STATUS_OK) goto fail;
+                stream_frame = frame;
+                required_frame = resolved;
+                required_scratch = 0u;
+            } else if (render_pool_active) {
                 st = odm_layered_render_frame_stream_stage_admitted_pool(
                     run_request->config, &render_admission, &plan, &surface,
                     run_request->job_ticket, scratch, scratch_bytes, &render_pool,
@@ -1257,7 +1317,7 @@ odm_status odm_export_run(
                     &stream_frame, &required_frame, &required_scratch);
             }
             if (st != ODM_STATUS_OK) { goto fail; }
-            if (!direct_staging) {
+            if (!direct_staging && ss_factor == 1u) {
                 if (export_ranges_overlap(frame, need_frame,
                                           surface.pixels, surface.pixel_bytes)) {
                     st = ODM_STATUS_INVALID_ARGUMENT;
@@ -1380,6 +1440,8 @@ odm_status odm_export_run(
     memcpy(receipt_buffer, receipt_local, (size_t)receipt_required);
     *out_receipt_required = receipt_required;
     if (out_receipt) *out_receipt = receipt;
+    free(ss_frame); ss_frame = NULL;
+    free(ss_scratch); ss_scratch = NULL;
     if (render_pool_active) {
         odm_layered_worker_pool_destroy(&render_pool);
         render_pool_active = 0;
@@ -1391,6 +1453,8 @@ odm_status odm_export_run(
     return ODM_STATUS_OK;
 
 prebegin_fail:
+    free(ss_frame); ss_frame = NULL;
+    free(ss_scratch); ss_scratch = NULL;
     if (render_pool_active) {
         odm_layered_worker_pool_destroy(&render_pool);
         render_pool_active = 0;
@@ -1402,6 +1466,8 @@ prebegin_fail:
     return st;
 
 hash_setup_fail:
+    free(ss_frame); ss_frame = NULL;
+    free(ss_scratch); ss_scratch = NULL;
     if (render_pool_active) {
         odm_layered_worker_pool_destroy(&render_pool);
         render_pool_active = 0;
@@ -1413,6 +1479,8 @@ hash_setup_fail:
     return st;
 
 fail:
+    free(ss_frame); ss_frame = NULL;
+    free(ss_scratch); ss_scratch = NULL;
     export_abort_sink(run_sink, active, st);
     if (render_pool_active) {
         odm_layered_worker_pool_destroy(&render_pool);
