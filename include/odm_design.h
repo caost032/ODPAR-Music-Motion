@@ -55,7 +55,7 @@
  * que es como se escribe un color y como WCAG mide el contraste. La compilacion
  * los lleva a luz lineal, que es donde compone el rasterizador. */
 #define ODM_DESIGN_SCHEMA_VERSION UINT32_C(1)
-#define ODM_DESIGN_POLICY_VERSION UINT32_C(2)
+#define ODM_DESIGN_POLICY_VERSION UINT32_C(3)
 #define ODM_DESIGN_NAME_BYTES     UINT32_C(48)
 #define ODM_DESIGN_KEY_BYTES      UINT32_C(32)
 #define ODM_DESIGN_LABEL_BYTES    UINT32_C(40)
@@ -142,6 +142,15 @@ typedef struct {
     uint32_t density_q31;
     uint32_t size_q31;
     uint32_t depth_q31;        /* 0 = plano, Q31 = campo 3D completo          */
+    /* COMO SE VEN y COMO SE MUEVEN son dos cosas distintas, y estan separadas
+     * a proposito: la forma elige la silueta, la naturaleza elige el aire.
+     * Atarlas seria condenar cada dibujo a un unico movimiento. */
+    uint32_t shape;            /* ODM_FIELD_PARTICLE_*                        */
+    uint32_t nature;           /* ODM_PARTICLE_NATURE_*                       */
+    uint32_t flow_q31;         /* caudal del aire: 0 = suspendidas            */
+    uint32_t drag_q31;         /* rozamiento: cuanto dura un empujon          */
+    uint32_t impulse_q31;      /* fuerza con la que el nucleo las lanza       */
+    uint32_t flutter_q31;      /* aleteo: contoneo transversal al viajar      */
     odm_rgba16 color;
 } odm_design_particles;
 

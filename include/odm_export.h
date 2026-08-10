@@ -228,6 +228,16 @@ typedef odm_status (*odm_export_core_provider_fn)(
     void *user, uint64_t frame_index, int64_t sample,
     odm_render_surface_frame *out_surface);
 
+/* Campo de particulas simulado para el cuadro pedido.
+ *
+ * Es un proveedor y no un calculo interno porque la simulacion tiene memoria:
+ * la posicion en el cuadro N depende de todos los ticks anteriores, y el
+ * exportador puede recorrer los cuadros en cualquier orden. Quien avanza el
+ * tiempo es quien conoce el estado; aqui solo se pide el resultado. */
+typedef odm_status (*odm_export_particles_provider_fn)(
+    void *user, uint64_t frame_index, int64_t sample,
+    odm_particles_state *out_state);
+
 typedef odm_status (*odm_export_sink_begin_fn)(void *user,
                                                 const odm_export_recipe *recipe);
 /* rgba8/pcm_s32le are borrowed immutable views valid only until the callback
@@ -274,6 +284,11 @@ typedef struct {
     void *state_user;
     odm_export_core_provider_fn core_provider;
     void *core_user;
+    /* Obligatorio si y solo si la configuracion declara ODM_FIELD_PARTICLE_SIM.
+     * Declarar aire simulado sin quien lo avance no se degrada en silencio al
+     * campo por semilla: falla explicitamente. */
+    odm_export_particles_provider_fn particles_provider;
+    void *particles_user;
     const odm_pcm_stereo_q31 *canonical_pcm;
     uint64_t canonical_pcm_frames;
     const odm_job_ticket *job_ticket;

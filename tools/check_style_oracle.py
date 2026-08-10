@@ -117,13 +117,39 @@ def default1080_void_config_bytes():
     for v in (bg_spacing,bg_line,bg_feather,bg_zoom,bg_warp,bg_depth,Q):u32(b,v)
     for v in (1,1,1,qr(1,2),qr(1,2),core_wh,core_wh,qr(1,8),core_border,core_feather,core_react,Q):u32(b,v)
     rgba(b,d['core'])
+    # Ganancia emisiva del nucleo: la configuracion por omision no la pide y el
+    # perfil de estilo tampoco la toca, asi que vale cero.
+    u32(b,0)
     for v in (1,7,48,particles,ring,bmin,bmax,bw,prad,d['fieldop']):u32(b,v)
-    rgba(b,d['field1']);rgba(b,d['field2']);u64(b,0x0d130d130d130d13)
+    rgba(b,d['field1']);rgba(b,d['field2'])
+    # Las particulas llevan color propio. Por omision arranca igual que el
+    # acento de las agujas, de modo que separar la categoria no cambia lo que
+    # ya se dibujaba; el perfil de estilo lo materializa con el mismo valor.
+    rgba(b,d['field1'])
+    # Forma de barra y profundidad de particula: la configuracion por omision
+    # es trazo simple y campo plano.
+    u32(b,0);u32(b,0)
+    # Gobierno del aire simulado: dibujo, naturaleza, caudal, rozamiento,
+    # impulso y aleteo. Todo a cero -- el aire es una decision del diseno, no
+    # algo que la configuracion por omision encienda por su cuenta.
+    for _ in range(6):u32(b,0)
+    u64(b,0x0d130d130d130d13)
     for v in (1,15,margin,ph,qr(3,4),text,gap,d['hudop']):u32(b,v)
     rgba(b,d['hudfg']);rgba(b,d['hudbg'])
     title=b'Quiet, Not Empty\0'; artist=b'AFTERIMAGE\0'
     b.extend(title+b'\0'*(96-len(title)));b.extend(artist+b'\0'*(96-len(artist)))
-    for v in (d['anchor'],d['progress'],d['time'],0):u32(b,v)
+    for v in (d['anchor'],d['progress'],d['time']):u32(b,v)
+    # Colores propios del HUD: titulo, autoria, barra y pista. Titulo, autoria
+    # y barra parten del color de primer plano; la pista, del fondo del HUD tal
+    # y como lo deja la configuracion por omision -- (0,0,0,32768).
+    #
+    # La pista NO sigue al perfil de estilo. El perfil tiene una ranura para el
+    # fondo del HUD, y bajo separacion de categorias esa ranura gobierna el
+    # fondo del HUD, no la pista de la barra: son controles distintos. Un estilo
+    # que quiera mover la pista necesita su propia ranura, no heredarla.
+    for _ in range(3):rgba(b,d['hudfg'])
+    rgba(b,(0,0,0,32768))
+    u32(b,0)
     # Explicit canonical Reaction Matrix v1 from odm_layered_config_init_default.
     for v in (1,0,
               reaction_route(2),

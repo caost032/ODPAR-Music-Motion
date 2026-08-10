@@ -9,7 +9,11 @@ resource binding. Expected ZIP/manifest bytes never come from the engine parser.
 from __future__ import annotations
 import argparse, binascii, hashlib, pathlib, struct, subprocess, tempfile, zlib
 
-POLICY_SHA = bytes.fromhex("cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec")
+# Identidad de la politica de musica v2. NO se toma del arbol bajo prueba:
+# es la que reconstruye byte a byte tools/check_music_analysis_oracle.py a
+# partir de la especificacion. La v1 valia cbe9ccd3...; cambio al publicar
+# las razones con signo en el rango simetrico [-INT32_MAX, +INT32_MAX].
+POLICY_SHA = bytes.fromhex("0a038fb13f700d4002a3b534dff1e4414c081a67caf63454079f9367ce23fdac")
 RFC_PK = bytes.fromhex("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
 EXPECTED_NAMES = ["manifest.odm", "signature.ed25519", "render.ir", "analysis.bin", "data/readme.txt", "media/image.bin"]
 EXPECTED_METHODS = [0, 0, 0, 0, 8, 0]

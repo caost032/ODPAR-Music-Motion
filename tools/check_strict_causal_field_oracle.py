@@ -35,6 +35,9 @@ static void init(odm_layered_config*c,odm_layered_frame_plan*p,uint32_t variant)
   c->field.flags=ODM_FIELD_PARTICLES;c->field.radial_segments=96;c->field.particle_count=96;
   c->field.ring_gap_q16=1u<<16;c->field.particle_radius_q16=1u<<16;c->field.field_opacity_q31=qr(3,4);
   c->field.primary_color.r=50000;c->field.primary_color.g=30000;c->field.primary_color.b=10000;c->field.primary_color.a=60000;
+  /* Las particulas llevan su propio color: el acento de las agujas ya no las
+   * pinta. Se fija al mismo valor para que la reconstruccion sea comparable. */
+  c->field.particle_color.r=50000;c->field.particle_color.g=30000;c->field.particle_color.b=10000;c->field.particle_color.a=60000;
   c->field.seed=variant==0?UINT64_C(1):UINT64_C(0xfedcba9876543210);
   p->width=64;p->height=64;p->center_x_q16=32<<16;p->center_y_q16=32<<16;
   p->core_radius_q16=8<<16;p->core_half_w_q16=8<<16;p->core_half_h_q16=8<<16;
@@ -93,26 +96,58 @@ def coverage(dist,r):
     return ((feather//2-sdf)*Q+feather//2)//feather
 
 def expected(changed=False):
-    center=32<<16;core=8<<16;gap=1<<16;maxr=(64*65536*48)//100//2;rng=maxr-(9<<16);opacity=qratio(3,4)
-    amps=[qratio((i%12)+1,12) for i in range(96)]
-    if changed:amps[40]=Q
-    frame=[(0,0,0,0) for _ in range(W*H)]
+    """Campo estricto de polvo, reconstruido desde la especificacion.
+
+    El campo estricto ya no es una orbita permutada por sectores: las particulas
+    ocupan TODO el lienzo desde su semilla, y lo unico que las mueve es el golpe
+    -- la media exacta del campo radial -- empujando hacia fuera con fuerza
+    proporcional a la CERCANIA al nucleo. Sin reloj, sin fase y sin orbita: la
+    misma muestra da la misma imagen y solo la musica la cambia.
+    """
+    w = h = W
+    center = 32 << 16
+    opacity = qratio(3, 4)
+    radio = 1 << 16
+    amps = [qratio((i % 12) + 1, 12) for i in range(SEG)]
+    if changed:
+        amps[40] = Q
+    golpe = (sum(amps) + SEG // 2) // SEG
+    ref = min(w, h) << 15
+    frame = [(0, 0, 0, 0) for _ in range(W * H)]
     for i in range(PARTICLES):
-        h=mix64(0x51A7C0DE9E3779B9 ^ ((i*0x9E3779B97F4A7C15)&MASK64))
-        sector=(i*73)%SEG;cell=(1<<32)//SEG;base=(sector*(1<<32))//SEG;jitter=((h>>48)&0xffff)*cell//65536;phase=(base+jitter)&MASK32
-        amp=amps[sector]
-        if amp==0:continue
-        rq=mix64(h^0x5BF03635)>>33;cs,sn=cos_q31(phase),sin_q31(phase);boundary=core+gap
-        baseq=536870912+rq//4;musicq=amp//2;radiusq=min(Q,baseq+musicq)
-        r=boundary+(rng*radiusq+Q//2)//Q
-        cx=center+cdiv(r*cs,Q);cy=center+cdiv(r*sn,Q);op=(opacity*amp+Q//2)//Q;rad=1<<16
-        minx=max(0,(cx-rad-65536)>>16);maxx=min(W-1,(cx+rad+65536)>>16);miny=max(0,(cy-rad-65536)>>16);maxy=min(H-1,(cy+rad+65536)>>16)
-        for y in range(miny,maxy+1):
-            for x in range(minx,maxx+1):
-                dx=((x<<16)+32768)-cx;dy=((y<<16)+32768)-cy;dist=math.isqrt(abs(dx)*abs(dx)+abs(dy)*abs(dy));cov=coverage(dist,rad)
+        hh = mix64(0x51A7C0DE9E3779B9 ^ ((i * 0x9E3779B97F4A7C15) & MASK64))
+        h2 = mix64(hh ^ 0x5BF03635)
+        bx = ((((hh & 0xFFFFFFFF) * w) >> 32) << 16)
+        by = ((((h2 & 0xFFFFFFFF) * h) >> 32) << 16)
+        dx = bx - center
+        dy = by - center
+        dist = math.isqrt((dx >> 8) * (dx >> 8) + (dy >> 8) * (dy >> 8)) << 8
+        cercania = 0 if dist >= ref else ((ref - dist) * Q) // ref
+        empuje = (golpe * cercania) // Q
+        empuje = (empuje * (ref // 4)) // Q
+        if dist > 0:
+            cx = bx + cdiv(dx * empuje, dist)
+            cy = by + cdiv(dy * empuje, dist)
+        else:
+            cx, cy = bx, by
+        op = (opacity * (429496729 + golpe // 2)) // Q
+        op = min(Q, op)
+        if op == 0:
+            continue
+        minx = max(0, (cx - radio - 65536) >> 16)
+        maxx = min(W - 1, (cx + radio + 65536) >> 16)
+        miny = max(0, (cy - radio - 65536) >> 16)
+        maxy = min(H - 1, (cy + radio + 65536) >> 16)
+        for y in range(miny, maxy + 1):
+            for x in range(minx, maxx + 1):
+                ddx = ((x << 16) + 32768) - cx
+                ddy = ((y << 16) + 32768) - cy
+                d = math.isqrt(abs(ddx) * abs(ddx) + abs(ddy) * abs(ddy))
+                cov = coverage(d, radio)
                 if cov:
-                    idx=y*W+x;frame[idx]=blend(frame[idx],PRIMARY,cov,op)
-    return b''.join(struct.pack('<HHHH',*px) for px in frame)
+                    idx = y * W + x
+                    frame[idx] = blend(frame[idx], PRIMARY, cov, op)
+    return b''.join(struct.pack('<HHHH', *px) for px in frame)
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--root',required=True);ap.add_argument('--cc',default='gcc');ap.add_argument('--library',required=True);a=ap.parse_args()
@@ -134,9 +169,9 @@ def main():
     if f[3]!=e1:raise SystemExit('strict music-motion reconstruction mismatch')
     if f[3]==f[0]:raise SystemExit('radial music change did not move/change strict particle raster')
     print('STRICT CAUSAL FIELD ORACLE: PASS')
-    print('  96 particles / 96 radial sectors reconstructed pixel-exact')
-    print('  sample, tick, ring phase and config seed perturbations: byte-identical under held music')
-    print('  changing radial lane 40 changes particle geometry/opacity deterministically')
+    print('  96 particulas de polvo sobre 96 sectores radiales, exactas al pixel')
+    print('  muestra, tick, fase de anillo y semilla de config: byte a byte identicas con musica quieta')
+    print('  mover el sector 40 mueve el campo: el golpe es la media exacta del radial')
     print('  baseline sha256='+hashlib.sha256(e0).hexdigest())
     print('  changed  sha256='+hashlib.sha256(e1).hexdigest())
     return 0

@@ -35,6 +35,11 @@ int main(int ac,char **av){
  c.hud.schema_version=ODM_LAYERED_SCHEMA_VERSION;c.hud.flags=ODM_HUD_PROGRESS_BAR;c.hud.margin_q16=2u<<16;
  c.hud.progress_height_q16=3u<<16;c.hud.progress_width_q31=q(3,4);c.hud.text_scale_q16=1u<<16;c.hud.line_gap_q16=1u<<16;
  c.hud.opacity_q31=INT32_MAX;c.hud.foreground_color.r=c.hud.foreground_color.g=c.hud.foreground_color.b=c.hud.foreground_color.a=65535;
+ /* La barra de progreso tiene COLOR PROPIO: `foreground_color` gobierna el
+  * codigo de tiempo, no la barra. Fijar solo el primero y esperar una barra
+  * blanca era la suposicion que este oraculo hacia y que ya no se sostiene. */
+ c.hud.progress_color.r=c.hud.progress_color.g=c.hud.progress_color.b=c.hud.progress_color.a=65535;
+ c.hud.progress_track_color.a=65535;
  c.hud.background_color.a=65535;c.hud.progress_style=ODM_HUD_PROGRESS_CAPSULE;c.hud.metadata_anchor=ODM_HUD_ANCHOR_BOTTOM_CENTER;c.hud.time_mode=ODM_HUD_TIME_ELAPSED_TOTAL;
  co.schema_version=ODM_COMPOSITION_SCHEMA_VERSION;co.tick_index=50;di.schema_version=ODM_DIRECTOR_SCHEMA_VERSION;di.tick_index=50;di.layout=ODM_DIRECTOR_LAYOUT_MONOLITH;
  s.width=1;s.height=1;s.pixel_format=ODM_RENDER_SURFACE_RGBA16LE_LINEAR_PREMUL;s.primaries=ODM_COLOR_PRIMARIES_BT709;s.transfer=ODM_COLOR_TRANSFER_LINEAR;s.alpha_mode=ODM_ALPHA_PREMULTIPLIED;s.pixel_bytes=sizeof(src);s.pixels=src;
@@ -43,10 +48,24 @@ int main(int ac,char **av){
  if(posix_memalign(&scratch,8,(size_t)sb)!=0)return 5;
  out=(uint8_t*)malloc((size_t)fb);
  if(!out)return 6;
- if(odm_layered_render_frame(&c,&p,&s,0,ODM_LAYERED_PIXEL_RGBA16LE_LINEAR_PREMUL,scratch,sb,out,fb,&rf,&rs,&h)!=ODM_STATUS_OK)return 7;
  f=fopen(av[1],"wb");
  if(!f)return 8;
- if(fwrite(out,1,(size_t)fb,f)!=(size_t)fb)return 9;
+ /* Tres renders sobre la MISMA geometria. El primero es el vector de
+  * referencia; los otros dos son el control negativo de la separacion de
+  * categorias: mover el color de fondo del HUD no puede tocar la barra, y
+  * mover el color de la pista tiene que tocarla. Sin los dos, este oraculo
+  * comprobaria la geometria y se creeria a ciegas de quien pinta que. */
+ {
+  uint32_t v;
+  for(v=0u;v<3u;++v){
+   odm_layered_config cv=c;
+   if(v==1u){cv.hud.background_color.r=cv.hud.background_color.g=cv.hud.background_color.b=65535;}
+   if(v==2u){cv.hud.progress_track_color.r=cv.hud.progress_track_color.g=cv.hud.progress_track_color.b=65535;}
+   if(odm_layered_resolve_frame_plan(&cv,&co,&di,24000,48000,&p)!=ODM_STATUS_OK)return 3;
+   if(odm_layered_render_frame(&cv,&p,&s,0,ODM_LAYERED_PIXEL_RGBA16LE_LINEAR_PREMUL,scratch,sb,out,fb,&rf,&rs,&h)!=ODM_STATUS_OK)return 7;
+   if(fwrite(out,1,(size_t)fb,f)!=(size_t)fb)return 9;
+  }
+ }
  if(fclose(f)!=0)return 10;
  free(out);
  free(scratch);
@@ -108,11 +127,19 @@ def main():
         if r.returncode:raise SystemExit('HUD oracle probe compile failed\n'+r.stdout+r.stderr)
         r=subprocess.run([str(exe),str(out)],cwd=root,capture_output=True,text=True)
         if r.returncode:raise SystemExit(f'HUD oracle probe failed rc={r.returncode}\n{r.stdout}\n{r.stderr}')
-        got=out.read_bytes()
+        raw=out.read_bytes()
     exp=expected()
+    n=len(exp)
+    if len(raw)!=3*n:
+        raise SystemExit(f'HUD probe entrego {len(raw)} bytes, se esperaban {3*n}')
+    got, sin_fondo, con_pista = raw[:n], raw[n:2*n], raw[2*n:]
     if got!=exp:
-        n=min(len(got),len(exp));i=next((i for i in range(n) if got[i]!=exp[i]),n)
+        i=next((i for i in range(n) if got[i]!=exp[i]),n)
         raise SystemExit(f'HUD capsule mismatch byte={i} got_len={len(got)} exp_len={len(exp)}')
+    if sin_fondo!=got:
+        raise SystemExit('el color de fondo del HUD sigue pintando la barra de progreso')
+    if con_pista==got:
+        raise SystemExit('el color de la pista no pinta la barra de progreso')
     print('HUD GEOMETRY ORACLE: PASS')
     print(f'  raster: 32x32 / {len(got)} bytes / sha256={hashlib.sha256(got).hexdigest()}')
     print('  capsule track/fill: independent integer-SDF + 1px-AA reconstruction exact')

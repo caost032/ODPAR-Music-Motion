@@ -94,6 +94,11 @@ static const char *const dz_opt_anchor[]     = {
     "Arriba izquierda", "Arriba centro", "Arriba derecha",
     "Abajo izquierda", "Abajo centro", "Abajo derecha"
 };
+static const char *const dz_opt_particle[]   = { "Polvo", "Plumas", "Hojas", "Chispas", "Copos" };
+static const char *const dz_opt_nature[]     = {
+    "Suspendidas", "Viento a la derecha", "Viento a la izquierda",
+    "Caida", "Ascenso", "Remolino"
+};
 static const char *const dz_opt_progress[]   = { "Rectangulo", "Capsula", "Linea fina" };
 static const char *const dz_opt_time[]       = { "Transcurrido y total", "Transcurrido", "Restante" };
 
@@ -188,6 +193,18 @@ static const dz_control dz_table[] = {
               particles.size_q31, R(1u,4000u), R(1u,120u), R(1u,700u)),
     DZ_SCALAR(44u, ODM_DESIGN_CAT_PARTICLES, "particulas.profundidad", "Profundidad 3D",
               particles.depth_q31, 0u, R(1u,1u), R(3u,4u)),
+    DZ_ENUM(45u, ODM_DESIGN_CAT_PARTICLES, "particulas.diseno", "Diseno",
+            particles.shape, 5u, 0u, dz_opt_particle),
+    DZ_ENUM(46u, ODM_DESIGN_CAT_PARTICLES, "particulas.naturaleza", "Naturaleza",
+            particles.nature, 6u, 0u, dz_opt_nature),
+    DZ_SCALAR(47u, ODM_DESIGN_CAT_PARTICLES, "particulas.caudal", "Fuerza del aire",
+              particles.flow_q31, 0u, R(1u,1u), R(1u,5u)),
+    DZ_SCALAR(48u, ODM_DESIGN_CAT_PARTICLES, "particulas.rozamiento", "Inercia",
+              particles.drag_q31, 0u, R(1u,1u), R(19u,20u)),
+    DZ_SCALAR(49u, ODM_DESIGN_CAT_PARTICLES, "particulas.impulso", "Empuje del nucleo",
+              particles.impulse_q31, 0u, R(1u,1u), R(1u,2u)),
+    DZ_SCALAR(4010u, ODM_DESIGN_CAT_PARTICLES, "particulas.aleteo", "Aleteo",
+              particles.flutter_q31, 0u, R(1u,1u), 0u),
     DZ_COLOR(43u, ODM_DESIGN_CAT_PARTICLES, "particulas.color", "Color",
              particles.color),
 
@@ -421,6 +438,15 @@ odm_status odm_design_from_theme(const odm_theme *theme, uint32_t aspect,
     d.particles.enabled = theme->particle_density_q31 != 0u ? 1u : 0u;
     d.particles.density_q31 = theme->particle_density_q31;
     d.particles.color = theme->role[ODM_THEME_ROLE_EVENT_HIGHLIGHT];
+    /* Polvo suspendido con inercia: el aire de partida. Un tema puede pedir
+     * particulas, pero el tema habla de color y de peso visual, no de fisica;
+     * la fisica por omision es la mas neutra que sigue estando viva. */
+    d.particles.shape = ODM_FIELD_PARTICLE_DUST;
+    d.particles.nature = ODM_PARTICLE_NATURE_FLOAT;
+    d.particles.flow_q31 = dz_ratio(1u, 8u);
+    d.particles.drag_q31 = dz_ratio(7u, 10u);
+    d.particles.impulse_q31 = dz_ratio(1u, 2u);
+    d.particles.flutter_q31 = 0u;
 
     d.text.show_title = theme->hud_show_title ? 1u : 0u;
     d.text.show_artist = theme->hud_show_artist ? 1u : 0u;
@@ -461,45 +487,63 @@ typedef struct {
     uint32_t show_text;
     uint32_t progress_style;
     uint32_t bar_shape;        /* ODM_FIELD_BAR_*                            */
+    /* El aire de la plantilla. Se declara aqui para que cada plantilla llegue
+     * con un caracter propio y para que el catalogo pueda comprobar que ningun
+     * diseno ni ninguna naturaleza se queda sin plantilla que lo muestre: una
+     * opcion que nadie ensena es una opcion que nadie descubre. */
+    uint32_t particle_shape;   /* ODM_FIELD_PARTICLE_*                       */
+    uint32_t particle_nature;  /* ODM_PARTICLE_NATURE_*                      */
 } dz_template;
 
 static const dz_template dz_templates[] = {
     { "Estudio", "Campo de profundidad, filamentos y linea fina. El punto de partida neutro.",
-      0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE },
+      0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
     { "Concierto", "Corona densa sobre brasa, con particulas y barra en capsula.",
       3u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_CORONA, 0u, 1u, 1u,
-      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE },
+      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE,
+      ODM_FIELD_PARTICLE_SPARK, ODM_PARTICLE_NATURE_RISE },
     { "Arquitectura", "Rejilla en fuga y barras separadas. Estructura visible.",
       2u, ODM_BACKGROUND_PERSPECTIVE_GRID, ODM_DESIGN_FIELD_BARS, 2u, 0u, 1u,
-      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_LINE },
+      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_LINE,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
     { "Minimo", "Sin fondo y sin halo. Solo el nucleo y el tiempo.",
       1u, ODM_BACKGROUND_NONE, ODM_DESIGN_FIELD_NONE, 2u, 0u, 0u,
-      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
     { "Editorial", "Fondo claro, anillos concentricos y tipografia presente.",
-      4u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
-      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_CAPSULE },
+      4u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
+      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_CAPSULE,
+      ODM_FIELD_PARTICLE_FEATHER, ODM_PARTICLE_NATURE_WIND_RIGHT },
     { "Horizonte", "Horizonte y anillo orbital. Composicion con suelo.",
       0u, ODM_BACKGROUND_HORIZON, ODM_DESIGN_FIELD_RING, 0u, 1u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE,
+      ODM_FIELD_PARTICLE_LEAF, ODM_PARTICLE_NATURE_FALL },
     { "Trama", "Matriz de puntos y barras. Textura sin peso.",
       1u, ODM_BACKGROUND_DOT_MATRIX, ODM_DESIGN_FIELD_BARS, 1u, 0u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_DOTS },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_DOTS,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
     { "Degradado", "Degradado difuminado y filamentos largos.",
       2u, ODM_BACKGROUND_GRADIENT, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
-      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE },
+      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_SWIRL },
     { "Rejilla", "Rejilla plana que respira con la musica. Escenario con suelo.",
       1u, ODM_BACKGROUND_GRID, ODM_DESIGN_FIELD_BARS, 2u, 0u, 1u,
-      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_DOTS },
+      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_DOTS,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
     { "Plano", "Un solo plano de color. Todo el peso en el nucleo y el halo.",
       4u, ODM_BACKGROUND_SOLID, ODM_DESIGN_FIELD_CORONA, 0u, 0u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
     { "Cuadrante", "Corona simetrica en los dos ejes sobre campo de profundidad.",
       0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_CORONA, 1u, 1u, 1u,
-      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_CAPSULE },
+      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_CAPSULE,
+      ODM_FIELD_PARTICLE_SNOW, ODM_PARTICLE_NATURE_WIND_LEFT },
     { "Cuna", "Agujas afiladas sobre anillos concentricos.",
       3u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_WEDGE }
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_WEDGE,
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT }
 };
 
 uint32_t odm_template_count(void) {
@@ -540,6 +584,42 @@ odm_status odm_template_load(uint32_t index, uint32_t aspect, odm_design *out_de
     if (t->core_shape != 2u) d.core.corner_q31 = 0u;
     d.particles.enabled = t->particles;
     if (t->particles && d.particles.density_q31 == 0u) d.particles.density_q31 = dz_ratio(1u, 5u);
+    d.particles.shape = t->particle_shape;
+    d.particles.nature = t->particle_nature;
+    /* Una plantilla con particulas y sin aire seria un campo de piedras. El
+     * caudal y el aleteo se fijan por el DIBUJO, porque es lo que el usuario ha
+     * elegido: una pluma pesa poco y se contonea, una hoja cae con cuerpo, una
+     * chispa sube recta. Todo ello sigue siendo editable despues. */
+    if (t->particles) {
+        switch (t->particle_shape) {
+            case ODM_FIELD_PARTICLE_FEATHER:
+                d.particles.flow_q31 = dz_ratio(1u, 5u);
+                d.particles.flutter_q31 = dz_ratio(3u, 5u);
+                d.particles.drag_q31 = dz_ratio(4u, 5u);
+                break;
+            case ODM_FIELD_PARTICLE_LEAF:
+                d.particles.flow_q31 = dz_ratio(3u, 10u);
+                d.particles.flutter_q31 = dz_ratio(2u, 5u);
+                d.particles.drag_q31 = dz_ratio(3u, 5u);
+                break;
+            case ODM_FIELD_PARTICLE_SPARK:
+                d.particles.flow_q31 = dz_ratio(2u, 5u);
+                d.particles.flutter_q31 = dz_ratio(1u, 10u);
+                d.particles.drag_q31 = dz_ratio(9u, 10u);
+                break;
+            case ODM_FIELD_PARTICLE_SNOW:
+                d.particles.flow_q31 = dz_ratio(1u, 6u);
+                d.particles.flutter_q31 = dz_ratio(1u, 5u);
+                d.particles.drag_q31 = dz_ratio(1u, 2u);
+                break;
+            default:
+                d.particles.flow_q31 = dz_ratio(1u, 8u);
+                d.particles.flutter_q31 = 0u;
+                d.particles.drag_q31 = dz_ratio(7u, 10u);
+                break;
+        }
+        d.particles.impulse_q31 = dz_ratio(1u, 2u);
+    }
     d.text.show_title = t->show_text;
     d.text.show_artist = t->show_text;
     d.progress.style = t->progress_style;
@@ -726,9 +806,12 @@ odm_status odm_design_compile(const odm_design *design,
 
     /* PARTICULAS --------------------------------------------------------- */
     if (design->particles.enabled && design->particles.density_q31 != 0u) {
-        uint64_t count = ((uint64_t)design->particles.density_q31 * 192u) / DZ_Q;
-        c.field.particle_count = (uint32_t)(count > 192u ? 192u : count);
-        if (c.field.particle_count != 0u) c.field.flags |= ODM_FIELD_PARTICLES;
+        uint64_t count = ((uint64_t)design->particles.density_q31 *
+                          (uint64_t)ODM_PARTICLES_MAX) / DZ_Q;
+        c.field.particle_count = (uint32_t)(count > ODM_PARTICLES_MAX
+                                            ? ODM_PARTICLES_MAX : count);
+        if (c.field.particle_count != 0u)
+            c.field.flags |= ODM_FIELD_PARTICLES | ODM_FIELD_PARTICLE_SIM;
         c.field.particle_radius_q16 = dz_px(dim, design->particles.size_q31);
         if (c.field.particle_radius_q16 == 0u) c.field.particle_radius_q16 = 1u << 12;
     } else {
@@ -737,6 +820,22 @@ odm_status odm_design_compile(const odm_design *design,
     }
     c.field.particle_color = dz_lin(&design->particles.color);
     c.field.particle_depth_q31 = design->particles.depth_q31;
+    c.field.particle_shape = design->particles.shape;
+    c.field.particle_nature = design->particles.nature;
+    c.field.particle_flow_q31 = design->particles.flow_q31;
+    c.field.particle_impulse_q31 = design->particles.impulse_q31;
+    c.field.particle_flutter_q31 = design->particles.flutter_q31;
+    /* El rozamiento del diseno es INERCIA -- cuanto dura un empujon -- y la
+     * simulacion pide lo contrario: cuanta velocidad conserva por paso. Es la
+     * misma magnitud vista al reves, y se convierte aqui, en la frontera, no en
+     * la cabeza del usuario. Un techo por debajo de la unidad impide una
+     * configuracion sin perdidas, que acumularia velocidad sin limite. */
+    {
+        uint64_t conserva = ((uint64_t)design->particles.drag_q31 * 60u) / 100u +
+                            (uint64_t)DZ_Q * 35u / 100u;
+        if (conserva > (uint64_t)DZ_Q * 99u / 100u) conserva = (uint64_t)DZ_Q * 99u / 100u;
+        c.field.particle_drag_q31 = (uint32_t)conserva;
+    }
 
     /* TEXTO Y PROGRESO --------------------------------------------------- */
     c.hud.flags = 0u;
@@ -827,6 +926,18 @@ odm_status odm_design_policy_bytes(uint8_t *buffer, uint64_t capacity,
     DP(odm_wire_write_u32(&w, 1u)); /* fuera de rango falla, no se recorta */
     DP(odm_wire_write_u32(&w, 1u)); /* la puerta de contraste cierra la compilacion */
     DP(odm_wire_write_u32(&w, 1u)); /* los colores de diseno son sRGB y se linealizan al compilar */
+    /* v3: el aire deja de ser un adorno del campo y pasa a ser una categoria
+     * con fisica propia. Dibujo y naturaleza son ejes SEPARADOS -- cualquier
+     * forma admite cualquier aire -- y el rozamiento se declara como inercia,
+     * que es lo que el usuario percibe, no como coeficiente de conservacion. */
+    DP(odm_wire_write_u32(&w, ODM_FIELD_PARTICLE_SHAPE_MAX + 1u));
+    DP(odm_wire_write_u32(&w, ODM_PARTICLE_NATURE_COUNT));
+    DP(odm_wire_write_u32(&w, ODM_PARTICLES_MAX)); /* densidad plena = techo de la simulacion */
+    DP(odm_wire_write_u32(&w, 1u)); /* dibujo y naturaleza son independientes entre si */
+    DP(odm_wire_write_u32(&w, 1u)); /* la inercia del diseno se invierte al compilar */
+    DP(odm_wire_write_u32(&w, 60u)); /* pendiente de la conversion inercia->conservacion, en % */
+    DP(odm_wire_write_u32(&w, 35u)); /* suelo de conservacion, en %                            */
+    DP(odm_wire_write_u32(&w, 99u)); /* techo de conservacion: nunca sin perdidas, en %        */
     n = odm_design_control_count();
     DP(odm_wire_write_u32(&w, n));
     for (i = 0u; i < n; ++i) {

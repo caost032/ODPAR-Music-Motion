@@ -115,10 +115,11 @@ int main(void) {
         if (odm_template_load(t, 0u, &d) != ODM_STATUS_OK) return 10;
         st1 = odm_design_validate(&d, &rep);
         st2 = odm_design_compile(&d, 720u, 720u, 30, 3u, &cfg);
-        printf("T,%u,%d,%d,%u,%u,%u,%u,%u,%u,%u\n", t, (int)st1, (int)st2,
+        printf("T,%u,%d,%d,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", t, (int)st1, (int)st2,
                rep.title_contrast, rep.artist_contrast, rep.field_contrast,
                cfg.background.style, cfg.field.flags,
-               cfg.field.bar_shape, d.field.grammar);
+               cfg.field.bar_shape, d.field.grammar,
+               d.particles.enabled, d.particles.shape, d.particles.nature);
     }
 
     /* La puerta de contraste, observada en el MOTOR: titulo del color del
@@ -237,6 +238,12 @@ RANGOS = {
     'particulas.densidad':      (0, (1, 1), (1, 6)),
     'particulas.tamano':        ((1, 4000), (1, 120), (1, 700)),
     'particulas.profundidad':   (0, (1, 1), (3, 4)),
+    'particulas.diseno':        (0, 4, 0),
+    'particulas.naturaleza':    (0, 5, 0),
+    'particulas.caudal':        (0, (1, 1), (1, 5)),
+    'particulas.rozamiento':    (0, (1, 1), (19, 20)),
+    'particulas.impulso':       (0, (1, 1), (1, 2)),
+    'particulas.aleteo':        (0, (1, 1), 0),
     'texto.titulo':             (0, 1, 0),
     'texto.autoria':            (0, 1, 0),
     'texto.escala':             ((1, 4), (1, 1), (1, 2)),
@@ -403,10 +410,36 @@ def main() -> int:
     if faltan_gram:
         raise SystemExit(f'gramaticas que ninguna plantilla usa: {sorted(faltan_gram)}')
 
+    # El aire tambien es catalogo. Un diseno de particula o una naturaleza que
+    # ninguna plantilla ensena es una opcion que solo existe para quien ya lee
+    # el codigo -- y el motivo entero de publicar el esquema es que nadie tenga
+    # que leerlo. Solo cuentan las plantillas que traen particulas encendidas:
+    # una plantilla sin aire no ensena su naturaleza aunque la declare.
+    con_aire = [f for f in plantillas if int(f[11]) != 0]
+    if not con_aire:
+        raise SystemExit('ninguna plantilla enciende las particulas')
+    disenos = {int(f[12]) for f in con_aire}
+    naturalezas = {int(f[13]) for f in con_aire}
+    faltan_dis = set(range(_opciones('particulas.diseno'))) - disenos
+    if faltan_dis:
+        raise SystemExit(f'disenos de particula que ninguna plantilla usa: {sorted(faltan_dis)}')
+    faltan_nat = set(range(_opciones('particulas.naturaleza'))) - naturalezas
+    if faltan_nat:
+        raise SystemExit(f'naturalezas que ninguna plantilla usa: {sorted(faltan_nat)}')
+
+    # Una plantilla con particulas y sin caudal seria un campo de piedras: se
+    # moverian solo cuando el nucleo las golpea y el resto del tiempo estarian
+    # clavadas. Es justo el fallo que la simulacion existe para no cometer.
+    for f in con_aire:
+        if int(f[8]) & 8 == 0:
+            raise SystemExit(f'la plantilla {f[1]} enciende particulas sin simulacion')
+
     print(f'design oracle OK: {revisados} rangos reconstruidos, '
           f'{aislados} controles aislados, {len(plantillas)} plantillas, '
           f'{len(estilos)}/{_opciones("fondo.estilo")} fondos y '
           f'{len(formas)}/{_opciones("campo.forma")} formas cubiertos por plantilla, '
+          f'{len(disenos)}/{_opciones("particulas.diseno")} disenos y '
+          f'{len(naturalezas)}/{_opciones("particulas.naturaleza")} naturalezas de particula, '
           f'puerta de contraste cerrada')
     return 0
 

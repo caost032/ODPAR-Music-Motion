@@ -3,6 +3,7 @@
 
 #include "odm_hash.h"
 #include "odm_job.h"
+#include "odm_particles.h"
 #include "odm_renderer.h"
 #include "odm_status.h"
 #include "odm_visual.h"
@@ -14,7 +15,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(18)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(19)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -72,9 +73,27 @@ extern "C" {
 #define ODM_FIELD_BAR_DOTS    UINT32_C(3)  /* columna de puntos                */
 #define ODM_FIELD_BAR_SHAPE_MAX ODM_FIELD_BAR_DOTS
 
+/* Dibujo de la particula. Es una categoria APARTE de como se mueve: la forma
+ * decide la silueta, la naturaleza decide la trayectoria. Mezclarlas es lo que
+ * produce plumas que se mueven como polvo. */
+#define ODM_FIELD_PARTICLE_DUST    UINT32_C(0)  /* disco: mota suspendida       */
+#define ODM_FIELD_PARTICLE_FEATHER UINT32_C(1)  /* lente alargada, orientada    */
+#define ODM_FIELD_PARTICLE_LEAF    UINT32_C(2)  /* hoja ancha, orientada        */
+#define ODM_FIELD_PARTICLE_SPARK   UINT32_C(3)  /* estela: se alarga al correr  */
+#define ODM_FIELD_PARTICLE_SNOW    UINT32_C(4)  /* copo: cruz de seis brazos    */
+#define ODM_FIELD_PARTICLE_SHAPE_MAX ODM_FIELD_PARTICLE_SNOW
+
 #define ODM_FIELD_RADIAL_BARS UINT32_C(1)
 #define ODM_FIELD_PARTICLES   UINT32_C(2)
 #define ODM_FIELD_ORBIT_RING  UINT32_C(4)
+/* Simulacion en vez de campo por semilla.
+ *
+ * Sin esta bandera las particulas ocupan un sitio estable y la musica las
+ * desplaza desde el: reactivo pero sin memoria, el empujon no deja huella.
+ * Con ella cada particula lleva velocidad propia, la conserva, y el nucleo --
+ * que crece con los graves -- las empuja al alcanzarlas. Es explicita porque
+ * cambia lo que un cuadro vale, y por tanto entra en el hash. */
+#define ODM_FIELD_PARTICLE_SIM UINT32_C(8)
 
 #define ODM_HUD_PROGRESS_BAR UINT32_C(1)
 #define ODM_HUD_TIME_CODE    UINT32_C(2)
@@ -314,6 +333,17 @@ typedef struct {
      * tras el nucleo cuando caen dentro de su silueta: sin esa oclusion el
      * campo seria una textura plana con tamanos distintos, no profundidad. */
     uint32_t particle_depth_q31;
+    /* Dibujo de la particula (ODM_FIELD_PARTICLE_*). */
+    uint32_t particle_shape;
+    /* Gobierno de la simulacion. Solo significan algo con PARTICLE_SIM. La
+     * naturaleza es el aire; el caudal, cuanto arrastra; el rozamiento, cuanto
+     * dura un empujon; el impulso, cuanto lanza el nucleo al chocar; el aleteo,
+     * cuanto se contonea al viajar. */
+    uint32_t particle_nature;
+    uint32_t particle_flow_q31;
+    uint32_t particle_drag_q31;
+    uint32_t particle_impulse_q31;
+    uint32_t particle_flutter_q31;
     uint64_t seed;
     uint32_t reserved[2];
 } odm_field_config;
@@ -411,6 +441,17 @@ typedef struct {
     uint32_t radial_body_q31[ODM_COMPOSITION_RADIAL_SEGMENTS_MAX];
     uint32_t radial_release_q31[ODM_COMPOSITION_RADIAL_SEGMENTS_MAX];
     uint32_t radial_attack_q31[ODM_COMPOSITION_RADIAL_SEGMENTS_MAX];
+    /* Campo simulado. `particle_sim` en 1 declara que las posiciones de abajo
+     * son autoridad y que el rasterizador NO debe inventarlas desde la semilla.
+     *
+     * Viven en el plan y no en el rasterizador a proposito: el plan es la unica
+     * autoridad sobre lo que un cuadro vale, y una simulacion que se re-derivara
+     * dentro del raster dependeria de cuando se dibuja, no de la musica. */
+    uint32_t particle_sim;
+    int32_t particle_x_q16[ODM_PARTICLES_MAX];
+    int32_t particle_y_q16[ODM_PARTICLES_MAX];
+    int32_t particle_vx_q16[ODM_PARTICLES_MAX];
+    int32_t particle_vy_q16[ODM_PARTICLES_MAX];
     odm_sha256_digest config_sha256;
     uint32_t reserved[3];
 } odm_layered_frame_plan;
@@ -519,6 +560,20 @@ odm_status odm_layered_resolve_frame_plan(
     int64_t sample,
     int64_t duration_samples,
     odm_layered_frame_plan *out_plan);
+
+/* Publica en el plan el estado de un campo simulado.
+ *
+ * Se separa de `resolve_frame_plan` porque la simulacion tiene MEMORIA y la
+ * resolucion del plan no: el plan es una funcion pura del tick, mientras que
+ * las particulas dependen de todos los ticks anteriores. Quien avanza la
+ * simulacion es quien recorre el tiempo, y aqui solo entrega el resultado.
+ *
+ * Falla si el estado no corresponde al lienzo del plan o si trae mas particulas
+ * de las que la configuracion autoriza: un campo que no cabe no se recorta en
+ * silencio. */
+odm_status odm_layered_frame_plan_set_particles(
+    odm_layered_frame_plan *plan,
+    const odm_particles_state *state);
 
 /* Trace one published strict-causal radial back through the exact compositor
  * selection boundary. `composition` is required deliberately: source-lane

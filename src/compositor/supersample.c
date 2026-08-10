@@ -112,6 +112,22 @@ odm_status odm_supersample_scale(const odm_layered_config *config,
     /* grid_warp_q16 y grid_depth_q16 son factores de deformacion, no
      * distancias: escalarlos deformaria la escena, no la afinaria. */
 
+    /* El campo simulado son coordenadas y velocidades EN PIXELES, asi que
+     * escalan como el resto de la geometria. La velocidad tambien: no es una
+     * razon, es cuanto se desplaza la particula en el lienzo -- y la forma se
+     * orienta y se alarga con ella, asi que dejarla sin escalar produciria
+     * estelas de la longitud equivocada en el raster fino. */
+    if (p.particle_sim != 0u) {
+        uint32_t pi;
+        for (pi = 0u; pi < ODM_PARTICLES_MAX; ++pi) {
+            if (!ss_scale_i32(p.particle_x_q16[pi], factor, &p.particle_x_q16[pi]) ||
+                !ss_scale_i32(p.particle_y_q16[pi], factor, &p.particle_y_q16[pi]) ||
+                !ss_scale_i32(p.particle_vx_q16[pi], factor, &p.particle_vx_q16[pi]) ||
+                !ss_scale_i32(p.particle_vy_q16[pi], factor, &p.particle_vy_q16[pi]))
+                return ODM_STATUS_OVERFLOW;
+        }
+    }
+
     /* El plan lleva el hash de la configuracion que lo autoriza. Al escalar la
      * configuracion hay que recalcularlo, o el render lo rechazaria -- con
      * razon, porque seria un plan que no corresponde a su configuracion. */

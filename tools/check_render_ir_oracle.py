@@ -9,7 +9,11 @@ engine serialization helpers.
 from __future__ import annotations
 import argparse, hashlib, os, pathlib, struct, subprocess, tempfile
 
-POLICY_SHA = bytes.fromhex('cbe9ccd31eeaa27be0113f8c3481f79a48cbd08bf318adefaa665ab8fa8efaec')
+# Identidad de la politica de musica v2. NO se toma del arbol bajo prueba:
+# es la que reconstruye byte a byte tools/check_music_analysis_oracle.py a
+# partir de la especificacion. La v1 valia cbe9ccd3...; cambio al publicar
+# las razones con signo en el rango simetrico [-INT32_MAX, +INT32_MAX].
+POLICY_SHA = bytes.fromhex('0a038fb13f700d4002a3b534dff1e4414c081a67caf63454079f9367ce23fdac')
 Q32 = 1 << 32
 Q31_MAX = (1 << 31) - 1
 

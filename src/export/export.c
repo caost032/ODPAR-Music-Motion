@@ -893,6 +893,12 @@ static odm_status export_request_validate(const odm_export_run_request *request)
         return ODM_STATUS_INVALID_DATA;
     st = odm_layered_config_validate(request->config);
     if (st != ODM_STATUS_OK) return st;
+    /* Capacidad no soportada falla explicita: una configuracion que declara
+     * aire simulado y una peticion sin quien lo avance no se dibuja con el
+     * campo por semilla como si nada hubiera pasado. */
+    if (((request->config->field.flags & ODM_FIELD_PARTICLE_SIM) != 0u) !=
+        (request->particles_provider != NULL))
+        return ODM_STATUS_UNSUPPORTED;
     st = odm_export_recipe_validate(request->recipe);
     if (st != ODM_STATUS_OK) return st;
     if (request->recipe->source_video_format != ODM_EXPORT_SOURCE_RGBA8_SRGB ||
@@ -1293,6 +1299,15 @@ odm_status odm_export_run(
                                             sample, run_request->recipe->project_end_sample,
                                             &plan);
         if (st != ODM_STATUS_OK) { goto fail; }
+        if (run_request->particles_provider) {
+            odm_particles_state pstate;
+            memset(&pstate, 0, sizeof(pstate));
+            st = run_request->particles_provider(run_request->particles_user,
+                                                 frame_index, sample, &pstate);
+            if (st != ODM_STATUS_OK) { goto fail; }
+            st = odm_layered_frame_plan_set_particles(&plan, &pstate);
+            if (st != ODM_STATUS_OK) { goto fail; }
+        }
         {
             const uint8_t *stream_frame = frame;
             if (ss_factor > 1u) {

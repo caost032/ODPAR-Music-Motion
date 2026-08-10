@@ -69,6 +69,14 @@ static void make_config(odm_layered_config *c){
     c->field.field_opacity_q31=qr(3u,4u);
     c->field.primary_color.r=50000u;c->field.primary_color.g=30000u;
     c->field.primary_color.b=10000u;c->field.primary_color.a=60000u;
+    /* Las particulas tienen COLOR PROPIO. `primary_color` es el acento de las
+     * agujas del halo; suponer que tambien pinta el aire era atar dos
+     * categorias distintas al mismo control, que es justo lo que la separacion
+     * de categorias existe para impedir. Aqui se fija el color de particula al
+     * mismo valor para que la reconstruccion siga siendo comparable, y el
+     * control negativo comprueba que ya no dependen la una de la otra. */
+    c->field.particle_color.r=50000u;c->field.particle_color.g=30000u;
+    c->field.particle_color.b=10000u;c->field.particle_color.a=60000u;
     c->field.seed=UINT64_C(0x0d130d130d130d13);
     c->hud.schema_version=ODM_LAYERED_SCHEMA_VERSION;
     c->hud.text_scale_q16=1u<<16;
@@ -108,6 +116,28 @@ int main(int argc,char **argv){
         memset(frame,0,(size_t)64u*64u*sizeof(*frame));
         odm_layered_field_render(&c,&p,frame);
         if(fwrite(frame,sizeof(*frame),(size_t)64u*64u,f)!=(size_t)64u*64u){fclose(f);free(frame);return 7;}
+    }
+    {   /* Control negativo de la separacion: mover el acento de las agujas no
+         * puede tocar ni un pixel del aire, y mover el color del aire si. */
+        odm_layered_config v;
+        uint32_t k;
+        for(k=0u;k<2u;++k){
+            v=c;
+            if(k==0u){v.field.primary_color.r=10000u;v.field.primary_color.g=60000u;v.field.primary_color.b=65535u;}
+            else {v.field.particle_color.r=10000u;v.field.particle_color.g=60000u;v.field.particle_color.b=65535u;}
+            memset(&co,0,sizeof(co));memset(&di,0,sizeof(di));
+            co.schema_version=ODM_COMPOSITION_SCHEMA_VERSION;
+            co.mode=ODM_COMPOSITION_MODE_FLOW;
+            co.tick_index=0u;co.center_sample=0;
+            co.particles_q31=(uint32_t)INT32_MAX;
+            co.ring_phase=UINT32_C(0x13579bdf);
+            di.schema_version=ODM_DIRECTOR_SCHEMA_VERSION;
+            di.tick_index=0u;di.layout=ODM_DIRECTOR_LAYOUT_MONOLITH;
+            if(odm_layered_resolve_frame_plan(&v,&co,&di,0,INT64_MAX,&p)!=ODM_STATUS_OK){fclose(f);free(frame);return 6;}
+            memset(frame,0,(size_t)64u*64u*sizeof(*frame));
+            odm_layered_field_render(&v,&p,frame);
+            if(fwrite(frame,sizeof(*frame),(size_t)64u*64u,f)!=(size_t)64u*64u){fclose(f);free(frame);return 7;}
+        }
     }
     if(fclose(f)!=0){free(frame);return 8;}
     free(frame);
@@ -287,14 +317,23 @@ def main() -> int:
         r = subprocess.run([str(exe), str(raw)], cwd=root, capture_output=True, text=True)
         if r.returncode:
             raise SystemExit(f'particle oracle probe failed rc={r.returncode}\n{r.stdout}\n{r.stderr}')
-        got = raw.read_bytes()
+        raw_all = raw.read_bytes()
     frame_bytes = W * H * 8
     exp_all = bytearray()
     for sample in SAMPLES:
         exp_all.extend(expected_frame(sample))
     exp = bytes(exp_all)
-    if len(got) != len(exp):
-        raise SystemExit(f'particle stream size mismatch got={len(got)} exp={len(exp)}')
+    if len(raw_all) != len(exp) + 2 * frame_bytes:
+        raise SystemExit(f'particle stream size mismatch got={len(raw_all)} '
+                         f'exp={len(exp) + 2 * frame_bytes}')
+    got = raw_all[:len(exp)]
+    otro_acento = raw_all[len(exp):len(exp) + frame_bytes]
+    otro_polvo = raw_all[len(exp) + frame_bytes:]
+    base = got[:frame_bytes]
+    if otro_acento != base:
+        raise SystemExit('el acento de las agujas sigue pintando las particulas')
+    if otro_polvo == base:
+        raise SystemExit('el color de particula no pinta las particulas')
     if got != exp:
         j = next(i for i, (gv, ev) in enumerate(zip(got, exp)) if gv != ev)
         vec = j // frame_bytes

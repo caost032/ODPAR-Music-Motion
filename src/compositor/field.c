@@ -122,6 +122,141 @@ static void draw_disk(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
     }
 }
 
+/* PARTICULA CON FORMA Y ORIENTACION.
+ *
+ * Un disco no tiene direccion, asi que un disco nunca puede parecer una pluma
+ * ni una hoja por mucho que se mueva. La silueta se evalua en el marco de la
+ * particula -- `u` a lo largo de su velocidad, `v` a traves -- y ahi es una
+ * elipse cuyo semieje transversal se estrecha hacia las puntas. Eso da una
+ * lente, que es la forma que el ojo lee como algo que corta el aire.
+ *
+ * `along_q16`/`across_q16` son los semiejes en pixeles; `taper_q31` cuanto se
+ * estrecha en las puntas (0 = elipse limpia, Q31 = punta). La direccion llega
+ * ya normalizada en Q31 para que la forma no dependa de la magnitud, y el
+ * antialias es el mismo modelo de un pixel que usa todo el compositor, medido
+ * en unidades normalizadas para que no se deforme con la elongacion. */
+static void draw_lens(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
+                      int32_t cx_q16, int32_t cy_q16,
+                      int32_t along_q16, int32_t across_q16,
+                      int32_t dirx_q31, int32_t diry_q31, uint32_t taper_q31,
+                      const odm_rgba16 *color, uint32_t opacity_q31) {
+    int64_t ext = along_q16 > across_q16 ? along_q16 : across_q16;
+    int64_t minx, maxx, miny, maxy, x, y;
+    /* Un pixel expresado en unidades normalizadas del eje mas corto: es el
+     * ancho real de la transicion en la direccion en que la forma es mas fina. */
+    int64_t corto = along_q16 < across_q16 ? along_q16 : across_q16;
+    int64_t borde;
+    if (along_q16 <= 0 || across_q16 <= 0) return;
+    if (corto < 4096) corto = 4096;
+    borde = (INT64_C(65536) * INT64_C(65536)) / corto;   /* Q16 normalizado */
+    if (borde > 32768) borde = 32768;
+    minx = ((int64_t)cx_q16 - ext - 65536) >> 16;
+    maxx = ((int64_t)cx_q16 + ext + 65536) >> 16;
+    miny = ((int64_t)cy_q16 - ext - 65536) >> 16;
+    maxy = ((int64_t)cy_q16 + ext + 65536) >> 16;
+    if (minx < 0) minx = 0;
+    if (miny < 0) miny = 0;
+    if (maxx >= (int64_t)w) maxx = (int64_t)w - 1;
+    if (maxy >= (int64_t)h) maxy = (int64_t)h - 1;
+    for (y = miny; y <= maxy; ++y) for (x = minx; x <= maxx; ++x) {
+        int64_t dx = ((x << 16) + 32768) - cx_q16;
+        int64_t dy = ((y << 16) + 32768) - cy_q16;
+        /* Al marco de la particula. */
+        int64_t u = (dx * dirx_q31 + dy * diry_q31) / INT32_MAX;
+        int64_t v = (-dx * diry_q31 + dy * dirx_q31) / INT32_MAX;
+        int64_t un = (u * 65536) / along_q16;            /* Q16 normalizado */
+        int64_t vn, ancho, dist;
+        uint32_t cov;
+        if (un > 65536 || un < -65536) continue;
+        /* Estrechamiento hacia las puntas: 1 en el centro, 1-taper en el extremo. */
+        ancho = INT64_C(65536) -
+                ((un < 0 ? -un : un) * (int64_t)taper_q31) / INT32_MAX;
+        if (ancho < 4096) ancho = 4096;
+        vn = (v * 65536) / across_q16;
+        vn = (vn * 65536) / ancho;
+        if (vn > 262144 || vn < -262144) continue;
+        dist = (int64_t)odm_layered_isqrt_u64((uint64_t)(un * un + vn * vn));
+        if (dist <= 65536 - borde) cov = (uint32_t)INT32_MAX;
+        else if (dist >= 65536) cov = 0u;
+        else cov = (uint32_t)(((65536 - dist) * (int64_t)INT32_MAX) / borde);
+        if (cov) odm_layered_blend16(&frame[(uint64_t)y * w + (uint64_t)x], color, cov, opacity_q31);
+    }
+}
+
+/* Dibuja una particula segun su forma declarada. La velocidad decide la
+ * orientacion -- y solo la orientacion: la forma no cambia de tamano porque
+ * corra mas, salvo la estela, que es precisamente lo que una estela significa. */
+static void draw_particle(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
+                          int32_t x_q16, int32_t y_q16, int32_t radius_q16,
+                          uint32_t shape, int32_t vx_q16, int32_t vy_q16,
+                          const odm_rgba16 *color, uint32_t opacity_q31) {
+    int64_t speed;
+    int32_t dx_q31 = INT32_MAX, dy_q31 = 0;
+    if (radius_q16 <= 0) return;
+    if (shape == ODM_FIELD_PARTICLE_DUST) {
+        draw_disk(frame, w, h, x_q16, y_q16, radius_q16, color, opacity_q31);
+        return;
+    }
+    speed = (int64_t)odm_layered_isqrt_u64(
+        (uint64_t)((int64_t)vx_q16 * vx_q16 + (int64_t)vy_q16 * vy_q16));
+    /* Una particula practicamente parada no tiene direccion que respetar. Se le
+     * da la horizontal para que la silueta sea estable en vez de girar sobre el
+     * ruido de una velocidad casi nula, que se leeria como parpadeo. */
+    if (speed > 256) {
+        dx_q31 = (int32_t)(((int64_t)vx_q16 * INT32_MAX) / speed);
+        dy_q31 = (int32_t)(((int64_t)vy_q16 * INT32_MAX) / speed);
+    }
+    switch (shape) {
+        case ODM_FIELD_PARTICLE_FEATHER:
+            /* Pluma: larga, muy fina y con las dos puntas afiladas. */
+            draw_lens(frame, w, h, x_q16, y_q16,
+                      (int32_t)(((int64_t)radius_q16 * 13) / 4),
+                      (int32_t)(((int64_t)radius_q16 * 3) / 5),
+                      dx_q31, dy_q31, (uint32_t)((INT32_MAX / 10) * 9),
+                      color, opacity_q31);
+            break;
+        case ODM_FIELD_PARTICLE_LEAF:
+            /* Hoja: ancha, con cuerpo y punta menos afilada. */
+            draw_lens(frame, w, h, x_q16, y_q16,
+                      (int32_t)(((int64_t)radius_q16 * 9) / 5),
+                      (int32_t)radius_q16,
+                      dx_q31, dy_q31, (uint32_t)((INT32_MAX / 5) * 3),
+                      color, opacity_q31);
+            break;
+        case ODM_FIELD_PARTICLE_SPARK: {
+            /* Estela: se alarga con lo que se mueve. Es el unico dibujo que
+             * depende de la magnitud de la velocidad, porque es lo que una
+             * estela ES: el rastro de un desplazamiento. */
+            int64_t largo = (int64_t)radius_q16 + speed * 3;
+            int64_t techo = (int64_t)radius_q16 * 12;
+            if (largo > techo) largo = techo;
+            draw_lens(frame, w, h, x_q16, y_q16, (int32_t)largo,
+                      (int32_t)(((int64_t)radius_q16 * 2) / 5),
+                      dx_q31, dy_q31, (uint32_t)((INT32_MAX / 4) * 3),
+                      color, opacity_q31);
+            break;
+        }
+        default: {
+            /* Copo: tres agujas cruzadas a 60 grados. Se construye rotando la
+             * direccion con la identidad exacta de 60 grados, sin trigonometria
+             * en el bucle: (c,s) = (1/2, raiz(3)/2). */
+            const int64_t medio = INT32_MAX / 2;
+            const int64_t raiz3 = INT64_C(1859775393); /* raiz(3)/2 en Q31 */
+            int32_t ax = dx_q31, ay = dy_q31;
+            int32_t bx = (int32_t)((ax * medio - (int64_t)ay * raiz3) / INT32_MAX);
+            int32_t by = (int32_t)(((int64_t)ax * raiz3 + ay * medio) / INT32_MAX);
+            int32_t cx = (int32_t)((ax * medio + (int64_t)ay * raiz3) / INT32_MAX);
+            int32_t cy = (int32_t)((-(int64_t)ax * raiz3 + ay * medio) / INT32_MAX);
+            int32_t largo = (int32_t)(((int64_t)radius_q16 * 5) / 2);
+            int32_t ancho = (int32_t)(((int64_t)radius_q16 * 2) / 5);
+            draw_lens(frame, w, h, x_q16, y_q16, largo, ancho, ax, ay, 0u, color, opacity_q31);
+            draw_lens(frame, w, h, x_q16, y_q16, largo, ancho, bx, by, 0u, color, opacity_q31);
+            draw_lens(frame, w, h, x_q16, y_q16, largo, ancho, cx, cy, 0u, color, opacity_q31);
+            break;
+        }
+    }
+}
+
 /* Segment rasterization is canonically Q24.8.  Projection uses Q16 t so all
  * products fit signed 64-bit for the admitted 16k canvas / 2k bar limits. */
 /* Mezcla lineal de dos colores. Bajo gobierno espectral directo el color de la
@@ -444,7 +579,60 @@ void odm_layered_field_render(const odm_layered_config *c,
             }
         }
     }
-    if((c->field.flags&ODM_FIELD_PARTICLES)!=0u&&p->particle_count>0u){
+    if((c->field.flags&ODM_FIELD_PARTICLES)!=0u&&p->particle_count>0u&&p->particle_sim!=0u){
+        /* CAMPO SIMULADO.
+         *
+         * Aqui no se calcula NINGUNA posicion: ya vienen decididas en el plan
+         * por la integracion de 100 Hz. El rasterizador solo elige silueta,
+         * tamano, brillo y si algo la tapa. Esa separacion es la que hace que
+         * el mismo proyecto se vea igual a 24, 30 o 60 fps -- lo que cambia con
+         * los FPS es cuando se mira, no donde esta el aire. */
+        uint32_t dep = c->field.particle_depth_q31;
+        uint32_t segments = c->field.radial_segments;
+        uint32_t golpe;
+        {   uint64_t acc = 0u; uint32_t k;
+            for (k = 0u; k < segments; ++k) acc += p->radial_q31[k];
+            golpe = (uint32_t)((acc + segments / 2u) / segments);
+        }
+        for (i = 0u; i < p->particle_count && i < ODM_PARTICLES_MAX; ++i) {
+            uint64_t h2 = mix64(mix64(UINT64_C(0x51a7c0de9e3779b9) ^
+                                      ((uint64_t)i * UINT64_C(0x9e3779b97f4a7c15))) ^
+                                UINT64_C(0x5bf03635));
+            uint32_t z = (uint32_t)((h2 >> 16) & UINT64_C(0xffff));
+            int32_t x = p->particle_x_q16[i], y = p->particle_y_q16[i];
+            int32_t radio_px = (int32_t)c->field.particle_radius_q16;
+            uint32_t op;
+
+            /* Oclusion: una particula lejana que cae dentro de la silueta del
+             * nucleo esta DETRAS de el. Sin esto el campo seria una textura
+             * plana con tamanos distintos, no un espacio. */
+            if (dep != 0u && z < UINT32_C(32768)) {
+                int64_t ndx=(int64_t)x-(int64_t)p->center_x_q16;
+                int64_t ndy=(int64_t)y-(int64_t)p->center_y_q16;
+                int64_t nd=(int64_t)odm_layered_isqrt_u64(
+                    (uint64_t)((ndx>>8)*(ndx>>8)+(ndy>>8)*(ndy>>8)))<<8;
+                int32_t pcs2 = nd > 0 ? (int32_t)((ndx*INT32_MAX)/nd) : INT32_MAX;
+                int32_t psn2 = nd > 0 ? (int32_t)((ndy*INT32_MAX)/nd) : 0;
+                if (nd < (int64_t)core_boundary_radius_q16(c,p,pcs2,psn2)) continue;
+            }
+
+            op=(uint32_t)(((uint64_t)p->field_opacity_q31 *
+                           (UINT64_C(429496729) + (uint64_t)golpe / 2u)) / INT32_MAX);
+            if (dep != 0u) {
+                int64_t t = INT64_C(36044) + ((int64_t)z * INT64_C(58982)) / INT64_C(65536);
+                int64_t k = 65536 + (((t - 65536) * (int64_t)dep) / INT32_MAX);
+                radio_px = (int32_t)(((int64_t)radio_px * k) / INT64_C(65536));
+                if (radio_px < (1 << 12)) radio_px = 1 << 12;
+                op = (uint32_t)(((uint64_t)op * (uint64_t)k) / UINT64_C(65536));
+            }
+            if (op > (uint32_t)INT32_MAX) op = (uint32_t)INT32_MAX;
+            if (op != 0u)
+                draw_particle(frame, p->width, p->height, x, y, radio_px,
+                              c->field.particle_shape,
+                              p->particle_vx_q16[i], p->particle_vy_q16[i],
+                              &c->field.particle_color, op);
+        }
+    } else if((c->field.flags&ODM_FIELD_PARTICLES)!=0u&&p->particle_count>0u){
         int32_t maxr=(int32_t)(((uint64_t)(p->width<p->height?p->width:p->height)*UINT64_C(65536)*48u)/100u/2u);
         int32_t range=maxr-p->ring_inner_radius_q16;
         if(range>0){

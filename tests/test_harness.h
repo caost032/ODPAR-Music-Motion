@@ -37,6 +37,7 @@ void odm_test_visual_scene(odm_test_context *context);
 void odm_test_theme(odm_test_context *context);
 void odm_test_design(odm_test_context *context);
 void odm_test_spectral_instrument(odm_test_context *context);
+void odm_test_particles(odm_test_context *context);
 void odm_test_preview(odm_test_context *context);
 void odm_test_master(odm_test_context *context);
 void odm_test_studio(odm_test_context *context);

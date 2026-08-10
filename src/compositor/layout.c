@@ -159,6 +159,15 @@ odm_status odm_layered_config_init_default(odm_layered_config *out_config,
     c.field.particle_color = c.field.primary_color;
     c.field.bar_shape = ODM_FIELD_BAR_LINE;
     c.field.particle_depth_q31 = 0u;
+    /* El gobierno de la simulacion arranca en cero y sin la bandera: una
+     * configuracion por omision se dibuja EXACTAMENTE como antes. Encender el
+     * aire es una decision del diseno, no un cambio silencioso del motor. */
+    c.field.particle_shape = ODM_FIELD_PARTICLE_DUST;
+    c.field.particle_nature = ODM_PARTICLE_NATURE_FLOAT;
+    c.field.particle_flow_q31 = 0u;
+    c.field.particle_drag_q31 = 0u;
+    c.field.particle_impulse_q31 = 0u;
+    c.field.particle_flutter_q31 = 0u;
     c.field.seed = UINT64_C(0x0d130d130d130d13);
 
     c.hud.schema_version = ODM_LAYERED_SCHEMA_VERSION;
@@ -287,7 +296,8 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         return ODM_STATUS_INVALID_DATA;
 
     if (c->field.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
-        (c->field.flags & ~(ODM_FIELD_RADIAL_BARS | ODM_FIELD_PARTICLES | ODM_FIELD_ORBIT_RING)) != 0u ||
+        (c->field.flags & ~(ODM_FIELD_RADIAL_BARS | ODM_FIELD_PARTICLES |
+                            ODM_FIELD_ORBIT_RING | ODM_FIELD_PARTICLE_SIM)) != 0u ||
         (c->field.radial_segments != ODM_COMPOSITION_RADIAL_SEGMENTS &&
          c->field.radial_segments != ODM_COMPOSITION_RADIAL_SEGMENTS_MAX) ||
         c->field.particle_count > ODM_LAYERED_MAX_PARTICLES ||
@@ -299,7 +309,17 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         !rgba_valid(&c->field.particle_color) ||
         c->field.bar_shape > ODM_FIELD_BAR_SHAPE_MAX ||
         !q31u(c->field.particle_depth_q31) ||
+        c->field.particle_shape > ODM_FIELD_PARTICLE_SHAPE_MAX ||
+        c->field.particle_nature >= ODM_PARTICLE_NATURE_COUNT ||
+        !q31u(c->field.particle_flow_q31) || !q31u(c->field.particle_drag_q31) ||
+        !q31u(c->field.particle_impulse_q31) || !q31u(c->field.particle_flutter_q31) ||
         !bytes_zero_u32(c->field.reserved, 2u)) return ODM_STATUS_INVALID_DATA;
+    /* Un campo simulado no cabe en cualquier numero: la simulacion tiene un
+     * techo propio, y admitir mas particulas de las que puede llevar seria
+     * prometer un aire que luego se recorta en silencio. */
+    if ((c->field.flags & ODM_FIELD_PARTICLE_SIM) != 0u &&
+        (c->field.particle_count > ODM_PARTICLES_MAX ||
+         (c->field.flags & ODM_FIELD_PARTICLES) == 0u)) return ODM_STATUS_INVALID_DATA;
 
     if (c->hud.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
         (c->hud.flags & ~(ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE | ODM_HUD_TITLE | ODM_HUD_ARTIST)) != 0u ||
@@ -556,6 +576,38 @@ odm_status odm_layered_resolve_frame_plan(const odm_layered_config *c,
     return ODM_STATUS_OK;
 }
 
+odm_status odm_layered_frame_plan_set_particles(odm_layered_frame_plan *plan,
+                                                const odm_particles_state *state) {
+    uint32_t i;
+    if (!plan || !state) return ODM_STATUS_INVALID_ARGUMENT;
+    if (plan->schema_version != ODM_LAYERED_SCHEMA_VERSION ||
+        state->schema_version != ODM_PARTICLES_SCHEMA_VERSION)
+        return ODM_STATUS_VERSION_MISMATCH;
+    /* El campo simulado se dibujo para ESTE lienzo. Aceptarlo para otro
+     * significaria reciclar posiciones en un marco que no les corresponde: el
+     * reciclado por los bordes dejaria de cerrar y el aire se acumularia en una
+     * franja. Es un error de composicion, no una aproximacion. */
+    if (state->width != plan->width || state->height != plan->height)
+        return ODM_STATUS_INVALID_DATA;
+    if (state->count > ODM_PARTICLES_MAX) return ODM_STATUS_INVALID_DATA;
+    /* El plan ya decidio cuantas particulas vale este cuadro. La simulacion
+     * puede llevar mas -- la densidad reacciona a la musica -- pero nunca
+     * menos: dibujar mas de las que hay seria leer memoria sin escribir. */
+    if (plan->particle_count > state->count) return ODM_STATUS_INVALID_DATA;
+    for (i = 0u; i < state->count; ++i) {
+        plan->particle_x_q16[i] = state->x_q16[i];
+        plan->particle_y_q16[i] = state->y_q16[i];
+        plan->particle_vx_q16[i] = state->vx_q16[i];
+        plan->particle_vy_q16[i] = state->vy_q16[i];
+    }
+    for (; i < ODM_PARTICLES_MAX; ++i) {
+        plan->particle_x_q16[i] = 0; plan->particle_y_q16[i] = 0;
+        plan->particle_vx_q16[i] = 0; plan->particle_vy_q16[i] = 0;
+    }
+    plan->particle_sim = 1u;
+    return ODM_STATUS_OK;
+}
+
 odm_status odm_layered_trace_radial(const odm_layered_config *c,
                                           const odm_composition_frame_state *comp,
                                           const odm_layered_frame_plan *plan,
@@ -727,6 +779,12 @@ static odm_status layer_config_encode(const odm_layered_config *c, uint8_t *buff
     LC(odm_wire_write_u32(&w,c->field.field_opacity_q31)); LC(write_rgba16(&w,&c->field.primary_color)); LC(write_rgba16(&w,&c->field.secondary_color));
     LC(write_rgba16(&w,&c->field.particle_color)); LC(odm_wire_write_u32(&w,c->field.bar_shape));
     LC(odm_wire_write_u32(&w,c->field.particle_depth_q31));
+    LC(odm_wire_write_u32(&w,c->field.particle_shape));
+    LC(odm_wire_write_u32(&w,c->field.particle_nature));
+    LC(odm_wire_write_u32(&w,c->field.particle_flow_q31));
+    LC(odm_wire_write_u32(&w,c->field.particle_drag_q31));
+    LC(odm_wire_write_u32(&w,c->field.particle_impulse_q31));
+    LC(odm_wire_write_u32(&w,c->field.particle_flutter_q31));
     LC(odm_wire_write_u64(&w,c->field.seed));
     LC(odm_wire_write_u32(&w,c->hud.schema_version)); LC(odm_wire_write_u32(&w,c->hud.flags)); LC(odm_wire_write_u32(&w,c->hud.margin_q16));
     LC(odm_wire_write_u32(&w,c->hud.progress_height_q16)); LC(odm_wire_write_u32(&w,c->hud.progress_width_q31)); LC(odm_wire_write_u32(&w,c->hud.text_scale_q16));
@@ -878,6 +936,18 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, LAYER_RADIAL_TAIL_WEIGHT));
     LP(odm_wire_write_u32(&w, 1u)); /* activity = max(attack, weighted release) */
     LP(odm_wire_write_u32(&w, 1u)); /* radial segment lengths remain linear in Q31 */
+    /* v19: campo de particulas simulado. La posicion deja de ser una funcion
+     * del tick y pasa a ser el estado de una integracion con memoria, asi que
+     * el plan tiene que llevarla: si el rasterizador la re-derivara, dependeria
+     * de cuando se dibuja en vez de la musica. La bandera es explicita porque
+     * cambia los pixeles, y las formas son una categoria aparte del movimiento. */
+    LP(odm_wire_write_u32(&w, ODM_FIELD_PARTICLE_SIM));
+    LP(odm_wire_write_u32(&w, ODM_FIELD_PARTICLE_SHAPE_MAX + 1u)); /* dibujos de particula */
+    LP(odm_wire_write_u32(&w, ODM_PARTICLE_NATURE_COUNT));        /* naturalezas del aire  */
+    LP(odm_wire_write_u32(&w, ODM_PARTICLES_MAX));                /* techo de la simulacion */
+    LP(odm_wire_write_u32(&w, 1u)); /* la posicion simulada es autoridad del plan, no del raster */
+    LP(odm_wire_write_u32(&w, 1u)); /* la forma se orienta por la velocidad, no por el reloj */
+    LP(odm_wire_write_u32(&w, 100u)); /* la simulacion integra en la rejilla de 100 Hz */
 #undef LP
     return odm_wire_writer_finish(&w, req);
 }

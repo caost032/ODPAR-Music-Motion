@@ -137,6 +137,43 @@ static int copy_file(const char *src, const char *dst) {
     return 1;
 }
 
+/* Trayectoria del aire, precalculada en la rejilla de 100 Hz.
+ *
+ * El exportador puede pedir los cuadros en cualquier orden y la simulacion
+ * tiene memoria, asi que no puede avanzarse desde el proveedor: se recorre el
+ * tiempo UNA vez, en orden de tick, y aqui solo se sirve la instantanea que
+ * corresponde a cada cuadro. Es la unica forma de que el mismo proyecto de el
+ * mismo aire con o sin paralelismo de filas. */
+typedef struct {
+    const int32_t *x, *y, *vx, *vy;
+    uint32_t count, width, height;
+    uint64_t frame_count;
+} particles_ctx;
+
+static odm_status particles_provider(void *user, uint64_t frame_index, int64_t sample,
+                                     odm_particles_state *out_state) {
+    const particles_ctx *ctx = (const particles_ctx *)user;
+    uint64_t base;
+    uint32_t i;
+    (void)sample;
+    if (!ctx || !out_state || !ctx->x || frame_index >= ctx->frame_count)
+        return ODM_STATUS_INVALID_ARGUMENT;
+    memset(out_state, 0, sizeof(*out_state));
+    out_state->schema_version = ODM_PARTICLES_SCHEMA_VERSION;
+    out_state->count = ctx->count;
+    out_state->width = ctx->width;
+    out_state->height = ctx->height;
+    out_state->tick_index = frame_index;
+    base = frame_index * (uint64_t)ctx->count;
+    for (i = 0u; i < ctx->count; ++i) {
+        out_state->x_q16[i] = ctx->x[base + i];
+        out_state->y_q16[i] = ctx->y[base + i];
+        out_state->vx_q16[i] = ctx->vx[base + i];
+        out_state->vy_q16[i] = ctx->vy[base + i];
+    }
+    return ODM_STATUS_OK;
+}
+
 static odm_status state_provider(void *user, uint64_t frame_index, int64_t sample,
                                  odm_composition_frame_state *out_comp,
                                  odm_director_frame_state *out_dir) {
@@ -662,6 +699,8 @@ int main(int argc, char **argv) {
     uint64_t *presentation_samples = NULL;
     state_ctx sctx;
     core_ctx cctx;
+    particles_ctx pctx;
+    int32_t *part_x = NULL, *part_y = NULL, *part_vx = NULL, *part_vy = NULL;
     uint8_t *core_rgba = NULL;
     uint64_t core_raw_size = 0u;
     odm_layered_config config;
@@ -1320,6 +1359,84 @@ core_ready:
     sctx.director = presentation_dir;
     sctx.frame_count = recipe.frame_count;
 
+    /* --- EL AIRE ---------------------------------------------------------
+     *
+     * Se recorre el tiempo una sola vez, tick a tick, y se guarda la posicion
+     * del campo en el instante de cada cuadro. El radio del nucleo que usa la
+     * colision sale del plan resuelto para ESE tick, no del cuadro: la fisica
+     * vive en la rejilla del analisis, y por eso el aire es el mismo a 24, 30 o
+     * 60 fps. Lo que cambia con los FPS es cuando se mira. */
+    memset(&pctx, 0, sizeof(pctx));
+    if ((config.field.flags & ODM_FIELD_PARTICLE_SIM) != 0u) {
+        odm_particles_config pcfg;
+        odm_particles_state pstate;
+        odm_layered_frame_plan tick_plan;
+        uint64_t cursor, total;
+        int32_t radio_prev = 0;
+        int32_t cx_q16, cy_q16;
+
+        memset(&pcfg, 0, sizeof(pcfg));
+        pcfg.schema_version = ODM_PARTICLES_SCHEMA_VERSION;
+        pcfg.count = config.field.particle_count;
+        pcfg.nature = config.field.particle_nature;
+        pcfg.flow_q31 = config.field.particle_flow_q31;
+        pcfg.drag_q31 = config.field.particle_drag_q31;
+        pcfg.impulse_q31 = config.field.particle_impulse_q31;
+        pcfg.flutter_q31 = config.field.particle_flutter_q31;
+        pcfg.seed = config.field.seed ^ UINT64_C(0x9e3779b97f4a7c15);
+
+        if (odm_particles_init(&pcfg, config.canvas.width, config.canvas.height,
+                               &pstate) != ODM_STATUS_OK) {
+            fprintf(stderr, "particles init failed\n"); return 26;
+        }
+        total = recipe.frame_count * (uint64_t)pcfg.count;
+        part_x = (int32_t *)malloc((size_t)total * sizeof(*part_x));
+        part_y = (int32_t *)malloc((size_t)total * sizeof(*part_y));
+        part_vx = (int32_t *)malloc((size_t)total * sizeof(*part_vx));
+        part_vy = (int32_t *)malloc((size_t)total * sizeof(*part_vy));
+        if (!part_x || !part_y || !part_vx || !part_vy) {
+            fprintf(stderr, "oom campo de particulas\n"); return 26;
+        }
+        cx_q16 = (int32_t)(((uint64_t)config.canvas.width << 16) *
+                           (uint64_t)config.core.center_x_q31 / (uint64_t)INT32_MAX);
+        cy_q16 = (int32_t)(((uint64_t)config.canvas.height << 16) *
+                           (uint64_t)config.core.center_y_q31 / (uint64_t)INT32_MAX);
+        cursor = projections[0].source_tick_index;
+        for (i = 0u; i < recipe.frame_count; ++i) {
+            uint64_t objetivo = projections[i].source_tick_index;
+            uint32_t k;
+            while (cursor <= objetivo) {
+                int32_t radio = 0;
+                if (cursor < tick_count &&
+                    odm_layered_resolve_frame_plan(&config, &comp_frames[cursor],
+                                                   &dir_frames[cursor], 0, 1,
+                                                   &tick_plan) == ODM_STATUS_OK)
+                    radio = tick_plan.core_radius_q16;
+                if (odm_particles_step(&pstate, &pcfg, cx_q16, cy_q16, radio,
+                                       radio - radio_prev) != ODM_STATUS_OK) {
+                    fprintf(stderr, "particles step failed\n"); return 26;
+                }
+                radio_prev = radio;
+                ++cursor;
+            }
+            for (k = 0u; k < pcfg.count; ++k) {
+                uint64_t o = i * (uint64_t)pcfg.count + k;
+                part_x[o] = pstate.x_q16[k];
+                part_y[o] = pstate.y_q16[k];
+                part_vx[o] = pstate.vx_q16[k];
+                part_vy[o] = pstate.vy_q16[k];
+            }
+        }
+        pctx.x = part_x; pctx.y = part_y; pctx.vx = part_vx; pctx.vy = part_vy;
+        pctx.count = pcfg.count;
+        pctx.width = config.canvas.width;
+        pctx.height = config.canvas.height;
+        pctx.frame_count = recipe.frame_count;
+        fprintf(stderr, "particulas: %u simuladas, naturaleza %u, diseno %u\n",
+                pcfg.count, pcfg.nature, config.field.particle_shape);
+    }
+    odm_bench_mark("simulacion de particulas");
+
     if (snprintf(final_dir, sizeof(final_dir), "%s/export.final", work_dir) < 0 ||
         snprintf(receipt_copy, sizeof(receipt_copy), "%s/export.receipt.bin", work_dir) < 0 ||
         snprintf(argv_dump, sizeof(argv_dump), "%s/ffmpeg_argv.txt", work_dir) < 0 ||
@@ -1341,6 +1458,10 @@ core_ready:
     run_request.state_user = &sctx;
     run_request.core_provider = core_provider;
     run_request.core_user = &cctx;
+    if ((config.field.flags & ODM_FIELD_PARTICLE_SIM) != 0u) {
+        run_request.particles_provider = particles_provider;
+        run_request.particles_user = &pctx;
+    }
     run_request.canonical_pcm = preview_pcm;
     run_request.canonical_pcm_frames = preview_pcm_frames;
     /* Paralelismo de filas. El compositor ya sabia repartirse entre nucleos,

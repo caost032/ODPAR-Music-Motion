@@ -86,6 +86,11 @@ def config_bytes():
     # forma de la barra y profundidad de particula: la sonda no las fija
     u32(b,0)
     u32(b,0)
+    # Gobierno del aire simulado, en el orden que fija la especificacion:
+    # dibujo, naturaleza, caudal, rozamiento, impulso y aleteo. La sonda no los
+    # fija, asi que valen cero -- y cero significa exactamente el campo estatico
+    # de siempre, que es lo que este vector comprueba.
+    for _ in range(6):u32(b,0)
     u64(b,0x0d130d130d130d13)
     # HUD
     for v in (1,15,2<<16,1<<16,qr(3,4),1<<16,1<<16,Q):u32(b,v)
@@ -105,7 +110,8 @@ def policy_bytes():
     b=bytearray(b'ODMLAYR3')
     # v14: paridad de las dos rutas de fondo, radio radial = media diagonal.
     # v15: difuminado ordenado declarado en la configuracion.
-    vals0=(18,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
+    # v19: campo de particulas simulado, con dibujo y naturaleza separados.
+    vals0=(19,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
@@ -127,7 +133,12 @@ def policy_bytes():
               # (docs/RADIAL_MORPHOLOGY_V2.md section 4.1): opacity model id,
               # 0.15 authority floor, 0.65 release tail weight, activity is the
               # max of the two domains, and segment lengths stay linear.
-              1,322122547,1395864371,1,1):u32(b,v)
+              1,322122547,1395864371,1,1,
+              # v19: bandera del aire simulado, catalogo de dibujos (5),
+              # naturalezas (6), techo de la simulacion (256), la posicion
+              # simulada como autoridad del plan, la orientacion tomada de la
+              # velocidad y la rejilla de integracion de 100 Hz.
+              8,5,6,256,1,1,100):u32(b,v)
     if len(b)>POLICY_BYTES:raise AssertionError(len(b))
     b.extend(b'\0'*(POLICY_BYTES-len(b)))
     return bytes(b)

@@ -42,6 +42,7 @@ int main(void) {
     odm_test_theme(&context);
     odm_test_design(&context);
     odm_test_spectral_instrument(&context);
+    odm_test_particles(&context);
     odm_test_preview(&context);
     odm_test_master(&context);
     odm_test_studio(&context);
