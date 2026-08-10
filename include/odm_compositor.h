@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(12)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(13)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -33,6 +33,17 @@ extern "C" {
  * un fondo plano no es un fondo, es la ausencia de uno, y porque un degradado
  * oscuro sin difuminar produce bandas visibles a 8 bits. */
 #define ODM_BACKGROUND_DEPTH_FIELD      UINT32_C(4)
+/* Horizonte: degradado vertical con una linea nitida a la altura del centro.
+ * Da suelo y cielo, que es lo que hace que una composicion centrada deje de
+ * flotar en el vacio. */
+#define ODM_BACKGROUND_HORIZON          UINT32_C(5)
+/* Anillos concentricos atenuados hacia el borde. */
+#define ODM_BACKGROUND_CONCENTRIC       UINT32_C(6)
+/* Matriz de puntos: estructura sin el peso visual de una rejilla de lineas. */
+#define ODM_BACKGROUND_DOT_MATRIX       UINT32_C(7)
+/* Degradado lineal diagonal, difuminado con Bayer para no producir bandas. */
+#define ODM_BACKGROUND_GRADIENT         UINT32_C(8)
+#define ODM_BACKGROUND_STYLE_MAX        ODM_BACKGROUND_GRADIENT
 
 #define ODM_CORE_SHAPE_CIRCLE       UINT32_C(1)
 #define ODM_CORE_SHAPE_SQUARE       UINT32_C(2)
@@ -262,8 +273,12 @@ typedef struct {
     uint32_t field_opacity_q31;
     odm_rgba16 primary_color;
     odm_rgba16 secondary_color;
+    /* Las particulas tienen color propio. Antes reutilizaban primary_color, de
+     * modo que retocar el acento de las barras cambiaba tambien las particulas:
+     * dos categorias distintas atadas al mismo control. */
+    odm_rgba16 particle_color;
     uint64_t seed;
-    uint32_t reserved[6];
+    uint32_t reserved[4];
 } odm_field_config;
 
 typedef struct {
@@ -282,6 +297,15 @@ typedef struct {
     uint32_t metadata_anchor;
     uint32_t progress_style;
     uint32_t time_mode;
+    /* Cada elemento del HUD lleva su color. `foreground_color` sigue siendo el
+     * del codigo de tiempo y el valor del que parten los demas por defecto, de
+     * modo que una configuracion que no los toca se dibuja exactamente igual
+     * que antes; pero titulo, autoria y barra ya son controlables por separado,
+     * que es lo que pide poder editarlos como categorias distintas. */
+    odm_rgba16 title_color;
+    odm_rgba16 artist_color;
+    odm_rgba16 progress_color;
+    odm_rgba16 progress_track_color;
     uint32_t reserved0;
 } odm_hud_config;
 

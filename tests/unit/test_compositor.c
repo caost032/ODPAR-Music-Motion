@@ -1122,5 +1122,77 @@ void odm_test_compositor(odm_test_context *context) {
     ODM_TEST_CHECK(context, odm_sha256(policy_bytes, sizeof(policy_bytes), &h1) == ODM_STATUS_OK &&
                             odm_sha256_equal(&policy, &h1));
 
+    /* PARIDAD DE LAS DOS RUTAS DE FONDO.
+     *
+     * El render de produccion solo usa la ruta con cache de columnas. La ruta
+     * general es la referencia. Si divergen, lo que se exporta no es lo que la
+     * referencia describe -- y eso ya paso: DEPTH_FIELD no estaba enumerado en
+     * la ruta con cache y se exportaba como un plano de color liso.
+     *
+     * Este bucle recorre TODOS los estilos, incluidos los que aun no existen
+     * cuando se escribe: el limite es ODM_BACKGROUND_STYLE_MAX, asi que anadir
+     * un estilo sin darle soporte en ambas rutas rompe el test solo. */
+    {
+        uint32_t style;
+        const uint32_t pw = 64u, ph = 64u;
+        odm_layered_pixel16 *ruta_ref = (odm_layered_pixel16 *)malloc(sizeof(*ruta_ref) * pw * ph);
+        odm_layered_pixel16 *ruta_cache = (odm_layered_pixel16 *)malloc(sizeof(*ruta_cache) * pw * ph);
+        int32_t *shifts = (int32_t *)malloc(sizeof(*shifts) * pw);
+        ODM_TEST_CHECK(context, ruta_ref != NULL && ruta_cache != NULL && shifts != NULL);
+        if (ruta_ref != NULL && ruta_cache != NULL && shifts != NULL) {
+            for (style = 0u; style <= ODM_BACKGROUND_STYLE_MAX; ++style) {
+                odm_layered_config bc;
+                odm_layered_frame_plan bp;
+                odm_composition_frame_state bcomp;
+                odm_director_frame_state bdir;
+                memset(&bcomp, 0, sizeof(bcomp));
+                memset(&bdir, 0, sizeof(bdir));
+                bcomp.schema_version = ODM_COMPOSITION_SCHEMA_VERSION;
+                bcomp.radial_gain_q31 = (uint32_t)INT32_MAX;
+                bcomp.radial_aperture_q31 = (uint32_t)INT32_MAX;
+                bcomp.flags = ODM_COMPOSITION_FLAG_STRICT_CAUSAL;
+                bdir.schema_version = ODM_DIRECTOR_SCHEMA_VERSION;
+                bdir.layout = ODM_DIRECTOR_LAYOUT_MONOLITH;
+                ODM_TEST_CHECK(context,
+                    odm_layered_config_init_default(&bc, ODM_CANVAS_ASPECT_SQUARE_1_1,
+                                                    pw, ph, 30) == ODM_STATUS_OK);
+                bc.background.style = style;
+                /* Un fondo no negro: con negro sobre negro, dos rutas rotas
+                 * coinciden y el test pasaria sin demostrar nada. */
+                bc.background.solid_color.r = 8000u;
+                bc.background.solid_color.g = 10000u;
+                bc.background.solid_color.b = 14000u;
+                bc.background.solid_color.a = UINT16_MAX;
+                bc.background.grid_color.r = 50000u;
+                bc.background.grid_color.g = 55000u;
+                bc.background.grid_color.b = 60000u;
+                bc.background.grid_color.a = UINT16_MAX;
+                ODM_TEST_CHECK(context, odm_layered_config_validate(&bc) == ODM_STATUS_OK);
+                ODM_TEST_CHECK(context,
+                    odm_layered_resolve_frame_plan(&bc, &bcomp, &bdir, 0, 48000, &bp)
+                        == ODM_STATUS_OK);
+                memset(ruta_ref, 0xA5, sizeof(*ruta_ref) * pw * ph);
+                memset(ruta_cache, 0x5A, sizeof(*ruta_cache) * pw * ph);
+                odm_layered_background_render_rows(&bc, &bp, 0u, ph, ruta_ref);
+                odm_layered_background_prepare_columns(&bp, shifts, pw);
+                odm_layered_background_render_rows_cached(&bc, &bp, shifts, 0u, ph, ruta_cache);
+                ODM_TEST_CHECK(context, memcmp(ruta_ref, ruta_cache, sizeof(*ruta_ref) * pw * ph) == 0);
+
+                /* Y ademas tiene que dibujar algo: un estilo que rellena un
+                 * plano liso pasaria la paridad y seguiria estando roto. Solo
+                 * NONE y SOLID son legitimamente uniformes. */
+                if (style != ODM_BACKGROUND_NONE && style != ODM_BACKGROUND_SOLID) {
+                    uint32_t k, distintos = 0u;
+                    for (k = 1u; k < pw * ph; ++k) {
+                        if (ruta_ref[k].r != ruta_ref[0].r || ruta_ref[k].g != ruta_ref[0].g ||
+                            ruta_ref[k].b != ruta_ref[0].b) { distintos = 1u; break; }
+                    }
+                    ODM_TEST_CHECK(context, distintos == 1u);
+                }
+            }
+        }
+        free(ruta_ref); free(ruta_cache); free(shifts);
+    }
+
     free(scratch); free(out1); free(out2);
 }

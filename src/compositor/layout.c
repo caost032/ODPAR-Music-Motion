@@ -152,6 +152,10 @@ odm_status odm_layered_config_init_default(odm_layered_config *out_config,
     c.field.primary_color.b = UINT16_MAX; c.field.primary_color.a = UINT16_MAX;
     c.field.secondary_color.r = UINT16_C(40960); c.field.secondary_color.g = UINT16_C(40960);
     c.field.secondary_color.b = UINT16_C(40960); c.field.secondary_color.a = UINT16_MAX;
+    /* Por defecto, el color propio de las particulas arranca igual que el que
+     * usaban antes. Separar la categoria no puede cambiar lo que ya se veia:
+     * cambia lo que se puede controlar, no lo que se dibuja por omision. */
+    c.field.particle_color = c.field.primary_color;
     c.field.seed = UINT64_C(0x0d130d130d130d13);
 
     c.hud.schema_version = ODM_LAYERED_SCHEMA_VERSION;
@@ -168,6 +172,13 @@ odm_status odm_layered_config_init_default(odm_layered_config *out_config,
     c.hud.foreground_color.r = UINT16_MAX; c.hud.foreground_color.g = UINT16_MAX;
     c.hud.foreground_color.b = UINT16_MAX; c.hud.foreground_color.a = UINT16_MAX;
     c.hud.background_color.a = UINT16_C(32768);
+    /* Mismo criterio que en el campo: los colores nuevos parten de los que
+     * gobernaban cada elemento hasta ahora, asi que el render por defecto es
+     * byte a byte el de antes. */
+    c.hud.title_color = c.hud.foreground_color;
+    c.hud.artist_color = c.hud.foreground_color;
+    c.hud.progress_color = c.hud.foreground_color;
+    c.hud.progress_track_color = c.hud.background_color;
     c.hud.metadata_anchor = ODM_HUD_ANCHOR_BOTTOM_CENTER;
     c.hud.progress_style = ODM_HUD_PROGRESS_HAIRLINE;
     c.hud.time_mode = ODM_HUD_TIME_ELAPSED_TOTAL;
@@ -234,15 +245,22 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
     if (pixels > ODM_LAYERED_MAX_PIXELS) return ODM_STATUS_BUDGET_EXCEEDED;
 
     if (c->background.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
-        c->background.style > ODM_BACKGROUND_DEPTH_FIELD ||
+        c->background.style > ODM_BACKGROUND_STYLE_MAX ||
         !rgba_valid(&c->background.solid_color) || !rgba_valid(&c->background.grid_color) ||
         !q31u(c->background.zoom_reactivity_q31) ||
         !q31u(c->background.warp_reactivity_q31) ||
         !q31u(c->background.depth_reactivity_q31) ||
         !q31u(c->background.opacity_q31) ||
         !bytes_zero_u32(c->background.reserved, 6u)) return ODM_STATUS_INVALID_DATA;
+    /* Todo estilo que consuma separacion, grosor o difuminado tiene que
+     * declararlos en rango. Un estilo que los usa sin validarlos produciria
+     * geometria degenerada -- puntos de radio cero, anillos sin separacion --
+     * que desaparece en silencio en vez de fallar. */
     if ((c->background.style == ODM_BACKGROUND_GRID ||
-         c->background.style == ODM_BACKGROUND_PERSPECTIVE_GRID) &&
+         c->background.style == ODM_BACKGROUND_PERSPECTIVE_GRID ||
+         c->background.style == ODM_BACKGROUND_HORIZON ||
+         c->background.style == ODM_BACKGROUND_CONCENTRIC ||
+         c->background.style == ODM_BACKGROUND_DOT_MATRIX) &&
         (c->background.grid_spacing_q16 < (4u << 16) ||
          c->background.grid_spacing_q16 > (4096u << 16) ||
          c->background.grid_line_q16 == 0u ||
@@ -273,7 +291,8 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         c->field.bar_max_q16 > (2048u << 16) || c->field.bar_width_q16 > (32u << 16) ||
         c->field.particle_radius_q16 > (32u << 16) || !q31u(c->field.field_opacity_q31) ||
         !rgba_valid(&c->field.primary_color) || !rgba_valid(&c->field.secondary_color) ||
-        !bytes_zero_u32(c->field.reserved, 6u)) return ODM_STATUS_INVALID_DATA;
+        !rgba_valid(&c->field.particle_color) ||
+        !bytes_zero_u32(c->field.reserved, 4u)) return ODM_STATUS_INVALID_DATA;
 
     if (c->hud.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
         (c->hud.flags & ~(ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE | ODM_HUD_TITLE | ODM_HUD_ARTIST)) != 0u ||
@@ -282,6 +301,8 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         c->hud.text_scale_q16 > (32u << 16) || c->hud.line_gap_q16 > (128u << 16) ||
         !q31u(c->hud.opacity_q31) ||
         !rgba_valid(&c->hud.foreground_color) || !rgba_valid(&c->hud.background_color) ||
+        !rgba_valid(&c->hud.title_color) || !rgba_valid(&c->hud.artist_color) ||
+        !rgba_valid(&c->hud.progress_color) || !rgba_valid(&c->hud.progress_track_color) ||
         !text_canonical(c->hud.title, sizeof(c->hud.title)) ||
         !text_canonical(c->hud.artist, sizeof(c->hud.artist)) ||
         c->hud.metadata_anchor > ODM_HUD_ANCHOR_BOTTOM_RIGHT ||
@@ -675,7 +696,8 @@ static odm_status layer_config_encode(const odm_layered_config *c, uint8_t *buff
     LC(odm_wire_write_u32(&w,c->field.schema_version)); LC(odm_wire_write_u32(&w,c->field.flags)); LC(odm_wire_write_u32(&w,c->field.radial_segments));
     LC(odm_wire_write_u32(&w,c->field.particle_count)); LC(odm_wire_write_u32(&w,c->field.ring_gap_q16)); LC(odm_wire_write_u32(&w,c->field.bar_min_q16));
     LC(odm_wire_write_u32(&w,c->field.bar_max_q16)); LC(odm_wire_write_u32(&w,c->field.bar_width_q16)); LC(odm_wire_write_u32(&w,c->field.particle_radius_q16));
-    LC(odm_wire_write_u32(&w,c->field.field_opacity_q31)); LC(write_rgba16(&w,&c->field.primary_color)); LC(write_rgba16(&w,&c->field.secondary_color)); LC(odm_wire_write_u64(&w,c->field.seed));
+    LC(odm_wire_write_u32(&w,c->field.field_opacity_q31)); LC(write_rgba16(&w,&c->field.primary_color)); LC(write_rgba16(&w,&c->field.secondary_color));
+    LC(write_rgba16(&w,&c->field.particle_color)); LC(odm_wire_write_u64(&w,c->field.seed));
     LC(odm_wire_write_u32(&w,c->hud.schema_version)); LC(odm_wire_write_u32(&w,c->hud.flags)); LC(odm_wire_write_u32(&w,c->hud.margin_q16));
     LC(odm_wire_write_u32(&w,c->hud.progress_height_q16)); LC(odm_wire_write_u32(&w,c->hud.progress_width_q31)); LC(odm_wire_write_u32(&w,c->hud.text_scale_q16));
     LC(odm_wire_write_u32(&w,c->hud.line_gap_q16)); LC(odm_wire_write_u32(&w,c->hud.opacity_q31)); LC(write_rgba16(&w,&c->hud.foreground_color)); LC(write_rgba16(&w,&c->hud.background_color));
@@ -683,6 +705,8 @@ static odm_status layer_config_encode(const odm_layered_config *c, uint8_t *buff
     LC(odm_wire_write_u32(&w,c->hud.metadata_anchor));
     LC(odm_wire_write_u32(&w,c->hud.progress_style));
     LC(odm_wire_write_u32(&w,c->hud.time_mode));
+    LC(write_rgba16(&w,&c->hud.title_color)); LC(write_rgba16(&w,&c->hud.artist_color));
+    LC(write_rgba16(&w,&c->hud.progress_color)); LC(write_rgba16(&w,&c->hud.progress_track_color));
     LC(odm_wire_write_u32(&w,c->hud.reserved0));
     LC(odm_wire_write_u32(&w,c->reaction.schema_version));
     LC(odm_wire_write_u32(&w,c->reaction.flags));
@@ -733,6 +757,8 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, ODM_DIRECTOR_SCHEMA_VERSION));
     LP(odm_wire_write_u32(&w, 6u)); /* layer authorities */
     LP(odm_wire_write_u32(&w, 6u)); /* aspect modes incl custom */
+    LP(odm_wire_write_u32(&w, ODM_BACKGROUND_STYLE_MAX + 1u)); /* background styles */
+    LP(odm_wire_write_u32(&w, 1u)); /* la ruta con cache de columnas es byte-identica a la general */
     LP(odm_wire_write_u32(&w, 3u)); /* core shapes */
     LP(odm_wire_write_u32(&w, 3u)); /* core fit modes */
     LP(odm_wire_write_u32(&w, ODM_COMPOSITION_RADIAL_SEGMENTS)); /* legacy radial count */

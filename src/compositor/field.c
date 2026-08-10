@@ -397,7 +397,7 @@ void odm_layered_field_render(const odm_layered_config *c,
                     x=(int32_t)((int64_t)p->center_x_q16+(r*pcs)/INT32_MAX);
                     y=(int32_t)((int64_t)p->center_y_q16+(r*psn)/INT32_MAX);
                     op=(uint32_t)(((uint64_t)p->field_opacity_q31*(uint64_t)amp+INT32_MAX/2u)/INT32_MAX);
-                    draw_disk(frame,p->width,p->height,x,y,(int32_t)c->field.particle_radius_q16,&c->field.primary_color,op);
+                    draw_disk(frame,p->width,p->height,x,y,(int32_t)c->field.particle_radius_q16,&c->field.particle_color,op);
                 }
             } else {
                 for(i=0u;i<p->particle_count;++i){
@@ -413,7 +413,7 @@ void odm_layered_field_render(const odm_layered_config *c,
                     int32_t y=(int32_t)((int64_t)p->center_y_q16+(r*psn)/INT32_MAX);
                     uint32_t flicker=(uint32_t)(mix64(h^p->tick_index)>>33);
                     uint32_t op=(uint32_t)(((uint64_t)p->field_opacity_q31*(INT32_MAX/3u+(uint64_t)flicker*2u/3u)+INT32_MAX/2u)/INT32_MAX);
-                    draw_disk(frame,p->width,p->height,x,y,(int32_t)c->field.particle_radius_q16,&c->field.primary_color,op);
+                    draw_disk(frame,p->width,p->height,x,y,(int32_t)c->field.particle_radius_q16,&c->field.particle_color,op);
                 }
             }
         }

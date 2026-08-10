@@ -89,6 +89,31 @@ static const uint8_t bg_bayer8[64] = {
     63,31,55,23,61,29,53,21
 };
 
+/* Difuminado ordenado sobre un peso Q1.31 antes de mezclar.
+ *
+ * Todo degradado suave del motor pasa por aqui. El desplazamiento es menor que
+ * un paso de cuantizacion de 8 bits, asi que no altera el valor percibido; solo
+ * rompe el escalon en el que se forman las bandas. Al ser posicional y sin
+ * estado, el mismo pixel recibe siempre el mismo desplazamiento: no hay ruido
+ * temporal ni dependencia del cuadro anterior. */
+static uint32_t bg_dither_q31(uint32_t weight_q31, uint32_t x, uint32_t y) {
+    uint64_t w = (uint64_t)weight_q31 +
+                 (uint64_t)bg_bayer8[((y & 7u) << 3) | (x & 7u)] * UINT64_C(2048);
+    if (w > (uint64_t)INT32_MAX) w = (uint64_t)INT32_MAX;
+    return (uint32_t)w;
+}
+
+/* Radio de referencia comun a los estilos radiales: media de los dos lados.
+ * Usar la media y no la diagonal hace que 9:16 y 16:9 produzcan la misma
+ * sensacion espacial en lugar de una elipse estirada. */
+static int64_t bg_reference_radius_q16(const odm_layered_frame_plan *plan) {
+    return ((int64_t)plan->width + (int64_t)plan->height) << 15;
+}
+
+static uint32_t bg_scale_q31(uint32_t a_q31, uint32_t b_q31) {
+    return (uint32_t)(((uint64_t)a_q31 * (uint64_t)b_q31) / (uint64_t)INT32_MAX);
+}
+
 /* Perfil de profundidad: 1.0 en el centro, cayendo suavemente hacia los bordes.
  * Se evalua sobre la distancia al centro normalizada por la media diagonal, de
  * modo que un lienzo 9:16 y uno 16:9 producen la misma sensacion espacial en
@@ -304,6 +329,117 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
         }
         return;
     }
+    if (config->background.style == ODM_BACKGROUND_HORIZON) {
+        /* El peso del resplandor y la cobertura de la linea son constantes por
+         * fila: se resuelven una vez y el bucle de pixeles solo mezcla. */
+        int64_t cy2 = plan->center_y_q16;
+        int64_t half = ((int64_t)plan->height) << 15;
+        for (y = y_begin; y < y_end; ++y) {
+            int64_t dy = (((int64_t)y << 16) + 32768) - cy2;
+            int64_t ady = dy < 0 ? -dy : dy;
+            int64_t t = 0;
+            uint32_t glow, line;
+            uint32_t x;
+            if (half > 0 && ady < half) {
+                t = (int64_t)INT32_MAX - (ady * (int64_t)INT32_MAX) / half;
+                /* Al cuadrado: la luz se concentra en el horizonte en vez de
+                 * repartirse por todo el cuadro y aplanar la imagen. */
+                t = (t * t) / (int64_t)INT32_MAX;
+            }
+            glow = (uint32_t)(t < 0 ? 0 : t);
+            line = odm_layered_coverage_q31(dy, (int64_t)plan->grid_line_q16 / 2,
+                                            plan->grid_feather_q16);
+            for (x = 0u; x < plan->width; ++x) {
+                odm_layered_pixel16 out = base;
+                if (glow != 0u)
+                    odm_layered_blend16(&out, &config->background.grid_color,
+                                        bg_dither_q31(glow, x, y),
+                                        config->background.opacity_q31);
+                if (line != 0u)
+                    odm_layered_blend16(&out, &config->background.grid_color, line,
+                                        config->background.opacity_q31);
+                frame[(uint64_t)y * plan->width + x] = out;
+            }
+        }
+        return;
+    }
+    if (config->background.style == ODM_BACKGROUND_CONCENTRIC) {
+        int64_t cx = plan->center_x_q16, cy2 = plan->center_y_q16;
+        int64_t radius = bg_reference_radius_q16(plan);
+        int64_t sp = plan->grid_spacing_q16;
+        for (y = y_begin; y < y_end; ++y) {
+            int64_t dy = (((int64_t)y << 16) + 32768) - cy2;
+            uint32_t x;
+            for (x = 0u; x < plan->width; ++x) {
+                odm_layered_pixel16 out = base;
+                int64_t dx = (((int64_t)x << 16) + 32768) - cx;
+                /* Radio exacto por raiz entera: el mismo operador que usa la
+                 * mascara del nucleo, asi que los anillos y el borde del nucleo
+                 * son concentricos de verdad y no aproximadamente. */
+                int64_t r = (int64_t)odm_layered_isqrt_u64(
+                    (uint64_t)((dx >> 4) * (dx >> 4) + (dy >> 4) * (dy >> 4))) << 4;
+                uint32_t cov = odm_layered_coverage_q31(nearest_grid_distance(r, sp),
+                                                        (int64_t)plan->grid_line_q16 / 2,
+                                                        plan->grid_feather_q16);
+                if (cov != 0u) {
+                    /* Atenuados hacia fuera: sin esto los anillos saturan los
+                     * bordes y compiten con el nucleo por la atencion. */
+                    cov = bg_scale_q31(cov, bg_depth_weight(dx, dy, radius));
+                    if (cov != 0u)
+                        odm_layered_blend16(&out, &config->background.grid_color, cov,
+                                            config->background.opacity_q31);
+                }
+                frame[(uint64_t)y * plan->width + x] = out;
+            }
+        }
+        return;
+    }
+    if (config->background.style == ODM_BACKGROUND_DOT_MATRIX) {
+        int64_t sp = plan->grid_spacing_q16;
+        int64_t radius = bg_reference_radius_q16(plan);
+        int64_t cx = plan->center_x_q16, cy2 = plan->center_y_q16;
+        for (y = y_begin; y < y_end; ++y) {
+            int64_t yq = ((int64_t)y << 16) + 32768;
+            int64_t dyg = nearest_grid_distance(yq + plan->grid_offset_y_q16, sp);
+            int64_t dy = yq - cy2;
+            uint32_t x;
+            for (x = 0u; x < plan->width; ++x) {
+                odm_layered_pixel16 out = base;
+                int64_t xq = ((int64_t)x << 16) + 32768;
+                int64_t dxg = nearest_grid_distance(xq + plan->grid_offset_x_q16, sp);
+                int64_t d = (int64_t)odm_layered_isqrt_u64(
+                    (uint64_t)((dxg >> 4) * (dxg >> 4) + (dyg >> 4) * (dyg >> 4))) << 4;
+                uint32_t cov = odm_layered_coverage_q31(d, (int64_t)plan->grid_line_q16,
+                                                        plan->grid_feather_q16);
+                if (cov != 0u) {
+                    cov = bg_scale_q31(cov, bg_depth_weight(xq - cx, dy, radius));
+                    if (cov != 0u)
+                        odm_layered_blend16(&out, &config->background.grid_color, cov,
+                                            config->background.opacity_q31);
+                }
+                frame[(uint64_t)y * plan->width + x] = out;
+            }
+        }
+        return;
+    }
+    if (config->background.style == ODM_BACKGROUND_GRADIENT) {
+        int64_t span = (int64_t)plan->width + (int64_t)plan->height;
+        if (span < 1) span = 1;
+        for (y = y_begin; y < y_end; ++y) {
+            uint32_t x;
+            for (x = 0u; x < plan->width; ++x) {
+                odm_layered_pixel16 out = base;
+                int64_t t = (((int64_t)x + (int64_t)y) * (int64_t)INT32_MAX) / span;
+                uint32_t w = (uint32_t)(t > (int64_t)INT32_MAX ? (int64_t)INT32_MAX : t);
+                if (w != 0u)
+                    odm_layered_blend16(&out, &config->background.grid_color,
+                                        bg_dither_q31(w, x, y),
+                                        config->background.opacity_q31);
+                frame[(uint64_t)y * plan->width + x] = out;
+            }
+        }
+        return;
+    }
     if (config->background.style == ODM_BACKGROUND_PERSPECTIVE_GRID) {
         for (y = y_begin; y < y_end; ++y) {
             odm_perspective_row row;
@@ -432,14 +568,22 @@ void odm_layered_background_render_rows_cached(const odm_layered_config *config,
     }
     odm_layered_blend16(&base, &config->background.solid_color,
                         (uint32_t)INT32_MAX, config->background.opacity_q31);
-    if (config->background.style == ODM_BACKGROUND_PERSPECTIVE_GRID) {
-        odm_layered_background_render_rows(config, plan, y_begin, y_end, frame);
-        return;
-    }
+    /* La cache de columnas SOLO sirve a la rejilla plana: es lo unico que
+     * necesita el desplazamiento por columna. Cualquier otro estilo se delega a
+     * la ruta general.
+     *
+     * Esto no es una comodidad, es la correccion de un fallo real: antes esta
+     * funcion enumeraba estilos uno a uno, y el que no reconocia caia al relleno
+     * plano de `base`. DEPTH_FIELD no estaba enumerado, y como el render de
+     * produccion solo usa esta ruta, todo fondo de profundidad se exportaba como
+     * un plano de color liso -- negro, en los temas oscuros. Un degradado
+     * semantico silencioso, justo lo que la doctrina prohibe.
+     *
+     * Delegando por defecto en vez de enumerar, la paridad entre las dos rutas
+     * deja de depender de que alguien acuerde de anadir una rama: cualquier
+     * estilo futuro es correcto en ambas desde el primer dia. */
     if (config->background.style != ODM_BACKGROUND_GRID || plan->grid_spacing_q16 <= 0) {
-        uint64_t i = (uint64_t)y_begin * plan->width;
-        uint64_t end = (uint64_t)y_end * plan->width;
-        for (; i < end; ++i) frame[i] = base;
+        odm_layered_background_render_rows(config, plan, y_begin, y_end, frame);
         return;
     }
 

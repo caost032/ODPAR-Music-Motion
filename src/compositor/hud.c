@@ -354,11 +354,11 @@ void odm_layered_hud_render(const odm_layered_config*c,const odm_layered_frame_p
         if(h->progress_style==ODM_HUD_PROGRESS_HAIRLINE&&progress_h>INT64_C(65536))progress_h=INT64_C(65536);
         t=b-progress_h;fill=l+(bw*(int64_t)p->progress_q31+INT32_MAX/2)/INT32_MAX;
         if(h->progress_style==ODM_HUD_PROGRESS_CAPSULE){
-            draw_round_rect(frame,p->width,p->height,l,t,r,b,&h->background_color,h->opacity_q31);
-            if(fill>l)draw_round_rect(frame,p->width,p->height,l,t,fill,b,&h->foreground_color,h->opacity_q31);
+            draw_round_rect(frame,p->width,p->height,l,t,r,b,&h->progress_track_color,h->opacity_q31);
+            if(fill>l)draw_round_rect(frame,p->width,p->height,l,t,fill,b,&h->progress_color,h->opacity_q31);
         }else{
-            draw_rect(frame,p->width,p->height,l,t,r,b,&h->background_color,h->opacity_q31);
-            draw_rect(frame,p->width,p->height,l,t,fill,b,&h->foreground_color,h->opacity_q31);
+            draw_rect(frame,p->width,p->height,l,t,r,b,&h->progress_track_color,h->opacity_q31);
+            draw_rect(frame,p->width,p->height,l,t,fill,b,&h->progress_color,h->opacity_q31);
         }
         bottom_reserved+=progress_h+h->line_gap_q16;
     }
@@ -382,12 +382,12 @@ void odm_layered_hud_render(const odm_layered_config*c,const odm_layered_frame_p
         int64_t y=anchor_bottom(h->metadata_anchor)?safe_b-margin-bottom_reserved-total:safe_t+margin;
         if(have_title){
             int64_t tx=x;if((h->metadata_anchor%3u)==1u)tx=x+(mw-tw)/2;else if((h->metadata_anchor%3u)==2u)tx=x+(mw-tw);
-            draw_text(frame,p->width,p->height,tx,y,scale,h->title,&h->foreground_color,h->opacity_q31);y+=7*scale;
+            draw_text(frame,p->width,p->height,tx,y,scale,h->title,&h->title_color,h->opacity_q31);y+=7*scale;
             if(have_artist)y+=h->line_gap_q16;
         }
         if(have_artist){
             int64_t ax=x;if((h->metadata_anchor%3u)==1u)ax=x+(mw-aw)/2;else if((h->metadata_anchor%3u)==2u)ax=x+(mw-aw);
-            draw_text(frame,p->width,p->height,ax,y,scale,h->artist,&h->foreground_color,h->opacity_q31);
+            draw_text(frame,p->width,p->height,ax,y,scale,h->artist,&h->artist_color,h->opacity_q31);
         }
     }
 }

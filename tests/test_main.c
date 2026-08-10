@@ -39,6 +39,8 @@ int main(void) {
     odm_test_visual(&context);
     odm_test_visual_dynamics(&context);
     odm_test_visual_scene(&context);
+    odm_test_theme(&context);
+    odm_test_design(&context);
     odm_test_preview(&context);
     odm_test_master(&context);
     odm_test_studio(&context);
