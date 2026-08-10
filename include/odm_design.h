@@ -141,6 +141,7 @@ typedef struct {
     uint32_t enabled;
     uint32_t density_q31;
     uint32_t size_q31;
+    uint32_t depth_q31;        /* 0 = plano, Q31 = campo 3D completo          */
     odm_rgba16 color;
 } odm_design_particles;
 

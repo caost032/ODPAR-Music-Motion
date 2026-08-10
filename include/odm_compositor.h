@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(17)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(18)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -305,8 +305,17 @@ typedef struct {
      * dos categorias distintas atadas al mismo control. */
     odm_rgba16 particle_color;
     uint32_t bar_shape;           /* ODM_FIELD_BAR_*                          */
+    /* Profundidad del campo de particulas. 0 = todas en el mismo plano;
+     * Q31 = separacion completa entre el fondo y el frente.
+     *
+     * La profundidad de cada particula es estable por semilla y gobierna cuatro
+     * cosas a la vez -- radio, tamano, brillo y cuanto la empuja la musica --
+     * porque asi es como el ojo lee distancia. Y las lejanas quedan OCULTAS
+     * tras el nucleo cuando caen dentro de su silueta: sin esa oclusion el
+     * campo seria una textura plana con tamanos distintos, no profundidad. */
+    uint32_t particle_depth_q31;
     uint64_t seed;
-    uint32_t reserved[3];
+    uint32_t reserved[2];
 } odm_field_config;
 
 typedef struct {

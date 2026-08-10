@@ -186,6 +186,8 @@ static const dz_control dz_table[] = {
               particles.density_q31, 0u, R(1u,1u), R(1u,6u)),
     DZ_SCALAR(42u, ODM_DESIGN_CAT_PARTICLES, "particulas.tamano", "Tamano",
               particles.size_q31, R(1u,4000u), R(1u,120u), R(1u,700u)),
+    DZ_SCALAR(44u, ODM_DESIGN_CAT_PARTICLES, "particulas.profundidad", "Profundidad 3D",
+              particles.depth_q31, 0u, R(1u,1u), R(3u,4u)),
     DZ_COLOR(43u, ODM_DESIGN_CAT_PARTICLES, "particulas.color", "Color",
              particles.color),
 
@@ -734,6 +736,7 @@ odm_status odm_design_compile(const odm_design *design,
         c.field.particle_radius_q16 = 1u << 16;
     }
     c.field.particle_color = dz_lin(&design->particles.color);
+    c.field.particle_depth_q31 = design->particles.depth_q31;
 
     /* TEXTO Y PROGRESO --------------------------------------------------- */
     c.hud.flags = 0u;

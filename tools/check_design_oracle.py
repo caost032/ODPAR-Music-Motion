@@ -236,6 +236,7 @@ RANGOS = {
     'particulas.activas':       (0, 1, 0),
     'particulas.densidad':      (0, (1, 1), (1, 6)),
     'particulas.tamano':        ((1, 4000), (1, 120), (1, 700)),
+    'particulas.profundidad':   (0, (1, 1), (3, 4)),
     'texto.titulo':             (0, 1, 0),
     'texto.autoria':            (0, 1, 0),
     'texto.escala':             ((1, 4), (1, 1), (1, 2)),
