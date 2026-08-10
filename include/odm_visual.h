@@ -79,6 +79,10 @@ odm_status odm_visual_policy_current_sha256(odm_sha256_digest *out_hash);
 #define ODM_COMPOSITION_FLAG_STRICT_CAUSAL UINT32_C(8)
 #define ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE UINT32_C(16)
 #define ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE UINT32_C(32)
+/* El extremo radial lo gobierna la medida FFT directa, no Music-Reaction. Bajo
+ * esta bandera la provenance describe esa medida: cuerpo = valor, cola = 0,
+ * ataque = 0. */
+#define ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT UINT32_C(64)
 
 typedef struct {
     uint32_t schema_version;

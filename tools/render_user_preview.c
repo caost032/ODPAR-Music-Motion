@@ -3,6 +3,8 @@
 #include "odm_media.h"
 #include "odm_media_adapter.h"
 #include "odm_supersample.h"
+#include "odm_design.h"
+#include "odm_spectral_instrument.h"
 #include "odm_visual_scene.h"
 #include "odm_music_map.h"
 #include "odm_music_reaction.h"
@@ -61,13 +63,6 @@ typedef struct {
     uint8_t *resolved;       /* destino del resolve, tamano de entrega */
     uint64_t resolved_bytes;
 } file_sink;
-
-static uint32_t q31_ratio(uint32_t n, uint32_t d) {
-    uint64_t v;
-    if (d == 0u || n > d) return 0u;
-    v = (uint64_t)(uint32_t)INT32_MAX * (uint64_t)n + (uint64_t)d / 2u;
-    return (uint32_t)(v / d);
-}
 
 static uint64_t digest_seed64(const odm_sha256_digest *d) {
     uint64_t v = 0u;
@@ -461,142 +456,101 @@ static void sink_abort(void *user, odm_status reason) {
     s->active = 0;
 }
 
-static int set_route(odm_layered_config *c, uint32_t target,
-                     uint32_t a, uint32_t b, uint32_t combine) {
-    uint32_t route = 0u;
-    if (odm_reaction_route_make(a, b, combine, &route) != ODM_STATUS_OK) return 0;
-    if (odm_layered_config_set_reaction_route(c, target, route) != ODM_STATUS_OK) return 0;
+/* Construccion de la configuracion desde la capa de diseno.
+ *
+ * Antes esto era un segundo lugar donde se decidia el diseno, escrito a mano y
+ * en paralelo al motor. Dos autoridades para lo mismo siempre acaban
+ * divergiendo -- y de hecho divergian: aqui la barra de progreso estaba clavada
+ * a un tercio del ancho sin forma de pedir mas.
+ *
+ * Ahora hay una sola ruta: plantilla -> diseno -> parametros efectivos. Lo que
+ * esta herramienta hace es exactamente lo que hara la app.
+ */
+
+/* Fracciones y colores en la linea de ordenes. Un valor puede escribirse como
+ * entero, como razon "9/10" o como color "#rrggbb"; la razon es lo natural para
+ * un control que vive en Q1.31 y nadie deberia tener que teclear 1932735283. */
+static int parse_valor(const char *txt, uint32_t kind, uint32_t *out_u32,
+                       odm_rgba16 *out_color) {
+    if (!txt || !*txt) return 0;
+    if (kind == ODM_DESIGN_KIND_COLOR) {
+        unsigned r, g, b;
+        if (txt[0] != '#' || strlen(txt) != 7u) return 0;
+        if (sscanf(txt + 1, "%2x%2x%2x", &r, &g, &b) != 3) return 0;
+        out_color->r = (uint16_t)((r * 65535u + 127u) / 255u);
+        out_color->g = (uint16_t)((g * 65535u + 127u) / 255u);
+        out_color->b = (uint16_t)((b * 65535u + 127u) / 255u);
+        out_color->a = UINT16_MAX;
+        return 1;
+    }
+    if (strchr(txt, '/') != NULL) {
+        unsigned long num = 0u, den = 0u;
+        char *end = NULL;
+        num = strtoul(txt, &end, 10);
+        if (!end || *end != '/') return 0;
+        den = strtoul(end + 1, NULL, 10);
+        if (den == 0u || num > den) return 0;
+        *out_u32 = (uint32_t)(((uint64_t)INT32_MAX * num + den / 2u) / den);
+        return 1;
+    }
+    *out_u32 = (uint32_t)strtoul(txt, NULL, 10);
     return 1;
 }
 
-static int build_config(odm_layered_config *out_config, uint32_t width, uint32_t height,
-                        int32_t fps, uint64_t seed) {
-    odm_layered_config base, styled;
-    odm_layered_style_profile style;
-    if (odm_layered_config_init_default(&base, ODM_CANVAS_ASPECT_SQUARE_1_1,
-                                        width, height, fps) != ODM_STATUS_OK) return 0;
-    if (odm_layered_style_init(&style, ODM_LAYERED_STYLE_PRESET_DEEP_GRID) != ODM_STATUS_OK) return 0;
-    if (odm_layered_style_apply(&base, &style, &styled) != ODM_STATUS_OK) return 0;
-
-    /* ------------------------------------------------------------------
-     * Defaults de diseno.
-     *
-     * Todo se expresa como fraccion del lado menor del lienzo, no en pixeles
-     * fijos: un preset pensado a 540 que se ve ridiculo a 1080 no es un preset,
-     * es un accidente.
-     *
-     * El criterio es restriccion. Un halo no es 96 rayas alrededor de un
-     * circulo, un fondo no es una rejilla cyberpunk que llena la pantalla, y
-     * las particulas no existen porque si. Menos elementos, mejor colocados.
-     * ------------------------------------------------------------------ */
+static void listar_esquema(void) {
+    uint32_t i, n = odm_design_control_count(), cat;
+    printf("PLANTILLAS (--template N)\n");
     {
-        uint32_t dim = width < height ? width : height;
-        /* Fraccion del lado menor -> Q16.16 en pixeles. */
-        #define PX(num, den) ((uint32_t)(((uint64_t)dim * (uint64_t)(num) << 16) / (uint64_t)(den)))
-
-        /* FONDO: campo de profundidad. Un halo espacial muy tenue detras del
-         * nucleo, difuminado para que no aparezcan bandas. No dibuja nada
-         * reconocible: solo evita que el vacio sea plano. */
-        styled.background.style = ODM_BACKGROUND_DEPTH_FIELD;
-        styled.background.grid_spacing_q16 = PX(1u, 5u);   /* celdas muy amplias */
-        styled.background.grid_line_q16 = PX(1u, 900u);    /* hairline real */
-        styled.background.grid_feather_q16 = PX(1u, 540u);
-        styled.background.grid_color.r = UINT16_MAX;
-        styled.background.grid_color.g = UINT16_MAX;
-        styled.background.grid_color.b = UINT16_MAX;
-        /* Casi invisible a proposito. La rejilla debe sugerir un espacio en el
-         * que el nucleo esta suspendido; en cuanto se lee como una malla, deja
-         * de ser profundidad y pasa a ser un suelo de plantilla que compite con
-         * el protagonista. */
-        styled.background.grid_color.a = UINT16_C(7200);
-        styled.background.zoom_reactivity_q31 = q31_ratio(1u, 14u);
-        styled.background.warp_reactivity_q31 = q31_ratio(1u, 20u);
-        styled.background.depth_reactivity_q31 = q31_ratio(1u, 12u);
-        styled.background.opacity_q31 = q31_ratio(1u, 2u);
-
-        /* NUCLEO: protagonista. Contorno hairline, sin aro decorativo. */
-        styled.core.shape = ODM_CORE_SHAPE_CIRCLE;
-        styled.core.fit = ODM_CORE_FIT_COVER;
-        styled.core.width_q31 = q31_ratio(38u, 100u);
-        styled.core.height_q31 = q31_ratio(38u, 100u);
-        styled.core.corner_radius_q31 = 0u;
-        styled.core.border_q16 = PX(1u, 720u);
-        styled.core.feather_q16 = PX(1u, 900u);
-        styled.core.scale_reactivity_q31 = q31_ratio(1u, 5u);
-        styled.core.border_color.r = UINT16_MAX;
-        styled.core.border_color.g = UINT16_MAX;
-        styled.core.border_color.b = UINT16_MAX;
-        styled.core.border_color.a = UINT16_C(30000);
-
-        /* HALO: filamentos finos y cortos que leen como UNA forma, no como 96
-         * objetos pegados. Sin anillo orbital y sin particulas: ambos son ruido
-         * que compite con el nucleo. */
-        styled.field.flags = ODM_FIELD_RADIAL_BARS;
-        styled.field.radial_segments = ODM_COMPOSITION_RADIAL_SEGMENTS_MAX;
-        styled.field.particle_count = 0u;
-        styled.field.ring_gap_q16 = PX(1u, 44u);
-        styled.field.bar_min_q16 = 0u;
-        styled.field.bar_max_q16 = PX(1u, 7u);
-        styled.field.bar_width_q16 = PX(1u, 620u);
-        styled.field.particle_radius_q16 = PX(1u, 900u);
-        styled.field.field_opacity_q31 = q31_ratio(8u, 10u);
-        styled.field.seed = seed;
-        /* Un solo acento sobre una base neutra: el ataque es lo unico que se
-         * ilumina, el cuerpo sostenido queda por debajo en la jerarquia. */
-        styled.field.primary_color.r = UINT16_MAX;
-        styled.field.primary_color.g = UINT16_C(62000);
-        styled.field.primary_color.b = UINT16_C(48000);
-        styled.field.primary_color.a = UINT16_MAX;
-        styled.field.secondary_color.r = UINT16_C(30000);
-        styled.field.secondary_color.g = UINT16_C(32000);
-        styled.field.secondary_color.b = UINT16_C(36000);
-        styled.field.secondary_color.a = UINT16_MAX;
-
-        /* HUD: instrumentacion, no interfaz. Solo el tiempo y un riel fino. */
-        styled.hud.flags = ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE;
-        styled.hud.margin_q16 = PX(1u, 18u);
-        styled.hud.progress_height_q16 = PX(1u, 540u);
-        styled.hud.progress_width_q31 = q31_ratio(1u, 3u);
-        {   /* La fuente base mide 5x7; se escala a enteros para que el
-             * rasterizado caiga en rejilla y no salga borroso. */
-            uint32_t scale = dim / 180u;
-            if (scale < 2u) scale = 2u;
-            if (scale > 24u) scale = 24u;
-            styled.hud.text_scale_q16 = scale << 16;
-        }
-        styled.hud.line_gap_q16 = PX(1u, 200u);
-        styled.hud.metadata_anchor = ODM_HUD_ANCHOR_BOTTOM_CENTER;
-        styled.hud.progress_style = ODM_HUD_PROGRESS_HAIRLINE;
-        styled.hud.time_mode = ODM_HUD_TIME_ELAPSED;
-        styled.hud.foreground_color.r = UINT16_MAX;
-        styled.hud.foreground_color.g = UINT16_MAX;
-        styled.hud.foreground_color.b = UINT16_MAX;
-        styled.hud.foreground_color.a = UINT16_C(40000);
-        styled.hud.background_color.a = 0u;
-        #undef PX
+        uint32_t nt = odm_template_count();
+        for (i = 0u; i < nt; ++i)
+            printf("  %u  %-14s %s\n", i, odm_template_name(i), odm_template_summary(i));
     }
+    printf("\nCONTROLES (--set clave=valor)\n");
+    for (cat = 0u; cat < ODM_DESIGN_CAT_COUNT; ++cat) {
+        printf("\n  [%s]\n", odm_design_category_name(cat));
+        for (i = 0u; i < n; ++i) {
+            odm_design_control c;
+            if (odm_design_control_at(i, &c) != ODM_STATUS_OK) continue;
+            if (c.category != cat) continue;
+            printf("    %-24s %-24s ", c.key, c.label);
+            if (c.kind == ODM_DESIGN_KIND_COLOR) {
+                printf("color  #rrggbb\n");
+            } else if (c.kind == ODM_DESIGN_KIND_TOGGLE) {
+                printf("0 o 1  (por omision %u)\n", c.default_value);
+            } else if (c.kind == ODM_DESIGN_KIND_ENUM) {
+                uint32_t o;
+                printf("opcion (por omision %u)\n", c.default_value);
+                for (o = 0u; o < c.option_count; ++o)
+                    printf("      %38u = %s\n", o, odm_design_option_label(c.id, o));
+            } else {
+                /* Los limites se muestran como porcentaje del recorrido, que es
+                 * lo que un control de interfaz representa. */
+                printf("razon  %u%% .. %u%% (por omision %u%%)\n",
+                       (uint32_t)(((uint64_t)c.min_value * 100u) / (uint64_t)INT32_MAX),
+                       (uint32_t)(((uint64_t)c.max_value * 100u) / (uint64_t)INT32_MAX),
+                       (uint32_t)(((uint64_t)c.default_value * 100u) / (uint64_t)INT32_MAX));
+            }
+        }
+    }
+}
 
-    if (!set_route(&styled, ODM_REACTION_TARGET_BACKGROUND_ZOOM,
-                   ODM_REACTION_SOURCE_GRID, ODM_REACTION_SOURCE_NONE,
-                   ODM_REACTION_COMBINE_A_ONLY)) return 0;
-    if (!set_route(&styled, ODM_REACTION_TARGET_BACKGROUND_WARP,
-                   ODM_REACTION_SOURCE_FRACTURE, ODM_REACTION_SOURCE_NONE,
-                   ODM_REACTION_COMBINE_A_ONLY)) return 0;
-    if (!set_route(&styled, ODM_REACTION_TARGET_BACKGROUND_DEPTH,
-                   ODM_REACTION_SOURCE_GRID, ODM_REACTION_SOURCE_NONE,
-                   ODM_REACTION_COMBINE_A_ONLY)) return 0;
-    if (!set_route(&styled, ODM_REACTION_TARGET_CORE_SCALE,
-                   ODM_REACTION_SOURCE_CORE_BREATH, ODM_REACTION_SOURCE_NONE,
-                   ODM_REACTION_COMBINE_A_ONLY)) return 0;
-    if (!set_route(&styled, ODM_REACTION_TARGET_FIELD_GAIN,
-                   ODM_REACTION_SOURCE_RADIAL_GAIN, ODM_REACTION_SOURCE_NONE,
-                   ODM_REACTION_COMBINE_A_ONLY)) return 0;
-    if (!set_route(&styled, ODM_REACTION_TARGET_PARTICLE_DENSITY,
-                   ODM_REACTION_SOURCE_PARTICLES, ODM_REACTION_SOURCE_NONE,
-                   ODM_REACTION_COMBINE_A_ONLY)) return 0;
-
-    if (odm_layered_config_validate(&styled) != ODM_STATUS_OK) return 0;
-    *out_config = styled;
+static int build_config(odm_layered_config *out_config, const odm_design *design,
+                        uint32_t width, uint32_t height, int32_t fps, uint64_t seed) {
+    odm_status st = odm_design_compile(design, width, height, fps, seed, out_config);
+    if (st != ODM_STATUS_OK) {
+        odm_design_report rep;
+        (void)odm_design_validate(design, &rep);
+        fprintf(stderr,
+                "el diseno no compila (st=%d). contraste titulo=%u.%02u:1 "
+                "autoria=%u.%02u:1 campo=%u.%02u:1, categoria en falta=%s\n",
+                (int)st,
+                rep.title_contrast / 100u, rep.title_contrast % 100u,
+                rep.artist_contrast / 100u, rep.artist_contrast % 100u,
+                rep.field_contrast / 100u, rep.field_contrast % 100u,
+                rep.failing_category < ODM_DESIGN_CAT_COUNT
+                    ? odm_design_category_name(rep.failing_category) : "-");
+        return 0;
+    }
     return 1;
 }
 
@@ -651,11 +605,14 @@ static int run_ffmpeg_mux(const odm_export_recipe *recipe,
 int main(int argc, char **argv) {
     const char *wav_path, *core_raw_path, *out_mp4, *work_dir;
     uint32_t out_size = 540u;
+    uint32_t out_w = 0u, out_h = 0u;
+    uint32_t template_index = 0u, aspect_index = 0u;
+    const char *titulo = NULL, *autoria = NULL;
+    odm_design design;
     int32_t fps = 60;
     int dynamics_enabled = 1;   /* Visual Dynamics activo por defecto */
     uint32_t quality_tier = ODM_QUALITY_PREVIEW_HIGH; /* 2x por defecto: nadie deberia tener que pedir que no se vea dentado */
     uint32_t ss_factor = 1u;
-    uint32_t render_size = 0u;
     int positional = 0;
     uint32_t source_w = 256u, source_h = 256u;
     odm_pcm_stereo_q31 *pcm = NULL;
@@ -669,6 +626,8 @@ int main(int argc, char **argv) {
     uint64_t tick_count = 0u;
     odm_music_analysis_tick *ticks = NULL;
     odm_music_reaction_tick *reaction_ticks = NULL;
+    odm_spectral_instrument_tick *si_ticks = NULL;
+    int spectral_enabled = 1;   /* el extremo radial sale del espectro directo */
     odm_music_reaction_profile reaction_profile;
     odm_music_reaction_state reaction_state;
     odm_music_reaction_frame *reaction_frames = NULL;
@@ -707,6 +666,12 @@ int main(int argc, char **argv) {
     const odm_pcm_stereo_q31 *preview_pcm = NULL;
     char final_dir[1024], receipt_copy[1024], argv_dump[1024], final_video[1024], final_audio[1024];
 
+    {   /* --list no necesita proyecto: es la descripcion del motor. */
+        int a;
+        for (a = 1; a < argc; ++a) {
+            if (strcmp(argv[a], "--list") == 0) { listar_esquema(); return 0; }
+        }
+    }
     if (argc < 5) {
         fprintf(stderr,
             "uso: %s <audio> <imagen|core.rgba> <salida.mp4> <dir_trabajo>\n"
@@ -715,7 +680,13 @@ int main(int argc, char **argv) {
             "  audio  : wav, mp3, m4a/aac, flac, ogg, opus, aiff, mp4...\n"
             "  imagen : png, jpeg, webp... o un volcado RGBA8 crudo\n"
             "  --no-dynamics : control A/B, desactiva Visual Dynamics\n"
-            "  --quality N   : 0=preview rapido 1=preview alto 2=master 3=master ultra\n",
+            "  --no-spectral : control A/B, el radial vuelve a la inferencia\n"
+            "  --quality N   : 0=preview rapido 1=preview alto 2=master 3=master ultra\n"
+            "  --template N  : plantilla de partida (--list para verlas)\n"
+            "  --aspect N    : 0=1:1  1=16:9  2=9:16  3=4:5  4=4:3\n"
+            "  --set k=v     : ajusta un control; v entero, razon 9/10 o color #rrggbb\n"
+            "  --title T / --artist A : metadatos del HUD\n"
+            "  --list        : imprime plantillas y controles disponibles y termina\n",
             argv[0]);
         return 2;
     }
@@ -723,9 +694,15 @@ int main(int argc, char **argv) {
         int a;
         for (a = 5; a < argc; ++a) {
             if (strcmp(argv[a], "--no-dynamics") == 0) { dynamics_enabled = 0; }
+            else if (strcmp(argv[a], "--no-spectral") == 0) { spectral_enabled = 0; }
             else if (strcmp(argv[a], "--fps") == 0 && a + 1 < argc) { fps = (int32_t)atoi(argv[++a]); }
             else if (strcmp(argv[a], "--size") == 0 && a + 1 < argc) { out_size = (uint32_t)atoi(argv[++a]); }
             else if (strcmp(argv[a], "--quality") == 0 && a + 1 < argc) { quality_tier = (uint32_t)atoi(argv[++a]); }
+            else if (strcmp(argv[a], "--template") == 0 && a + 1 < argc) { template_index = (uint32_t)atoi(argv[++a]); }
+            else if (strcmp(argv[a], "--aspect") == 0 && a + 1 < argc) { aspect_index = (uint32_t)atoi(argv[++a]); }
+            else if (strcmp(argv[a], "--title") == 0 && a + 1 < argc) { titulo = argv[++a]; }
+            else if (strcmp(argv[a], "--artist") == 0 && a + 1 < argc) { autoria = argv[++a]; }
+            else if (strcmp(argv[a], "--set") == 0 && a + 1 < argc) { ++a; /* se aplica tras cargar la plantilla */ }
             else if (positional == 0) { preview_start_sec = strtoull(argv[a], NULL, 10); positional = 1; }
             else if (positional == 1) { preview_duration_sec = strtoull(argv[a], NULL, 10); positional = 2; }
         }
@@ -737,6 +714,91 @@ int main(int argc, char **argv) {
     core_raw_path = argv[2];
     out_mp4 = argv[3];
     work_dir = argv[4];
+
+    /* PLANTILLA -> DISENO -> parametros efectivos. La herramienta no decide
+     * diseno: carga una plantilla, aplica lo que se pidio y compila. Es
+     * exactamente lo que hara la app. */
+    if (odm_template_load(template_index, aspect_index, &design) != ODM_STATUS_OK) {
+        fprintf(stderr, "plantilla %u invalida (hay %u)\n",
+                template_index, odm_template_count());
+        return 2;
+    }
+    if (titulo || autoria) {
+        if (odm_design_set_metadata(&design, titulo, autoria) != ODM_STATUS_OK) {
+            fprintf(stderr, "titulo o autoria con caracteres no admitidos\n"); return 2;
+        }
+        if (titulo) {
+            odm_design_control c;
+            if (odm_design_control_find("texto.titulo", &c) == ODM_STATUS_OK)
+                (void)odm_design_set(&design, c.id, 1u);
+        }
+        if (autoria) {
+            odm_design_control c;
+            if (odm_design_control_find("texto.autoria", &c) == ODM_STATUS_OK)
+                (void)odm_design_set(&design, c.id, 1u);
+        }
+    }
+    {   /* Los --set se aplican en el orden dado, despues de la plantilla. */
+        int a;
+        for (a = 5; a < argc; ++a) {
+            char clave[64];
+            const char *eq, *val;
+            odm_design_control c;
+            size_t klen;
+            if (strcmp(argv[a], "--set") != 0 || a + 1 >= argc) continue;
+            ++a;
+            eq = strchr(argv[a], '=');
+            if (!eq) { fprintf(stderr, "--set espera clave=valor\n"); return 2; }
+            klen = (size_t)(eq - argv[a]);
+            if (klen == 0u || klen >= sizeof(clave)) {
+                fprintf(stderr, "clave demasiado larga\n"); return 2;
+            }
+            memcpy(clave, argv[a], klen); clave[klen] = '\0';
+            val = eq + 1;
+            if (odm_design_control_find(clave, &c) != ODM_STATUS_OK) {
+                fprintf(stderr, "no existe el control \"%s\" (--list para verlos)\n", clave);
+                return 2;
+            }
+            if (c.kind == ODM_DESIGN_KIND_COLOR) {
+                odm_rgba16 col;
+                uint32_t dummy = 0u;
+                if (!parse_valor(val, c.kind, &dummy, &col)) {
+                    fprintf(stderr, "\"%s\" espera un color #rrggbb\n", clave); return 2;
+                }
+                if (odm_design_set_color(&design, c.id, &col) != ODM_STATUS_OK) {
+                    fprintf(stderr, "no se pudo fijar %s\n", clave); return 2;
+                }
+            } else {
+                uint32_t v = 0u;
+                odm_rgba16 dummy;
+                if (!parse_valor(val, c.kind, &v, &dummy)) {
+                    fprintf(stderr, "valor invalido para \"%s\"\n", clave); return 2;
+                }
+                if (odm_design_set(&design, c.id, v) != ODM_STATUS_OK) {
+                    fprintf(stderr, "\"%s\" fuera de rango: admite %u..%u\n",
+                            clave, c.min_value, c.max_value);
+                    return 2;
+                }
+            }
+        }
+    }
+    {   /* El encuadre decide las dos dimensiones a partir del lado corto. Se
+         * ajusta a multiplo de 36 para que 16:9, 4:5 y 4:3 salgan exactos en
+         * enteros; la validacion del lienzo exige la razon exacta. */
+        uint32_t corto = (out_size / 36u) * 36u;
+        if (corto == 0u) corto = 36u;
+        if (corto != out_size)
+            fprintf(stderr, "lado corto ajustado de %u a %u para que el encuadre sea exacto\n",
+                    out_size, corto);
+        out_size = corto;
+        switch (aspect_index) {
+            case 1u: out_w = corto / 9u * 16u; out_h = corto; break;   /* 16:9  */
+            case 2u: out_w = corto; out_h = corto / 9u * 16u; break;   /* 9:16  */
+            case 3u: out_w = corto; out_h = corto / 4u * 5u;  break;   /* 4:5   */
+            case 4u: out_w = corto / 3u * 4u;  out_h = corto; break;   /* 4:3   */
+            default: out_w = corto; out_h = corto; break;              /* 1:1   */
+        }
+    }
 
 
     memset(&audio_facts, 0, sizeof(audio_facts));
@@ -799,6 +861,10 @@ int main(int argc, char **argv) {
     }
     ticks = (odm_music_analysis_tick *)calloc((size_t)tick_count, sizeof(*ticks));
     reaction_ticks = (odm_music_reaction_tick *)calloc((size_t)tick_count, sizeof(*reaction_ticks));
+    if (spectral_enabled) {
+        si_ticks = (odm_spectral_instrument_tick *)calloc((size_t)tick_count, sizeof(*si_ticks));
+        if (!si_ticks) { fprintf(stderr, "oom spectral ticks\n"); return 5; }
+    }
     reaction_frames = (odm_music_reaction_frame *)calloc((size_t)tick_count, sizeof(*reaction_frames));
     refined_frames = (odm_music_reaction_frame *)calloc((size_t)tick_count, sizeof(*refined_frames));
     comp_frames = (odm_composition_frame_state *)calloc((size_t)tick_count, sizeof(*comp_frames));
@@ -812,6 +878,16 @@ int main(int argc, char **argv) {
                                    pcm, pcm_frames_required, i,
                                    &analysis_state, &analysis_scratch, &ticks[i]) != ODM_STATUS_OK) {
             fprintf(stderr, "music analyze failed at tick %llu\n", (unsigned long long)i); return 12;
+        }
+        /* El instrumento espectral se extrae del MISMO scratch, antes de que
+         * el siguiente tick lo sobrescriba. Es una lectura, no una inferencia:
+         * no toca el estado del analisis. */
+        if (si_ticks &&
+            odm_spectral_instrument_extract_tick(&ticks[i], &analysis_scratch,
+                                                 &si_ticks[i]) != ODM_STATUS_OK) {
+            fprintf(stderr, "spectral instrument extract failed at tick %llu\n",
+                    (unsigned long long)i);
+            return 12;
         }
         if (odm_music_reaction_extract_tick(&ticks[i], &analysis_scratch, &reaction_ticks[i]) != ODM_STATUS_OK) {
             fprintf(stderr, "reaction extract failed at tick %llu\n", (unsigned long long)i); return 13;
@@ -922,12 +998,13 @@ core_ready:
 
     ss_factor = odm_supersample_factor(quality_tier);
     if (ss_factor == 0u) { fprintf(stderr, "nivel de calidad invalido\n"); return 2; }
-    render_size = out_size;   /* el export supermuestrea internamente */
     fsink.ss_factor = 1u;     /* el sink recibe ya el fotograma de entrega */
+    fprintf(stderr, "plantilla: %s -- %s\n",
+            odm_template_name(template_index), odm_template_summary(template_index));
     fprintf(stderr, "calidad: nivel %u (raster interno %ux%u -> entrega %ux%u)\n",
-            quality_tier, out_size * ss_factor, out_size * ss_factor, out_size, out_size);
+            quality_tier, out_w * ss_factor, out_h * ss_factor, out_w, out_h);
 
-    if (!build_config(&config, render_size, render_size, fps, seed ^ UINT64_C(0x55aa55aa11223344))) {
+    if (!build_config(&config, &design, out_w, out_h, fps, seed ^ UINT64_C(0x55aa55aa11223344))) {
         fprintf(stderr, "build config failed\n"); return 20;
     }
     if (odm_export_plan_build(&config, (int64_t)preview_pcm_frames, preview_pcm_frames,
@@ -1052,6 +1129,50 @@ core_ready:
                 (unsigned long long)recipe.frame_count);
     } else {
         fprintf(stderr, "visual dynamics: DESACTIVADO (control A/B)\n");
+    }
+
+    /* INSTRUMENTO ESPECTRAL DIRECTO -- se aplica AL FINAL, y esto es
+     * deliberado.
+     *
+     * Visual Dynamics gobierna el caracter temporal de la escena: escala del
+     * nucleo, fondo, todo lo que debe tener memoria. El extremo de la aguja
+     * radial, en cambio, no debe tener memoria ninguna: es una lectura de lo
+     * que la DSP midio en esta ventana. Si la dinamica lo suavizara despues,
+     * volveriamos a tener un resplandor generico en vez de un espectro.
+     *
+     * Que esto no reintroduce parpadeo no es una suposicion: la ventana de
+     * 2048 muestras con salto de 480 solapa un 77%, asi que la propia medida ya
+     * esta limitada en banda. Se comprueba con tools/flicker_metrics sobre el
+     * volcado de composicion. */
+    if (spectral_enabled && si_ticks) {
+        uint64_t aplicados = 0u;
+        for (i = 0u; i < recipe.frame_count; ++i) {
+            odm_spectral_instrument_projection pr;
+            int64_t sample = 0;
+            if (odm_export_frame_sample(&recipe, i, &sample) != ODM_STATUS_OK || sample < 0) {
+                fprintf(stderr, "frame sample mapping failed\n"); return 25;
+            }
+            if (odm_spectral_instrument_project_centered(si_ticks, tick_count,
+                                                         (uint64_t)sample, &pr) != ODM_STATUS_OK) {
+                fprintf(stderr, "spectral projection failed at frame %llu\n",
+                        (unsigned long long)i);
+                return 25;
+            }
+            /* La proyeccion vive en la muestra absoluta y el cuadro en la
+             * local del recorte; se realinea antes de comprobar vecindad. */
+            pr.presentation_sample = presentation_comp[i].center_sample;
+            if (odm_composition_apply_spectral_instrument_projection(
+                    &pr, &presentation_comp[i]) != ODM_STATUS_OK) {
+                fprintf(stderr, "spectral apply failed at frame %llu\n",
+                        (unsigned long long)i);
+                return 25;
+            }
+            ++aplicados;
+        }
+        fprintf(stderr, "instrumento espectral: %llu fotogramas gobernados por FFT directa\n",
+                (unsigned long long)aplicados);
+    } else {
+        fprintf(stderr, "instrumento espectral: DESACTIVADO (control A/B)\n");
     }
     sctx.composition = presentation_comp;
     sctx.director = presentation_dir;

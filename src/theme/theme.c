@@ -130,7 +130,8 @@ static void th_common(odm_theme *t) {
     t->hud_show_artist = 0u;
     t->hud_progress_width_q31 = th_q_ratio(9u, 10u);
     t->hud_text_scale_q31 = th_q_ratio(1u, 1u);
-    t->background_intensity_q31 = th_q_ratio(1u, 2u);
+    /* El fondo es fondo: sugiere un espacio, no compite con el nucleo. */
+    t->background_intensity_q31 = th_q_ratio(1u, 8u);
 }
 
 /* VOID: negro absoluto, un solo acento calido. El halo es lo unico vivo. */

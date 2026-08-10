@@ -78,20 +78,28 @@ def config_bytes():
     rgba(b,(65535,65535,65535,65535))
     # field
     for v in (1,7,48,8,2<<16,1<<16,4<<16,1<<16,1<<16,qr(3,4)):u32(b,v)
-    rgba(b,(65535,65535,65535,65535));rgba(b,(32767,32767,32767,65535));u64(b,0x0d130d130d130d13)
+    rgba(b,(65535,65535,65535,65535));rgba(b,(32767,32767,32767,65535))
+    # Las particulas llevan su propio color; la sonda no lo fija, asi que es cero.
+    rgba(b,(0,0,0,0))
+    u64(b,0x0d130d130d130d13)
     # HUD
     for v in (1,15,2<<16,1<<16,qr(3,4),1<<16,1<<16,Q):u32(b,v)
     rgba(b,(65535,65535,65535,65535));rgba(b,(0,0,0,65535))
     title=b'QUIET, NOT EMPTY\0'; artist=b'AFTERIMAGE\0'
     b.extend(title+b'\0'*(96-len(title)));b.extend(artist+b'\0'*(96-len(artist)))
-    for _ in range(4):u32(b,0)
+    # anclaje, estilo de barra y modo de tiempo; luego los cuatro colores propios
+    # del HUD (titulo, autoria, barra y pista) y el reservado.
+    for _ in range(3):u32(b,0)
+    for _ in range(4):rgba(b,(0,0,0,0))
+    u32(b,0)
     if len(b)>CFG_BYTES: raise AssertionError(len(b))
     b.extend(b'\0'*(CFG_BYTES-len(b)))
     return bytes(b)
 
 def policy_bytes():
     b=bytearray(b'ODMLAYR3')
-    vals0=(12,1,1,3,6,6,3,3,48,96,1,8,1,1,1)
+    # v14: paridad de las dos rutas de fondo, radio radial = media diagonal.
+    vals0=(14,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
@@ -99,7 +107,7 @@ def policy_bytes():
               # v12: estilos de fondo (5 con el campo de profundidad), luego el
               # contrato del difuminado ordenado: matriz Bayer 8x8 determinista,
               # 64 celdas, y perfil de profundidad (1-(d/r)^2)^2.
-              5,1,64,2,
+              9,1,64,255,2,
               1,1,1,
               6,3,3,1,1,
               1,26,6,6,1,1,1,16,

@@ -403,8 +403,12 @@ odm_status odm_design_from_theme(const odm_theme *theme, uint32_t aspect,
     d.progress.show_time = theme->hud_show_time ? 1u : 0u;
     d.progress.width_q31 = theme->hud_progress_width_q31;
     d.progress.color = theme->role[ODM_THEME_ROLE_TEXT_SECONDARY];
-    d.progress.track_color = theme->role[ODM_THEME_ROLE_SURFACE];
-    d.progress.track_color.a = UINT16_C(24000);
+    /* La pista sale del mismo rol que el texto, no de la superficie: la
+     * superficie esta pensada para leerse SOBRE el fondo profundo, y a baja
+     * opacidad desaparecia. Una barra cuyo recorrido no se ve no comunica
+     * cuanto queda. */
+    d.progress.track_color = theme->role[ODM_THEME_ROLE_TEXT_SECONDARY];
+    d.progress.track_color.a = UINT16_C(14000);
 
     *out_design = d;
     return ODM_STATUS_OK;
@@ -716,6 +720,31 @@ odm_status odm_design_compile(const odm_design *design,
     c.hud.progress_track_color = design->progress.track_color;
     c.hud.background_color.r = 0u; c.hud.background_color.g = 0u;
     c.hud.background_color.b = 0u; c.hud.background_color.a = 0u;
+
+    /* RUTAS DE REACCION ---------------------------------------------------
+     * Que evidencia musical gobierna que objetivo visual. Se fijan aqui, de
+     * forma explicita, y no en quien llame: un diseno compilado tiene que salir
+     * ya reactivo. Si cada consumidor tuviera que cablearlas, habria tantas
+     * politicas de reaccion como programas, y ninguna seria la del motor. */
+    {
+        static const uint32_t rutas[6][2] = {
+            { ODM_REACTION_TARGET_BACKGROUND_ZOOM,  ODM_REACTION_SOURCE_GRID },
+            { ODM_REACTION_TARGET_BACKGROUND_WARP,  ODM_REACTION_SOURCE_FRACTURE },
+            { ODM_REACTION_TARGET_BACKGROUND_DEPTH, ODM_REACTION_SOURCE_GRID },
+            { ODM_REACTION_TARGET_CORE_SCALE,       ODM_REACTION_SOURCE_CORE_BREATH },
+            { ODM_REACTION_TARGET_FIELD_GAIN,       ODM_REACTION_SOURCE_RADIAL_GAIN },
+            { ODM_REACTION_TARGET_PARTICLE_DENSITY, ODM_REACTION_SOURCE_PARTICLES }
+        };
+        uint32_t k;
+        for (k = 0u; k < 6u; ++k) {
+            uint32_t route = 0u;
+            st = odm_reaction_route_make(rutas[k][1], ODM_REACTION_SOURCE_NONE,
+                                         ODM_REACTION_COMBINE_A_ONLY, &route);
+            if (st != ODM_STATUS_OK) return st;
+            st = odm_layered_config_set_reaction_route(&c, rutas[k][0], route);
+            if (st != ODM_STATUS_OK) return st;
+        }
+    }
 
     st = odm_layered_config_validate(&c);
     if (st != ODM_STATUS_OK) return st;

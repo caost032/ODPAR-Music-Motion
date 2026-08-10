@@ -757,8 +757,8 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, ODM_DIRECTOR_SCHEMA_VERSION));
     LP(odm_wire_write_u32(&w, 6u)); /* layer authorities */
     LP(odm_wire_write_u32(&w, 6u)); /* aspect modes incl custom */
-    LP(odm_wire_write_u32(&w, ODM_BACKGROUND_STYLE_MAX + 1u)); /* background styles */
     LP(odm_wire_write_u32(&w, 1u)); /* la ruta con cache de columnas es byte-identica a la general */
+    LP(odm_wire_write_u32(&w, 2u)); /* radio de los fondos radiales: media diagonal exacta */
     LP(odm_wire_write_u32(&w, 3u)); /* core shapes */
     LP(odm_wire_write_u32(&w, 3u)); /* core fit modes */
     LP(odm_wire_write_u32(&w, ODM_COMPOSITION_RADIAL_SEGMENTS)); /* legacy radial count */
@@ -795,9 +795,10 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
      * degradado oscuro sin difuminar produce bandas visibles a 8 bits, asi que
      * el difuminado forma parte del contrato, no es un detalle de
      * implementacion. */
-    LP(odm_wire_write_u32(&w, 5u)); /* estilos de fondo, incl. campo de profundidad */
+    LP(odm_wire_write_u32(&w, ODM_BACKGROUND_STYLE_MAX + 1u)); /* estilos de fondo */
     LP(odm_wire_write_u32(&w, 1u)); /* difuminado ordenado Bayer 8x8, determinista */
     LP(odm_wire_write_u32(&w, 64u)); /* celdas de la matriz de difuminado */
+    LP(odm_wire_write_u32(&w, 255u)); /* amplitud del difuminado: 1 paso de 8 bits, centrado */
     LP(odm_wire_write_u32(&w, 2u)); /* perfil de profundidad: (1-(d/r)^2)^2 */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective grid uses bounded row-projective integer mapping */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective horizon suppresses sub-two-pixel projected cells */

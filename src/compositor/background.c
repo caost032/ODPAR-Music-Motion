@@ -97,17 +97,42 @@ static const uint8_t bg_bayer8[64] = {
  * estado, el mismo pixel recibe siempre el mismo desplazamiento: no hay ruido
  * temporal ni dependencia del cuadro anterior. */
 static uint32_t bg_dither_q31(uint32_t weight_q31, uint32_t x, uint32_t y) {
-    uint64_t w = (uint64_t)weight_q31 +
-                 (uint64_t)bg_bayer8[((y & 7u) << 3) | (x & 7u)] * UINT64_C(2048);
-    if (w > (uint64_t)INT32_MAX) w = (uint64_t)INT32_MAX;
+    /* La magnitud del difuminado no es libre: tiene que valer exactamente un
+     * paso de cuantizacion de la salida, ni mas ni menos.
+     *
+     * La salida final son 8 bits, asi que un paso vale Q31/255 en el dominio
+     * del peso. La version anterior repartia 2048 por nivel -- unas 64 veces
+     * menos que un paso -- y por eso no rompia nada: los degradados lentos
+     * seguian mostrando anillos concentricos perfectamente visibles. Con menos
+     * de un paso el difuminado es decorativo.
+     *
+     * Ademas se centra en cero. Un desplazamiento solo positivo aclara el
+     * degradado medio paso; centrado, el valor medio se conserva y lo unico que
+     * cambia es donde cae el escalon. */
+    const int64_t step = (int64_t)INT32_MAX / 255;   /* 1 LSB de 8 bits */
+    int64_t b = (int64_t)bg_bayer8[((y & 7u) << 3) | (x & 7u)];
+    int64_t w = (int64_t)weight_q31 + ((2 * b + 1 - 64) * step) / 128;
+    if (w < 0) w = 0;
+    if (w > (int64_t)INT32_MAX) w = (int64_t)INT32_MAX;
     return (uint32_t)w;
 }
 
-/* Radio de referencia comun a los estilos radiales: media de los dos lados.
- * Usar la media y no la diagonal hace que 9:16 y 16:9 produzcan la misma
- * sensacion espacial en lugar de una elipse estirada. */
+/* Radio de referencia comun a todos los estilos radiales del fondo. */
 static int64_t bg_reference_radius_q16(const odm_layered_frame_plan *plan) {
-    return ((int64_t)plan->width + (int64_t)plan->height) << 15;
+    /* Media diagonal exacta: el perfil llega a cero justo en las esquinas.
+     *
+     * La eleccion importa mas de lo que parece. Con un radio mayor que la
+     * diagonal el perfil no decae dentro del cuadro y el campo de profundidad
+     * pinta su color casi plano de borde a borde -- deja de ser profundidad y
+     * se convierte en un lavado que se come el negro. Con un radio menor, el
+     * perfil se anula dentro del encuadre y el ojo detecta el circulo donde
+     * termina, porque a partir de ahi el fondo es exactamente plano.
+     *
+     * Inscribiendolo en la diagonal ocurre lo unico que se lee como espacio:
+     * hay gradiente en todo el cuadro y no hay ningun borde. La raiz es entera
+     * y exacta, la misma que usa la mascara del nucleo. */
+    uint64_t w = (uint64_t)plan->width, h = (uint64_t)plan->height;
+    return (int64_t)(odm_layered_isqrt_u64((w * w + h * h) << 32) / 2u);
 }
 
 static uint32_t bg_scale_q31(uint32_t a_q31, uint32_t b_q31) {
@@ -306,7 +331,7 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
                         (uint32_t)INT32_MAX, config->background.opacity_q31);
     if (config->background.style == ODM_BACKGROUND_DEPTH_FIELD) {
         int64_t cx = plan->center_x_q16, cy2 = plan->center_y_q16;
-        int64_t radius = ((int64_t)plan->width + (int64_t)plan->height) << 15; /* media * 2^16 */
+        int64_t radius = bg_reference_radius_q16(plan);
         for (y = y_begin; y < y_end; ++y) {
             uint32_t x;
             for (x = 0u; x < plan->width; ++x) {
@@ -315,14 +340,9 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
                 int64_t dy = (((int64_t)y << 16) + 32768) - cy2;
                 uint32_t wgt = bg_depth_weight(dx, dy, radius);
                 if (wgt != 0u) {
-                    /* El difuminado desplaza el peso menos de un paso de
-                     * cuantizacion antes de mezclar, que es exactamente donde
-                     * aparecen las bandas. */
-                    uint32_t dith = bg_bayer8[((y & 7u) << 3) | (x & 7u)];
-                    uint64_t w = (uint64_t)wgt + (uint64_t)dith * UINT64_C(2048);
-                    if (w > (uint64_t)INT32_MAX) w = (uint64_t)INT32_MAX;
                     odm_layered_blend16(&out, &config->background.grid_color,
-                                        (uint32_t)w, config->background.opacity_q31);
+                                        bg_dither_q31(wgt, x, y),
+                                        config->background.opacity_q31);
                 }
                 frame[(uint64_t)y * plan->width + x] = out;
             }
