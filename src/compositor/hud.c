@@ -344,14 +344,18 @@ void odm_layered_hud_render(const odm_layered_config*c,const odm_layered_frame_p
                             odm_layered_pixel16*frame){
     const odm_hud_config*h=&c->hud;int64_t margin=h->margin_q16,scale=h->text_scale_q16;
     int64_t safe_l=p->safe_left_q16,safe_t=p->safe_top_q16,safe_r=p->safe_right_q16,safe_b=p->safe_bottom_q16;
-    int64_t progress_h=(int64_t)h->progress_height_q16;
+    layer_hud_metrics m;
+    int64_t progress_h;
     int64_t bottom_reserved=0;
     if(!frame||h->flags==0u||h->opacity_q31==0u)return;
+    /* Las medidas las decide la resolucion del plan, no el rasterizador: es la
+     * misma banda que el campo evita, y una sola fuente no puede discrepar. */
+    odm_layered_hud_metrics(c,&m);
+    progress_h=m.progress_h_q16;
     if((h->flags&ODM_HUD_PROGRESS_BAR)!=0u){
         int64_t full=safe_r-safe_l;
         int64_t bw=(full*(int64_t)h->progress_width_q31+INT32_MAX/2)/INT32_MAX;
         int64_t l=safe_l+(full-bw)/2,r=l+bw,b=safe_b-margin,t,fill;
-        if(h->progress_style==ODM_HUD_PROGRESS_HAIRLINE&&progress_h>INT64_C(65536))progress_h=INT64_C(65536);
         t=b-progress_h;fill=l+(bw*(int64_t)p->progress_q31+INT32_MAX/2)/INT32_MAX;
         if(h->progress_style==ODM_HUD_PROGRESS_CAPSULE){
             draw_round_rect(frame,p->width,p->height,l,t,r,b,&h->progress_track_color,h->opacity_q31);
@@ -360,7 +364,7 @@ void odm_layered_hud_render(const odm_layered_config*c,const odm_layered_frame_p
             draw_rect(frame,p->width,p->height,l,t,r,b,&h->progress_track_color,h->opacity_q31);
             draw_rect(frame,p->width,p->height,l,t,fill,b,&h->progress_color,h->opacity_q31);
         }
-        bottom_reserved+=progress_h+h->line_gap_q16;
+        bottom_reserved+=m.progress_block;
     }
     if((h->flags&ODM_HUD_TIME_CODE)!=0u){
         char txt[68];int64_t y,x,tw;
@@ -368,7 +372,7 @@ void odm_layered_hud_render(const odm_layered_config*c,const odm_layered_frame_p
         y=safe_b-margin-bottom_reserved-7*scale;
         x=safe_r-margin-tw;
         draw_vector_time(frame,p->width,p->height,x,y,scale,txt,&h->foreground_color,h->opacity_q31);
-        bottom_reserved+=7*scale+h->line_gap_q16;
+        bottom_reserved+=m.time_block;
     }
     if(((h->flags&ODM_HUD_TITLE)!=0u&&h->title[0]!='\0')||
        ((h->flags&ODM_HUD_ARTIST)!=0u&&h->artist[0]!='\0')){

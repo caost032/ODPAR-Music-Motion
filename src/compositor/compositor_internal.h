@@ -233,6 +233,23 @@ odm_status odm_layered_render_frame_stream_stage_unhashed_pool(
  * Normative definition: docs/RADIAL_MORPHOLOGY_V2.md section 4. Shared by the
  * policy encoder (layout.c) and the field rasterizer (field.c) so the two
  * cannot drift apart again. */
+/* MEDIDAS DEL HUD, DECIDIDAS UNA SOLA VEZ.
+ *
+ * El HUD ocupa una banda por abajo, y el campo necesita saber cuanta para no
+ * dibujar encima. Si cada uno la calculara por su cuenta, cualquier retoque en
+ * uno dejaria al otro pintando sobre el texto -- que es exactamente el fallo
+ * que se ve como descuido aunque la reaccion sea exacta. Se decide aqui, en la
+ * capa que resuelve geometria, y tanto el HUD como el campo la consumen. */
+typedef struct {
+    int64_t progress_h_q16;   /* alto efectivo de la barra, ya recortado     */
+    int64_t progress_block;   /* barra + separacion, 0 si no hay barra       */
+    int64_t time_block;       /* codigo de tiempo + separacion               */
+    int64_t meta_block;       /* titulo y autoria, 0 si no van abajo         */
+    int64_t total;            /* margen incluido: banda reservada por abajo  */
+} layer_hud_metrics;
+
+void odm_layered_hud_metrics(const odm_layered_config *c, layer_hud_metrics *out);
+
 #define LAYER_RADIAL_AUTHORITY_FLOOR UINT32_C(322122547)  /* 0.15 */
 #define LAYER_RADIAL_TAIL_WEIGHT     UINT32_C(1395864371) /* 0.65 */
 

@@ -126,6 +126,8 @@ def default1080_void_config_bytes():
     # acento de las agujas, de modo que separar la categoria no cambia lo que
     # ya se dibujaba; el perfil de estilo lo materializa con el mismo valor.
     rgba(b,d['field1'])
+    # Composicion del campo: corona.
+    u32(b,0)
     # Forma de barra y profundidad de particula: la configuracion por omision
     # es trazo simple y campo plano.
     u32(b,0);u32(b,0)

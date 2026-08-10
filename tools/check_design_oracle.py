@@ -115,11 +115,12 @@ int main(void) {
         if (odm_template_load(t, 0u, &d) != ODM_STATUS_OK) return 10;
         st1 = odm_design_validate(&d, &rep);
         st2 = odm_design_compile(&d, 720u, 720u, 30, 3u, &cfg);
-        printf("T,%u,%d,%d,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", t, (int)st1, (int)st2,
+        printf("T,%u,%d,%d,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", t, (int)st1, (int)st2,
                rep.title_contrast, rep.artist_contrast, rep.field_contrast,
                cfg.background.style, cfg.field.flags,
                cfg.field.bar_shape, d.field.grammar,
-               d.particles.enabled, d.particles.shape, d.particles.nature);
+               d.particles.enabled, d.particles.shape, d.particles.nature,
+               cfg.field.layout);
     }
 
     /* La puerta de contraste, observada en el MOTOR: titulo del color del
@@ -218,6 +219,8 @@ RANGOS = {
     'fondo.reactividad':        (0, (1, 1), (1, 8)),
     'nucleo.forma':             (0, 2, 0),
     'nucleo.encuadre':          (0, 2, 0),
+    'nucleo.posicion_x':        ((1, 10), (9, 10), (1, 2)),
+    'nucleo.posicion_y':        ((1, 10), (9, 10), (1, 2)),
     'nucleo.tamano':            ((1, 10), (4, 5), (38, 100)),
     'nucleo.esquina':           (0, (1, 2), (1, 6)),
     'nucleo.borde':             (0, (1, 50), (1, 720)),
@@ -225,6 +228,7 @@ RANGOS = {
     'nucleo.reactividad':       (0, (1, 1), (3, 5)),
     'nucleo.intensidad':        (0, (1, 1), (2, 5)),
     'campo.gramatica':          (0, 4, 0),
+    'campo.composicion':        (0, 4, 0),
     'campo.longitud':           ((1, 40), (1, 3), (1, 7)),
     'campo.grosor':             ((1, 4000), (1, 25), (1, 150)),
     'campo.forma':              (0, 3, 1),
@@ -427,6 +431,13 @@ def main() -> int:
     if faltan_nat:
         raise SystemExit(f'naturalezas que ninguna plantilla usa: {sorted(faltan_nat)}')
 
+    # La composicion tambien es catalogo: si una composicion no aparece en
+    # ninguna plantilla, nadie la descubre sin leer el codigo.
+    composiciones = {int(f[14]) for f in plantillas}
+    faltan_comp = set(range(_opciones('campo.composicion'))) - composiciones
+    if faltan_comp:
+        raise SystemExit(f'composiciones que ninguna plantilla usa: {sorted(faltan_comp)}')
+
     # Una plantilla con particulas y sin caudal seria un campo de piedras: se
     # moverian solo cuando el nucleo las golpea y el resto del tiempo estarian
     # clavadas. Es justo el fallo que la simulacion existe para no cometer.
@@ -438,6 +449,7 @@ def main() -> int:
           f'{aislados} controles aislados, {len(plantillas)} plantillas, '
           f'{len(estilos)}/{_opciones("fondo.estilo")} fondos y '
           f'{len(formas)}/{_opciones("campo.forma")} formas cubiertos por plantilla, '
+          f'{len(composiciones)}/{_opciones("campo.composicion")} composiciones, '
           f'{len(disenos)}/{_opciones("particulas.diseno")} disenos y '
           f'{len(naturalezas)}/{_opciones("particulas.naturaleza")} naturalezas de particula, '
           f'puerta de contraste cerrada')

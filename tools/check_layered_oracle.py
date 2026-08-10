@@ -26,6 +26,13 @@ static void cfg(odm_layered_config*c){
  c->background.schema_version=1;c->background.style=ODM_BACKGROUND_GRID;c->background.solid_color.a=65535;c->background.grid_color.r=65535;c->background.grid_color.g=65535;c->background.grid_color.b=65535;c->background.grid_color.a=65535;c->background.grid_spacing_q16=8u<<16;c->background.grid_line_q16=1u<<16;c->background.grid_feather_q16=1u<<16;c->background.zoom_reactivity_q31=qr(1,4);c->background.warp_reactivity_q31=qr(1,8);c->background.depth_reactivity_q31=qr(1,8);c->background.opacity_q31=INT32_MAX;
  c->core.schema_version=1;c->core.shape=ODM_CORE_SHAPE_CIRCLE;c->core.fit=ODM_CORE_FIT_COVER;c->core.center_x_q31=qr(1,2);c->core.center_y_q31=qr(1,2);c->core.width_q31=qr(1,2);c->core.height_q31=qr(1,2);c->core.corner_radius_q31=qr(1,8);c->core.border_q16=1u<<16;c->core.feather_q16=1u<<16;c->core.scale_reactivity_q31=qr(1,16);c->core.opacity_q31=INT32_MAX;c->core.border_color.r=65535;c->core.border_color.g=65535;c->core.border_color.b=65535;c->core.border_color.a=65535;
  c->field.schema_version=1;c->field.flags=ODM_FIELD_RADIAL_BARS|ODM_FIELD_PARTICLES|ODM_FIELD_ORBIT_RING;c->field.radial_segments=48;c->field.particle_count=8;c->field.ring_gap_q16=2u<<16;c->field.bar_min_q16=1u<<16;c->field.bar_max_q16=4u<<16;c->field.bar_width_q16=1u<<16;c->field.particle_radius_q16=1u<<16;c->field.field_opacity_q31=qr(3,4);c->field.primary_color.r=65535;c->field.primary_color.g=65535;c->field.primary_color.b=65535;c->field.primary_color.a=65535;c->field.secondary_color.r=32767;c->field.secondary_color.g=32767;c->field.secondary_color.b=32767;c->field.secondary_color.a=65535;c->field.seed=UINT64_C(0x0d130d130d130d13);
+ /* Valores DISTINTOS en cada campo nuevo: con todo a cero, este vector no
+  * podria distinguir un orden de escritura equivocado de uno correcto. */
+ c->field.bar_shape=ODM_FIELD_BAR_WEDGE;c->field.particle_depth_q31=qr(3,4);
+ c->field.layout=ODM_FIELD_LAYOUT_WAVE;c->field.particle_shape=ODM_FIELD_PARTICLE_LEAF;
+ c->field.particle_nature=ODM_PARTICLE_NATURE_SWIRL;c->field.particle_flow_q31=qr(1,5);
+ c->field.particle_drag_q31=qr(7,10);c->field.particle_impulse_q31=qr(1,2);
+ c->field.particle_flutter_q31=qr(2,5);
  c->hud.schema_version=1;c->hud.flags=ODM_HUD_PROGRESS_BAR|ODM_HUD_TIME_CODE|ODM_HUD_TITLE|ODM_HUD_ARTIST;c->hud.margin_q16=2u<<16;c->hud.progress_height_q16=1u<<16;c->hud.progress_width_q31=qr(3,4);c->hud.text_scale_q16=1u<<16;c->hud.line_gap_q16=1u<<16;c->hud.opacity_q31=INT32_MAX;c->hud.foreground_color.r=65535;c->hud.foreground_color.g=65535;c->hud.foreground_color.b=65535;c->hud.foreground_color.a=65535;c->hud.background_color.a=65535;memcpy(c->hud.title,"QUIET, NOT EMPTY",17);memcpy(c->hud.artist,"AFTERIMAGE",11);
 }
 static void states(odm_composition_frame_state*c,odm_director_frame_state*d){uint32_t i;memset(c,0,sizeof(*c));memset(d,0,sizeof(*d));c->schema_version=1;c->mode=2;c->tick_index=50;c->center_sample=24000;c->phase=UINT32_C(0x12345678);c->ring_phase=UINT32_C(0x34567890);c->core_breath_q31=qr(1,3);c->grid_q31=qr(1,2);c->particles_q31=qr(1,2);c->radial_gain_q31=qr(3,4);c->fracture_q31=qr(1,5);for(i=0;i<48;i++)c->radial_q31[i]=(uint32_t)(((uint64_t)INT32_MAX*(i+1u))/48u);d->schema_version=3;d->tick_index=50;d->layout=1;d->depth_q31=qr(2,5);d->edge_activity_q31=qr(1,4);d->orbit_phase=UINT32_C(0x10203040);}
@@ -83,14 +90,14 @@ def config_bytes():
     rgba(b,(65535,65535,65535,65535));rgba(b,(32767,32767,32767,65535))
     # Las particulas llevan su propio color; la sonda no lo fija, asi que es cero.
     rgba(b,(0,0,0,0))
-    # forma de la barra y profundidad de particula: la sonda no las fija
-    u32(b,0)
-    u32(b,0)
+    # Forma de la barra (cuna) y profundidad de particula.
+    u32(b,2)
+    u32(b,qr(3,4))
+    # Composicion del campo: onda.
+    u32(b,3)
     # Gobierno del aire simulado, en el orden que fija la especificacion:
-    # dibujo, naturaleza, caudal, rozamiento, impulso y aleteo. La sonda no los
-    # fija, asi que valen cero -- y cero significa exactamente el campo estatico
-    # de siempre, que es lo que este vector comprueba.
-    for _ in range(6):u32(b,0)
+    # dibujo (hoja), naturaleza (remolino), caudal, rozamiento, impulso, aleteo.
+    for v in (2,5,qr(1,5),qr(7,10),qr(1,2),qr(2,5)):u32(b,v)
     u64(b,0x0d130d130d130d13)
     # HUD
     for v in (1,15,2<<16,1<<16,qr(3,4),1<<16,1<<16,Q):u32(b,v)
@@ -111,7 +118,7 @@ def policy_bytes():
     # v14: paridad de las dos rutas de fondo, radio radial = media diagonal.
     # v15: difuminado ordenado declarado en la configuracion.
     # v19: campo de particulas simulado, con dibujo y naturaleza separados.
-    vals0=(19,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
+    vals0=(20,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
@@ -138,7 +145,10 @@ def policy_bytes():
               # naturalezas (6), techo de la simulacion (256), la posicion
               # simulada como autoridad del plan, la orientacion tomada de la
               # velocidad y la rejilla de integracion de 100 Hz.
-              8,5,6,256,1,1,100):u32(b,v)
+              8,5,6,256,1,1,100,
+              # v20: catalogo de composiciones, autoridad por sector separada
+              # de la geometria, y filas del ecualizador de celdas.
+              5,1,12):u32(b,v)
     if len(b)>POLICY_BYTES:raise AssertionError(len(b))
     b.extend(b'\0'*(POLICY_BYTES-len(b)))
     return bytes(b)

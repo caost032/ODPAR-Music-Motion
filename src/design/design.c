@@ -94,6 +94,9 @@ static const char *const dz_opt_anchor[]     = {
     "Arriba izquierda", "Arriba centro", "Arriba derecha",
     "Abajo izquierda", "Abajo centro", "Abajo derecha"
 };
+static const char *const dz_opt_layout[]     = {
+    "Corona", "Linea", "Espejo", "Onda", "Ecualizador"
+};
 static const char *const dz_opt_particle[]   = { "Polvo", "Plumas", "Hojas", "Chispas", "Copos" };
 static const char *const dz_opt_nature[]     = {
     "Suspendidas", "Viento a la derecha", "Viento a la izquierda",
@@ -141,6 +144,10 @@ static const dz_control dz_table[] = {
     /* NUCLEO */
     DZ_ENUM(20u, ODM_DESIGN_CAT_CORE, "nucleo.forma", "Forma",
             core.shape, 3u, 0u, dz_opt_core_shape),
+    DZ_SCALAR(2010u, ODM_DESIGN_CAT_CORE, "nucleo.posicion_x", "Posicion horizontal",
+              core.pos_x_q31, R(1u,10u), R(9u,10u), R(1u,2u)),
+    DZ_SCALAR(2011u, ODM_DESIGN_CAT_CORE, "nucleo.posicion_y", "Posicion vertical",
+              core.pos_y_q31, R(1u,10u), R(9u,10u), R(1u,2u)),
     DZ_ENUM(21u, ODM_DESIGN_CAT_CORE, "nucleo.encuadre", "Encuadre del medio",
             core.fit, 3u, 0u, dz_opt_core_fit),
     DZ_SCALAR(22u, ODM_DESIGN_CAT_CORE, "nucleo.tamano", "Tamano",
@@ -161,6 +168,8 @@ static const dz_control dz_table[] = {
     /* CAMPO */
     DZ_ENUM(30u, ODM_DESIGN_CAT_FIELD, "campo.gramatica", "Composicion del halo",
             field.grammar, 5u, 0u, dz_opt_field),
+    DZ_ENUM(3012u, ODM_DESIGN_CAT_FIELD, "campo.composicion", "Composicion",
+            field.layout, 5u, 0u, dz_opt_layout),
     DZ_ENUM(37u, ODM_DESIGN_CAT_FIELD, "campo.forma", "Forma de la barra",
             field.shape, 4u, 1u, dz_opt_bar),
     DZ_SCALAR(31u, ODM_DESIGN_CAT_FIELD, "campo.longitud", "Alcance",
@@ -418,6 +427,8 @@ odm_status odm_design_from_theme(const odm_theme *theme, uint32_t aspect,
             d.core.shape = 2u; d.core.corner_q31 = 0u; break;
         default: return ODM_STATUS_INVALID_DATA;
     }
+    d.core.pos_x_q31 = dz_ratio(1u, 2u);
+    d.core.pos_y_q31 = dz_ratio(1u, 2u);
     d.core.size_q31 = theme->core_size_q31;
     d.core.border_q31 = theme->core_border_q31;
     d.core.border_color = theme->role[ODM_THEME_ROLE_SURFACE];
@@ -493,57 +504,70 @@ typedef struct {
      * opcion que nadie ensena es una opcion que nadie descubre. */
     uint32_t particle_shape;   /* ODM_FIELD_PARTICLE_*                       */
     uint32_t particle_nature;  /* ODM_PARTICLE_NATURE_*                      */
+    uint32_t field_layout;     /* ODM_FIELD_LAYOUT_*                         */
 } dz_template;
 
 static const dz_template dz_templates[] = {
     { "Estudio", "Campo de profundidad, filamentos y linea fina. El punto de partida neutro.",
       0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
       ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_RADIAL },
     { "Concierto", "Corona densa sobre brasa, con particulas y barra en capsula.",
       3u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_CORONA, 0u, 1u, 1u,
       ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE,
-      ODM_FIELD_PARTICLE_SPARK, ODM_PARTICLE_NATURE_RISE },
+      ODM_FIELD_PARTICLE_SPARK, ODM_PARTICLE_NATURE_RISE,
+      ODM_FIELD_LAYOUT_RADIAL },
     { "Arquitectura", "Rejilla en fuga y barras separadas. Estructura visible.",
       2u, ODM_BACKGROUND_PERSPECTIVE_GRID, ODM_DESIGN_FIELD_BARS, 2u, 0u, 1u,
       ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_LINE,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_GRID },
     { "Minimo", "Sin fondo y sin halo. Solo el nucleo y el tiempo.",
       1u, ODM_BACKGROUND_NONE, ODM_DESIGN_FIELD_NONE, 2u, 0u, 0u,
       ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_LINEAR },
     { "Editorial", "Fondo claro, anillos concentricos y tipografia presente.",
       4u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
       ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_CAPSULE,
-      ODM_FIELD_PARTICLE_FEATHER, ODM_PARTICLE_NATURE_WIND_RIGHT },
+      ODM_FIELD_PARTICLE_FEATHER, ODM_PARTICLE_NATURE_WIND_RIGHT,
+      ODM_FIELD_LAYOUT_WAVE },
     { "Horizonte", "Horizonte y anillo orbital. Composicion con suelo.",
       0u, ODM_BACKGROUND_HORIZON, ODM_DESIGN_FIELD_RING, 0u, 1u, 1u,
       ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE,
-      ODM_FIELD_PARTICLE_LEAF, ODM_PARTICLE_NATURE_FALL },
+      ODM_FIELD_PARTICLE_LEAF, ODM_PARTICLE_NATURE_FALL,
+      ODM_FIELD_LAYOUT_RADIAL },
     { "Trama", "Matriz de puntos y barras. Textura sin peso.",
       1u, ODM_BACKGROUND_DOT_MATRIX, ODM_DESIGN_FIELD_BARS, 1u, 0u, 1u,
       ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_DOTS,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_GRID },
     { "Degradado", "Degradado difuminado y filamentos largos.",
       2u, ODM_BACKGROUND_GRADIENT, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
       ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_SWIRL },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_SWIRL,
+      ODM_FIELD_LAYOUT_RADIAL },
     { "Rejilla", "Rejilla plana que respira con la musica. Escenario con suelo.",
       1u, ODM_BACKGROUND_GRID, ODM_DESIGN_FIELD_BARS, 2u, 0u, 1u,
       ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_DOTS,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_LINEAR },
     { "Plano", "Un solo plano de color. Todo el peso en el nucleo y el halo.",
       4u, ODM_BACKGROUND_SOLID, ODM_DESIGN_FIELD_CORONA, 0u, 0u, 1u,
       ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT },
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_MIRROR },
     { "Cuadrante", "Corona simetrica en los dos ejes sobre campo de profundidad.",
       0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_CORONA, 1u, 1u, 1u,
       ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_CAPSULE,
-      ODM_FIELD_PARTICLE_SNOW, ODM_PARTICLE_NATURE_WIND_LEFT },
+      ODM_FIELD_PARTICLE_SNOW, ODM_PARTICLE_NATURE_WIND_LEFT,
+      ODM_FIELD_LAYOUT_RADIAL },
     { "Cuna", "Agujas afiladas sobre anillos concentricos.",
       3u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
       ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_WEDGE,
-      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT }
+      ODM_FIELD_PARTICLE_DUST, ODM_PARTICLE_NATURE_FLOAT,
+      ODM_FIELD_LAYOUT_MIRROR }
 };
 
 uint32_t odm_template_count(void) {
@@ -579,6 +603,11 @@ odm_status odm_template_load(uint32_t index, uint32_t aspect, odm_design *out_de
 
     d.background.style = t->background;
     d.field.grammar = t->grammar;
+    d.field.layout = t->field_layout;
+    /* Una composicion recta necesita sitio debajo del nucleo. Se decide aqui,
+     * en la plantilla, y no en el rasterizador: donde vive el nucleo es una
+     * decision de diseno, y sigue siendo editable como cualquier otra. */
+    if (t->field_layout != ODM_FIELD_LAYOUT_RADIAL) d.core.pos_y_q31 = dz_ratio(3u, 10u);
     d.core.shape = t->core_shape;
     if (t->core_shape == 2u && d.core.corner_q31 == 0u) d.core.corner_q31 = dz_ratio(1u, 8u);
     if (t->core_shape != 2u) d.core.corner_q31 = 0u;
@@ -780,6 +809,8 @@ odm_status odm_design_compile(const odm_design *design,
     c.core.scale_reactivity_q31 =
         dz_mul(design->core.reactivity_q31, design->motion.sensitivity_q31);
     c.core.gain_reactivity_q31 =
+    c.core.center_x_q31 = design->core.pos_x_q31;
+    c.core.center_y_q31 = design->core.pos_y_q31;
         dz_mul(design->core.gain_q31, design->motion.sensitivity_q31);
 
     /* CAMPO -------------------------------------------------------------- */
@@ -802,6 +833,7 @@ odm_status odm_design_compile(const odm_design *design,
     c.field.primary_color = dz_lin(&design->field.accent);
     c.field.secondary_color = dz_lin(&design->field.color);
     c.field.bar_shape = design->field.shape;
+    c.field.layout = design->field.layout;
     c.field.seed = seed;
 
     /* PARTICULAS --------------------------------------------------------- */

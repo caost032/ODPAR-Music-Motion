@@ -158,6 +158,7 @@ odm_status odm_layered_config_init_default(odm_layered_config *out_config,
      * cambia lo que se puede controlar, no lo que se dibuja por omision. */
     c.field.particle_color = c.field.primary_color;
     c.field.bar_shape = ODM_FIELD_BAR_LINE;
+    c.field.layout = ODM_FIELD_LAYOUT_RADIAL;
     c.field.particle_depth_q31 = 0u;
     /* El gobierno de la simulacion arranca en cero y sin la bandera: una
      * configuracion por omision se dibuja EXACTAMENTE como antes. Encender el
@@ -308,6 +309,7 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         !rgba_valid(&c->field.primary_color) || !rgba_valid(&c->field.secondary_color) ||
         !rgba_valid(&c->field.particle_color) ||
         c->field.bar_shape > ODM_FIELD_BAR_SHAPE_MAX ||
+        c->field.layout > ODM_FIELD_LAYOUT_MAX ||
         !q31u(c->field.particle_depth_q31) ||
         c->field.particle_shape > ODM_FIELD_PARTICLE_SHAPE_MAX ||
         c->field.particle_nature >= ODM_PARTICLE_NATURE_COUNT ||
@@ -490,6 +492,13 @@ odm_status odm_layered_resolve_frame_plan(const odm_layered_config *c,
                               * autoridad de la aguja es su medida o la
                               * descomposicion de Music-Reaction. */
                              ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT);
+    {   /* La banda que el HUD ocupa por abajo viaja en el plan: el campo la
+         * consume en vez de deducirla, que es como se evita que un retoque del
+         * HUD deje las barras pintando sobre el titulo. */
+        layer_hud_metrics m;
+        odm_layered_hud_metrics(c, &m);
+        p.hud_reserved_q16 = m.total > INT32_MAX ? INT32_MAX : (int32_t)m.total;
+    }
     p.core_opacity_q31 = c->core.opacity_q31;
     {
         /* Ganancia efectiva del cuadro. Sale del MISMO aliento que gobierna la
@@ -574,6 +583,35 @@ odm_status odm_layered_resolve_frame_plan(const odm_layered_config *c,
     if (st != ODM_STATUS_OK) return st;
     *out = p;
     return ODM_STATUS_OK;
+}
+
+void odm_layered_hud_metrics(const odm_layered_config *c, layer_hud_metrics *out) {
+    const odm_hud_config *h;
+    int64_t scale, progress_h;
+    if (!c || !out) return;
+    memset(out, 0, sizeof(*out));
+    h = &c->hud;
+    if (h->flags == 0u || h->opacity_q31 == 0u) return;
+    scale = (int64_t)h->text_scale_q16;
+    progress_h = (int64_t)h->progress_height_q16;
+    if (h->progress_style == ODM_HUD_PROGRESS_HAIRLINE && progress_h > INT64_C(65536))
+        progress_h = INT64_C(65536);
+    out->progress_h_q16 = progress_h;
+    if ((h->flags & ODM_HUD_PROGRESS_BAR) != 0u)
+        out->progress_block = progress_h + (int64_t)h->line_gap_q16;
+    if ((h->flags & ODM_HUD_TIME_CODE) != 0u)
+        out->time_block = 7 * scale + (int64_t)h->line_gap_q16;
+    {
+        int have_title = ((h->flags & ODM_HUD_TITLE) != 0u && h->title[0] != '\0');
+        int have_artist = ((h->flags & ODM_HUD_ARTIST) != 0u && h->artist[0] != '\0');
+        if ((have_title || have_artist) &&
+            h->metadata_anchor >= ODM_HUD_ANCHOR_BOTTOM_LEFT)
+            out->meta_block = (have_title ? 7 * scale : 0) +
+                              (have_title && have_artist ? (int64_t)h->line_gap_q16 : 0) +
+                              (have_artist ? 7 * scale : 0);
+    }
+    out->total = (int64_t)h->margin_q16 + out->progress_block + out->time_block +
+                 out->meta_block;
 }
 
 odm_status odm_layered_frame_plan_set_particles(odm_layered_frame_plan *plan,
@@ -779,6 +817,7 @@ static odm_status layer_config_encode(const odm_layered_config *c, uint8_t *buff
     LC(odm_wire_write_u32(&w,c->field.field_opacity_q31)); LC(write_rgba16(&w,&c->field.primary_color)); LC(write_rgba16(&w,&c->field.secondary_color));
     LC(write_rgba16(&w,&c->field.particle_color)); LC(odm_wire_write_u32(&w,c->field.bar_shape));
     LC(odm_wire_write_u32(&w,c->field.particle_depth_q31));
+    LC(odm_wire_write_u32(&w,c->field.layout));
     LC(odm_wire_write_u32(&w,c->field.particle_shape));
     LC(odm_wire_write_u32(&w,c->field.particle_nature));
     LC(odm_wire_write_u32(&w,c->field.particle_flow_q31));
@@ -948,6 +987,14 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, 1u)); /* la posicion simulada es autoridad del plan, no del raster */
     LP(odm_wire_write_u32(&w, 1u)); /* la forma se orienta por la velocidad, no por el reloj */
     LP(odm_wire_write_u32(&w, 100u)); /* la simulacion integra en la rejilla de 100 Hz */
+    /* v20: la composicion del campo se separa de su reaccion. La autoridad por
+     * sector -- cuerpo, cola, punta, color y opacidad -- se decide UNA vez y
+     * sin geometria; cada composicion solo elige de donde sale el sector y
+     * hacia donde crece. Por eso anadir composiciones no puede cambiar lo que
+     * la musica significa. */
+    LP(odm_wire_write_u32(&w, ODM_FIELD_LAYOUT_MAX + 1u)); /* composiciones del campo */
+    LP(odm_wire_write_u32(&w, 1u));  /* la autoridad por sector es independiente de la geometria */
+    LP(odm_wire_write_u32(&w, 12u)); /* filas del ecualizador de celdas */
 #undef LP
     return odm_wire_writer_finish(&w, req);
 }

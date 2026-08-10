@@ -109,6 +109,9 @@ odm_status odm_supersample_scale(const odm_layered_config *config,
     SS_I32(safe_top_q16);
     SS_I32(safe_right_q16);
     SS_I32(safe_bottom_q16);
+    /* La banda del HUD es una distancia en pixeles: si no escalara, el campo
+     * invadiria el texto justo en el raster fino y no en el de entrega. */
+    SS_I32(hud_reserved_q16);
     /* grid_warp_q16 y grid_depth_q16 son factores de deformacion, no
      * distancias: escalarlos deformaria la escena, no la afinaria. */
 

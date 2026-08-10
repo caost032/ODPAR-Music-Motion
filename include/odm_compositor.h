@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(19)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(20)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -82,6 +82,19 @@ extern "C" {
 #define ODM_FIELD_PARTICLE_SPARK   UINT32_C(3)  /* estela: se alarga al correr  */
 #define ODM_FIELD_PARTICLE_SNOW    UINT32_C(4)  /* copo: cruz de seis brazos    */
 #define ODM_FIELD_PARTICLE_SHAPE_MAX ODM_FIELD_PARTICLE_SNOW
+
+/* COMPOSICION DEL CAMPO.
+ *
+ * Es el eje que decide COMO ocupa el espectro el cuadro. No toca ni una sola
+ * decision de lo que la musica vale: todas las composiciones leen el mismo
+ * radial ya resuelto y la misma autoridad por sector. Cambiar de composicion
+ * cambia el cuadro; la cancion se lee igual. */
+#define ODM_FIELD_LAYOUT_RADIAL UINT32_C(0)  /* corona alrededor del nucleo   */
+#define ODM_FIELD_LAYOUT_LINEAR UINT32_C(1)  /* linea de barras, hacia arriba */
+#define ODM_FIELD_LAYOUT_MIRROR UINT32_C(2)  /* linea simetrica en el eje     */
+#define ODM_FIELD_LAYOUT_WAVE   UINT32_C(3)  /* onda continua del espectro    */
+#define ODM_FIELD_LAYOUT_GRID   UINT32_C(4)  /* ecualizador de celdas         */
+#define ODM_FIELD_LAYOUT_MAX    ODM_FIELD_LAYOUT_GRID
 
 #define ODM_FIELD_RADIAL_BARS UINT32_C(1)
 #define ODM_FIELD_PARTICLES   UINT32_C(2)
@@ -333,6 +346,8 @@ typedef struct {
      * tras el nucleo cuando caen dentro de su silueta: sin esa oclusion el
      * campo seria una textura plana con tamanos distintos, no profundidad. */
     uint32_t particle_depth_q31;
+    /* Composicion del campo (ODM_FIELD_LAYOUT_*). */
+    uint32_t layout;
     /* Dibujo de la particula (ODM_FIELD_PARTICLE_*). */
     uint32_t particle_shape;
     /* Gobierno de la simulacion. Solo significan algo con PARTICLE_SIM. La
@@ -447,6 +462,9 @@ typedef struct {
      * Viven en el plan y no en el rasterizador a proposito: el plan es la unica
      * autoridad sobre lo que un cuadro vale, y una simulacion que se re-derivara
      * dentro del raster dependeria de cuando se dibuja, no de la musica. */
+    /* Banda que el HUD reserva por abajo, en Q16.16 pixeles. Decidida en la
+     * resolucion del plan y consumida por el HUD y por el campo. */
+    int32_t hud_reserved_q16;
     uint32_t particle_sim;
     int32_t particle_x_q16[ODM_PARTICLES_MAX];
     int32_t particle_y_q16[ODM_PARTICLES_MAX];

@@ -55,7 +55,7 @@
  * que es como se escribe un color y como WCAG mide el contraste. La compilacion
  * los lleva a luz lineal, que es donde compone el rasterizador. */
 #define ODM_DESIGN_SCHEMA_VERSION UINT32_C(1)
-#define ODM_DESIGN_POLICY_VERSION UINT32_C(3)
+#define ODM_DESIGN_POLICY_VERSION UINT32_C(4)
 #define ODM_DESIGN_NAME_BYTES     UINT32_C(48)
 #define ODM_DESIGN_KEY_BYTES      UINT32_C(32)
 #define ODM_DESIGN_LABEL_BYTES    UINT32_C(40)
@@ -113,6 +113,12 @@ typedef struct {
 typedef struct {
     uint32_t shape;            /* ODM_CORE_SHAPE_*                           */
     uint32_t fit;              /* ODM_CORE_FIT_*                             */
+    /* Donde vive el nucleo en el cuadro. Existe porque la composicion lo
+     * necesita: un espectro en linea quiere el nucleo arriba, y esa decision
+     * es del diseno, no algo que el rasterizador deba adivinar moviendo el
+     * campo de sitio segun el tamano del nucleo. */
+    uint32_t pos_x_q31;
+    uint32_t pos_y_q31;
     uint32_t size_q31;
     uint32_t corner_q31;
     uint32_t border_q31;       /* ancho del borde, relativo al lado menor    */
@@ -124,6 +130,10 @@ typedef struct {
 
 typedef struct {
     uint32_t grammar;          /* ODM_DESIGN_FIELD_*                         */
+    /* COMO ocupa el espectro el cuadro. Es un eje aparte de la gramatica
+     * (que decide alcance y grosor) y aparte de la forma de la aguja: los tres
+     * se combinan libremente, y ninguno toca la reaccion a la musica. */
+    uint32_t layout;           /* ODM_FIELD_LAYOUT_*                         */
     uint32_t shape;            /* ODM_FIELD_BAR_*: forma de cada aguja       */
     uint32_t length_q31;
     uint32_t weight_q31;

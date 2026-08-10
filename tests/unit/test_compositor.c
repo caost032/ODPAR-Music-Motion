@@ -146,6 +146,115 @@ static void fill_surface(uint8_t pixels[8u * 8u * 4u], odm_render_surface_frame 
     s->pixels = pixels;
 }
 
+/* LA COMPOSICION NO PUEDE CAMBIAR LA CANCION.
+ *
+ * Es la propiedad que costo conseguir y la que hay que defender: el usuario
+ * elige otra composicion y el video cambia, pero la lectura de la musica no.
+ * Se comprueba donde de verdad se decide -- el Frame Plan -- y no mirando
+ * pixeles: el plan es el ultimo sitio donde la musica todavia es un valor y no
+ * una forma. Si dos composiciones dan planes distintos, alguna de las dos esta
+ * reinterpretando la evidencia.
+ *
+ * El hash de configuracion SI cambia, y debe cambiar: son configuraciones
+ * distintas. Lo que no puede cambiar es lo que la musica vale. */
+static void test_composicion_no_toca_la_musica(odm_test_context *context) {
+    odm_layered_config base;
+    odm_composition_frame_state comp;
+    odm_director_frame_state dir;
+    odm_layered_frame_plan primero;
+    uint32_t layout, i;
+    int primero_listo = 0;
+
+    if (odm_layered_config_init_default(&base, ODM_CANVAS_ASPECT_HORIZONTAL_16_9,
+                                        1280u, 720u, 30) != ODM_STATUS_OK) {
+        ODM_TEST_CHECK(context, 0);
+        return;
+    }
+    memset(&comp, 0, sizeof(comp));
+    memset(&dir, 0, sizeof(dir));
+    comp.schema_version = ODM_COMPOSITION_SCHEMA_VERSION;
+    comp.mode = ODM_COMPOSITION_MODE_FLOW;
+    comp.tick_index = 137u;
+    comp.center_sample = 137 * (int64_t)ODM_MUSIC_TICK_SAMPLES;
+    comp.core_scale_q31 = (uint32_t)INT32_MAX / 2u;
+    comp.particles_q31 = (uint32_t)INT32_MAX / 3u;
+    comp.radial_gain_q31 = (uint32_t)INT32_MAX / 2u;
+    for (i = 0u; i < ODM_COMPOSITION_RADIAL_SEGMENTS_MAX; ++i)
+        comp.radial_q31[i] = (uint32_t)(((uint64_t)INT32_MAX * (i + 1u)) / 96u);
+    dir.schema_version = ODM_DIRECTOR_SCHEMA_VERSION;
+    dir.tick_index = comp.tick_index;
+    dir.layout = ODM_DIRECTOR_LAYOUT_MONOLITH;
+
+    for (layout = 0u; layout <= ODM_FIELD_LAYOUT_MAX; ++layout) {
+        odm_layered_config c = base;
+        odm_layered_frame_plan p;
+        c.field.layout = layout;
+        ODM_TEST_CHECK(context, odm_layered_config_validate(&c) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context,
+            odm_layered_resolve_frame_plan(&c, &comp, &dir, 65760, 4800000, &p) == ODM_STATUS_OK);
+        if (!primero_listo) { primero = p; primero_listo = 1; continue; }
+        /* Todo el plan menos su identidad de configuracion. */
+        p.config_sha256 = primero.config_sha256;
+        ODM_TEST_CHECK(context, memcmp(&p, &primero, sizeof(p)) == 0);
+    }
+    /* Y configuraciones distintas siguen teniendo identidades distintas: la
+     * propiedad es "misma musica", no "misma configuracion". */
+    {
+        odm_layered_config a = base, b = base;
+        odm_sha256_digest ha, hb;
+        a.field.layout = ODM_FIELD_LAYOUT_RADIAL;
+        b.field.layout = ODM_FIELD_LAYOUT_GRID;
+        ODM_TEST_CHECK(context, odm_layered_config_sha256(&a, &ha) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_layered_config_sha256(&b, &hb) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, memcmp(&ha, &hb, sizeof(ha)) != 0);
+    }
+}
+
+/* EL CAMPO NO PINTA SOBRE EL HUD.
+ *
+ * Las dos capas comparten lienzo y la banda inferior la reserva el HUD. Se
+ * comprueba que la reserva del plan cubre de verdad lo que el HUD dibuja: si
+ * alguien retoca el HUD y la reserva se queda corta, las barras acaban encima
+ * del titulo -- exacto por dentro y descuidado por fuera. */
+static void test_banda_del_hud_reservada(odm_test_context *context) {
+    odm_layered_config c;
+    layer_hud_metrics m;
+    int64_t esperado;
+
+    if (odm_layered_config_init_default(&c, ODM_CANVAS_ASPECT_HORIZONTAL_16_9,
+                                        1280u, 720u, 30) != ODM_STATUS_OK) {
+        ODM_TEST_CHECK(context, 0);
+        return;
+    }
+    c.hud.flags = ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE | ODM_HUD_TITLE | ODM_HUD_ARTIST;
+    c.hud.metadata_anchor = ODM_HUD_ANCHOR_BOTTOM_CENTER;
+    memcpy(c.hud.title, "TITULO", 7u);
+    memcpy(c.hud.artist, "AUTORIA", 8u);
+    odm_layered_hud_metrics(&c, &m);
+    /* La linea fina recorta el alto de la barra a un pixel, y la banda tiene
+     * que reservar el alto EFECTIVO, no el pedido: reservar de mas dejaria un
+     * hueco muerto bajo el campo. */
+    ODM_TEST_CHECK(context, c.hud.progress_style == ODM_HUD_PROGRESS_HAIRLINE);
+    ODM_TEST_CHECK(context, c.hud.progress_height_q16 > (uint32_t)65536);
+    ODM_TEST_CHECK(context, m.progress_h_q16 == 65536);
+    /* Reconstruccion independiente de la banda: margen + barra + separacion +
+     * codigo de tiempo + separacion + dos lineas de texto con su separacion. */
+    esperado = (int64_t)c.hud.margin_q16
+             + m.progress_h_q16 + (int64_t)c.hud.line_gap_q16
+             + 7 * (int64_t)c.hud.text_scale_q16 + (int64_t)c.hud.line_gap_q16
+             + 7 * (int64_t)c.hud.text_scale_q16 + (int64_t)c.hud.line_gap_q16
+             + 7 * (int64_t)c.hud.text_scale_q16;
+    ODM_TEST_CHECK(context, m.total == esperado);
+    /* Un HUD apagado no reserva nada: el campo recupera el cuadro entero. */
+    c.hud.flags = 0u;
+    odm_layered_hud_metrics(&c, &m);
+    ODM_TEST_CHECK(context, m.total == 0);
+    /* Quitar el titulo tiene que reducir la banda, no dejarla igual. */
+    c.hud.flags = ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE;
+    odm_layered_hud_metrics(&c, &m);
+    ODM_TEST_CHECK(context, m.total > 0 && m.total < esperado);
+}
+
 void odm_test_compositor(odm_test_context *context) {
     odm_layered_config c, c2;
     odm_composition_frame_state comp;
@@ -1195,4 +1304,6 @@ void odm_test_compositor(odm_test_context *context) {
     }
 
     free(scratch); free(out1); free(out2);
+    test_composicion_no_toca_la_musica(context);
+    test_banda_del_hud_reservada(context);
 }

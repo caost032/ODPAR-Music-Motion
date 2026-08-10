@@ -1,6 +1,7 @@
 #include "compositor_internal.h"
 
 #include <limits.h>
+#include <string.h>
 #include <stdint.h>
 
 #define FIELD_CORDIC_K_Q31 INT64_C(1304065748)
@@ -450,6 +451,151 @@ static void draw_orbit_ring_circle(const odm_layered_config *c,
     }
 }
 
+/* AUTORIDAD DE UN SECTOR, SIN GEOMETRIA.
+ *
+ * Esto es lo que hace posible tener varias composiciones sin que la reaccion a
+ * la musica cambie. Aqui se decide QUE vale cada sector -- cuanto ocupa el
+ * cuerpo sostenido, cuanto la cola, donde acaba la punta del ataque, con que
+ * color y con que opacidad -- en fracciones Q1.31, sin saber donde se va a
+ * dibujar. La composicion elige despues el punto de anclaje y la direccion.
+ *
+ * Si esta decision viviera dentro de cada composicion, dos composiciones
+ * podrian discrepar sobre lo que la misma musica significa, y bastaria cambiar
+ * de diseno para que la cancion se leyera distinto. Vive UNA sola vez. */
+typedef struct {
+    int provenance;           /* 1 = cuerpo + cola + punta; 0 = una sola aguja */
+    uint32_t body_q31;        /* fraccion del alcance maximo                   */
+    uint32_t release_q31;
+    uint32_t final_q31;
+    uint32_t body_op;
+    uint32_t release_op;
+    uint32_t tip_op;
+    odm_rgba16 body_col;
+    odm_rgba16 release_col;
+    odm_rgba16 tip_col;
+    uint32_t simple_op;
+    odm_rgba16 simple_col;
+} field_authority;
+
+static void field_segment_authority(const odm_layered_config *c,
+                                    const odm_layered_frame_plan *p,
+                                    uint32_t i, field_authority *a) {
+    memset(a, 0, sizeof(*a));
+    if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE) != 0u) {
+        uint32_t release_base_q31 = p->radial_body_q31[i];
+        const int directo =
+            (p->flags & ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT) != 0u;
+        a->provenance = 1;
+        a->body_q31 = p->radial_body_q31[i];
+        a->final_q31 = p->radial_q31[i];
+        if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE) != 0u) {
+            const uint32_t release_weight_q31 = UINT32_C(751619277); /* 0.35 */
+            uint32_t release_mix = field_mul_q31(p->radial_release_q31[i], release_weight_q31);
+            release_base_q31 += field_mul_q31((uint32_t)INT32_MAX - release_base_q31, release_mix);
+        }
+        a->release_q31 = release_base_q31;
+        if (directo) {
+            /* La medida ES la evidencia: no hay nada que exigirle ademas. Y el
+             * color sale de su propia intensidad, de modo que las bandas
+             * fuertes se encienden con el acento en vez de quedarse apagadas. */
+            a->body_op = field_mul_q31(p->field_opacity_q31, p->radial_q31[i]);
+            a->body_col = field_mix_color(&c->field.secondary_color,
+                                          &c->field.primary_color, p->radial_q31[i]);
+        } else {
+            uint32_t local_activity = p->radial_attack_q31[i];
+            uint32_t tail_activity = field_mul_q31(p->radial_release_q31[i],
+                                                   LAYER_RADIAL_TAIL_WEIGHT);
+            uint32_t activity = local_activity > tail_activity ? local_activity : tail_activity;
+            uint32_t authority = LAYER_RADIAL_AUTHORITY_FLOOR;
+            authority += field_mul_q31((uint32_t)INT32_MAX - authority, activity);
+            a->body_op = field_mul_q31(p->field_opacity_q31, authority);
+            a->body_col = c->field.secondary_color;
+        }
+        a->release_op = p->radial_release_q31[i] == 0u ? 0u
+                        : field_mul_q31(p->field_opacity_q31, p->radial_release_q31[i]);
+        a->release_col = c->field.secondary_color;
+        a->tip_op = p->radial_attack_q31[i] == 0u ? 0u
+                    : field_mul_q31(p->field_opacity_q31,
+                                    field_mul_q31(p->radial_attack_q31[i],
+                                                  p->radial_attack_q31[i]));
+        a->tip_col = c->field.primary_color;
+    } else {
+        a->provenance = 0;
+        a->final_q31 = p->radial_q31[i];
+        a->simple_op = p->field_opacity_q31;
+        a->simple_col = (i & 1u) ? c->field.secondary_color : c->field.primary_color;
+    }
+}
+
+/* Fraccion Q1.31 llevada a una longitud en Q16.16. */
+static int64_t field_len_q16(int64_t alcance, uint32_t q31) {
+    return (alcance * (int64_t)q31 + INT32_MAX / 2) / INT32_MAX;
+}
+
+/* ANCLA DE UNA COMPOSICION.
+ *
+ * Una composicion solo decide dos cosas: de donde sale cada sector y hacia
+ * donde crece. La corona proyecta desde el centro sobre un radio -- y se
+ * conserva esa forma exacta de proyectar, no una equivalente, porque cambiar
+ * el orden de las divisiones moveria pixeles de un render ya fijado por
+ * oraculos. Las demas parten de un punto y avanzan en linea recta. */
+typedef struct {
+    int radial;
+    int32_t cx, cy;        /* centro, solo en corona                        */
+    int64_t r0;            /* radio base, solo en corona                    */
+    int32_t ax, ay;        /* ancla, en las composiciones rectas            */
+    int32_t ux, uy;        /* direccion unitaria en Q1.31                   */
+} field_anchor;
+
+static void field_point(const field_anchor *g, int64_t len, int32_t *x, int32_t *y) {
+    if (g->radial) {
+        int64_t r = g->r0 + len;
+        *x = (int32_t)((int64_t)g->cx + (r * g->ux) / INT32_MAX);
+        *y = (int32_t)((int64_t)g->cy + (r * g->uy) / INT32_MAX);
+    } else {
+        *x = (int32_t)((int64_t)g->ax + (len * g->ux) / INT32_MAX);
+        *y = (int32_t)((int64_t)g->ay + (len * g->uy) / INT32_MAX);
+    }
+}
+
+/* Dibuja un sector a lo largo de su ancla. Es la unica funcion que sabe pintar
+ * un sector, y no sabe NADA de que composicion lo pidio: por eso una
+ * composicion nueva no puede cambiar lo que la musica significa. */
+static void field_draw_segment(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
+                               const odm_layered_config *c,
+                               const field_authority *a,
+                               const field_anchor *g,
+                               int64_t alcance_q16, int64_t minimo_q16) {
+    int32_t ax, ay, bx, by, rx, ry, tx, ty;
+    int64_t body, release, final_len;
+    field_point(g, 0, &ax, &ay);
+    if (!a->provenance) {
+        int64_t len = minimo_q16 + field_len_q16(alcance_q16 - minimo_q16, a->final_q31);
+        field_point(g, len, &bx, &by);
+        draw_needle(frame, w, h, ax, ay, bx, by, (int32_t)c->field.bar_width_q16,
+                    c->field.bar_shape, &a->simple_col, a->simple_op);
+        return;
+    }
+    body = field_len_q16(alcance_q16, a->body_q31);
+    release = field_len_q16(alcance_q16, a->release_q31);
+    final_len = field_len_q16(alcance_q16, a->final_q31);
+    field_point(g, body, &bx, &by);
+    rx = bx; ry = by;
+    if (body > 0 && a->body_op != 0u)
+        draw_needle(frame, w, h, ax, ay, bx, by, (int32_t)c->field.bar_width_q16,
+                    c->field.bar_shape, &a->body_col, a->body_op);
+    if (release > body && a->release_op != 0u) {
+        field_point(g, release, &rx, &ry);
+        draw_needle(frame, w, h, bx, by, rx, ry, (int32_t)c->field.bar_width_q16,
+                    c->field.bar_shape, &a->release_col, a->release_op);
+    }
+    if (final_len > release && a->tip_op != 0u) {
+        field_point(g, final_len, &tx, &ty);
+        draw_needle(frame, w, h, rx, ry, tx, ty, (int32_t)c->field.bar_width_q16,
+                    c->field.bar_shape, &a->tip_col, a->tip_op);
+    }
+}
+
 static void draw_orbit_ring(const odm_layered_config *c,const odm_layered_frame_plan*p,
                             odm_layered_pixel16 *frame){
     int64_t half;
@@ -482,101 +628,158 @@ void odm_layered_field_render(const odm_layered_config *c,
     if(!c||!p||!frame||p->field_opacity_q31==0u)return;
     if((c->field.flags&ODM_FIELD_ORBIT_RING)!=0u)draw_orbit_ring(c,p,frame);
     if((c->field.flags&ODM_FIELD_RADIAL_BARS)!=0u){
-        for(i=0u;i<c->field.radial_segments;++i){
-            uint32_t phase=p->ring_phase+(uint32_t)(((uint64_t)i<<32)/c->field.radial_segments);
-            int32_t cs=cos_q31(phase),sn=sin_q31(phase);
-            int64_t r0=(int64_t)core_boundary_radius_q16(c,p,cs,sn)+(int64_t)c->field.ring_gap_q16;
-            int32_t ax=(int32_t)((int64_t)p->center_x_q16+(r0*cs)/INT32_MAX);
-            int32_t ay=(int32_t)((int64_t)p->center_y_q16+(r0*sn)/INT32_MAX);
-            if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE) != 0u) {
-                /* Provenance raster: the orbit/core contour is already the
-                 * stable base. Reactive bars therefore have no autonomous
-                 * minimum length. Held spectral body is a subdued segment;
-                 * same-lane attack is a separate tip whose length and opacity
-                 * are both music-authoritative. */
-                int64_t body_len=((int64_t)c->field.bar_max_q16*
-                                  (int64_t)p->radial_body_q31[i]+INT32_MAX/2)/INT32_MAX;
-                uint32_t release_base_q31=p->radial_body_q31[i];
-                int64_t release_len;
-                int64_t final_len=((int64_t)c->field.bar_max_q16*
-                                   (int64_t)p->radial_q31[i]+INT32_MAX/2)/INT32_MAX;
-                int64_t rb=r0+body_len;
-                int32_t bdx=(int32_t)((int64_t)p->center_x_q16+(rb*cs)/INT32_MAX);
-                int32_t bdy=(int32_t)((int64_t)p->center_y_q16+(rb*sn)/INT32_MAX);
-                int32_t rdx=bdx,rdy=bdy;
-                if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE) != 0u) {
-                    const uint32_t release_weight_q31=UINT32_C(751619277); /* 0.35 */
-                    uint32_t release_mix=field_mul_q31(p->radial_release_q31[i],release_weight_q31);
-                    release_base_q31 += field_mul_q31((uint32_t)INT32_MAX-release_base_q31,release_mix);
+        /* COMPOSICIONES.
+         *
+         * Todas leen el MISMO `radial_q31` ya resuelto y la misma autoridad por
+         * sector. Lo unico que cambia entre una y otra es de donde sale cada
+         * sector y hacia donde crece. Por eso cambiar de composicion cambia el
+         * cuadro y no cambia la cancion: la reaccion se decidio antes, arriba,
+         * y aqui abajo ya no se puede reinterpretar. */
+        const uint32_t segs = c->field.radial_segments;
+        const int64_t safe_w = (int64_t)p->safe_right_q16 - (int64_t)p->safe_left_q16;
+        /* BANDA LIBRE.
+         *
+         * Las composiciones rectas NUNCA cruzan el nucleo. Cruzarlo no es una
+         * composicion: es un choque, y se lee como un descuido aunque la
+         * reaccion sea exacta. El campo ocupa la franja libre mas alta -- la
+         * que queda bajo el nucleo, ya descontada la banda del HUD, o la que
+         * queda encima -- y solo si el nucleo no deja ninguna de las dos se
+         * usa el area segura entera, porque entonces el diseno pidio un nucleo
+         * que ocupa el cuadro y esa peticion manda. */
+        const int64_t nucleo_top = (int64_t)p->center_y_q16 - (int64_t)p->core_half_h_q16;
+        const int64_t nucleo_bot = (int64_t)p->center_y_q16 + (int64_t)p->core_half_h_q16;
+        const int64_t hueco = (int64_t)c->field.ring_gap_q16;
+        int64_t bajo_top = nucleo_bot + hueco;
+        int64_t bajo_bot = (int64_t)p->safe_bottom_q16 - (int64_t)p->hud_reserved_q16;
+        int64_t sobre_top = (int64_t)p->safe_top_q16;
+        int64_t sobre_bot = nucleo_top - hueco;
+        int64_t banda_top, banda_bot, banda_h;
+        field_authority a;
+        field_anchor g;
+        if (bajo_top < (int64_t)p->safe_top_q16) bajo_top = (int64_t)p->safe_top_q16;
+        if (sobre_bot > bajo_bot) sobre_bot = bajo_bot;
+        /* La franja es SIEMPRE la de abajo. Es la lectura convencional -- la
+         * imagen arriba, el espectro debajo -- y sobre todo es predecible: la
+         * composicion no salta de sitio por un retoque del nucleo. Donde va el
+         * nucleo lo decide el diseno con su posicion, no el rasterizador
+         * eligiendo por su cuenta. Solo si el nucleo no deja franja alguna se
+         * usa el area segura entera, porque entonces el diseno pidio un nucleo
+         * que ocupa el cuadro y esa peticion manda. */
+        banda_top = bajo_top; banda_bot = bajo_bot;
+        banda_h = banda_bot - banda_top;
+        if (banda_h <= 0) {
+            banda_top = sobre_top; banda_bot = sobre_bot;
+            banda_h = banda_bot - banda_top;
+        }
+        if (banda_h <= 0) {
+            banda_top = (int64_t)p->safe_top_q16;
+            banda_bot = (int64_t)p->safe_bottom_q16 - (int64_t)p->hud_reserved_q16;
+            banda_h = banda_bot - banda_top;
+        }
+        switch (c->field.layout) {
+        case ODM_FIELD_LAYOUT_LINEAR:
+        case ODM_FIELD_LAYOUT_MIRROR: {
+            /* Linea de barras. En espejo, cada sector crece hacia arriba y
+             * hacia abajo desde el eje: la misma autoridad, dos direcciones. */
+            const int espejo = c->field.layout == ODM_FIELD_LAYOUT_MIRROR;
+            int64_t alcance = espejo ? (banda_h * 9) / 20 : (banda_h * 9) / 10;
+            int64_t base_y = espejo ? (banda_top + banda_h / 2) : banda_bot;
+            int64_t paso = segs > 0u ? safe_w / (int64_t)segs : 0;
+            for (i = 0u; i < segs; ++i) {
+                int64_t x = (int64_t)p->safe_left_q16 + paso / 2 + paso * (int64_t)i;
+                field_segment_authority(c, p, i, &a);
+                memset(&g, 0, sizeof(g));
+                g.ax = (int32_t)x; g.ay = (int32_t)base_y;
+                g.ux = 0; g.uy = -INT32_MAX;
+                field_draw_segment(frame, p->width, p->height, c, &a, &g, alcance, 0);
+                if (espejo) {
+                    g.uy = INT32_MAX;
+                    field_draw_segment(frame, p->width, p->height, c, &a, &g, alcance, 0);
                 }
-                release_len=((int64_t)c->field.bar_max_q16*(int64_t)release_base_q31+INT32_MAX/2)/INT32_MAX;
-                if (body_len > 0) {
-                    /* Dual-domain optical authority. Sustained spectrum keeps
-                     * a faint body, but a bright protrusion requires same-lane
-                     * transient/release evidence. This prevents dense songs
-                     * from leaving a static white crown around the Core. */
-                    const int directo =
-                        (p->flags & ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT) != 0u;
-                    uint32_t authority;
-                    odm_rgba16 col;
-                    if (directo) {
-                        /* La medida ES la evidencia: no hay nada que exigirle
-                         * ademas. Y el color sale de su propia intensidad, de
-                         * modo que las bandas fuertes se encienden con el
-                         * acento en vez de quedarse en el color apagado. */
-                        authority = p->radial_q31[i];
-                        col = field_mix_color(&c->field.secondary_color,
-                                              &c->field.primary_color, p->radial_q31[i]);
-                    } else {
-                        uint32_t local_activity = p->radial_attack_q31[i];
-                        uint32_t tail_activity = field_mul_q31(p->radial_release_q31[i],
-                                                              LAYER_RADIAL_TAIL_WEIGHT);
-                        uint32_t activity = local_activity > tail_activity ? local_activity : tail_activity;
-                        authority = LAYER_RADIAL_AUTHORITY_FLOOR;
-                        authority += field_mul_q31((uint32_t)INT32_MAX - authority, activity);
-                        col = c->field.secondary_color;
-                    }
-                    draw_needle(frame,p->width,p->height,ax,ay,bdx,bdy,
-                                (int32_t)c->field.bar_width_q16, c->field.bar_shape,
-                                &col,
-                                field_mul_q31(p->field_opacity_q31, authority));
-                }
-                if (release_len > body_len && p->radial_release_q31[i] != 0u) {
-                    int64_t rr=r0+release_len;
-                    uint32_t release_opacity=field_mul_q31(p->field_opacity_q31,
-                                                          p->radial_release_q31[i]);
-                    rdx=(int32_t)((int64_t)p->center_x_q16+(rr*cs)/INT32_MAX);
-                    rdy=(int32_t)((int64_t)p->center_y_q16+(rr*sn)/INT32_MAX);
-                    if (release_opacity != 0u)
-                        draw_needle(frame,p->width,p->height,bdx,bdy,rdx,rdy,
-                                    (int32_t)c->field.bar_width_q16, c->field.bar_shape,
-                                    &c->field.secondary_color,release_opacity);
-                }
-                if (final_len > release_len && p->radial_attack_q31[i] != 0u) {
-                    int64_t rf=r0+final_len;
-                    int32_t tx=(int32_t)((int64_t)p->center_x_q16+(rf*cs)/INT32_MAX);
-                    int32_t ty=(int32_t)((int64_t)p->center_y_q16+(rf*sn)/INT32_MAX);
-                    uint32_t tip_authority=field_mul_q31(p->radial_attack_q31[i],
-                                                         p->radial_attack_q31[i]);
-                    uint32_t tip_opacity=field_mul_q31(p->field_opacity_q31,
-                                                      tip_authority);
-                    if (tip_opacity != 0u)
-                        draw_needle(frame,p->width,p->height,rdx,rdy,tx,ty,
-                                    (int32_t)c->field.bar_width_q16, c->field.bar_shape,
-                                    &c->field.primary_color,tip_opacity);
-                }
-            } else {
-                int64_t span=(int64_t)c->field.bar_max_q16-(int64_t)c->field.bar_min_q16;
-                int64_t len=(int64_t)c->field.bar_min_q16+
-                    (span*(int64_t)p->radial_q31[i]+INT32_MAX/2)/INT32_MAX;
-                int64_t r1=r0+len;
-                int32_t bx=(int32_t)((int64_t)p->center_x_q16+(r1*cs)/INT32_MAX);
-                int32_t by=(int32_t)((int64_t)p->center_y_q16+(r1*sn)/INT32_MAX);
-                const odm_rgba16 *col=(i&1u)?&c->field.secondary_color:&c->field.primary_color;
-                draw_needle(frame,p->width,p->height,ax,ay,bx,by,
-                            (int32_t)c->field.bar_width_q16,c->field.bar_shape,
-                            col,p->field_opacity_q31);
             }
+            break;
+        }
+        case ODM_FIELD_LAYOUT_WAVE: {
+            /* Onda continua: el sector no es una aguja sino el tramo que une su
+             * altura con la del vecino. La lectura deja de ser "cuanto vale
+             * cada banda" y pasa a ser "que forma tiene el espectro". */
+            int64_t alcance = (banda_h * 9) / 20;
+            int64_t eje = banda_top + banda_h / 2;
+            int64_t paso = segs > 1u ? safe_w / (int64_t)(segs - 1u) : safe_w;
+            int32_t px = 0, py = 0;
+            for (i = 0u; i < segs; ++i) {
+                int64_t x = (int64_t)p->safe_left_q16 + paso * (int64_t)i;
+                int64_t alt;
+                int32_t qx, qy;
+                uint32_t op;
+                odm_rgba16 col;
+                field_segment_authority(c, p, i, &a);
+                alt = field_len_q16(alcance, a.final_q31);
+                qx = (int32_t)x; qy = (int32_t)(eje - alt);
+                op = a.provenance ? a.body_op : a.simple_op;
+                col = a.provenance ? a.body_col : a.simple_col;
+                if (i > 0u && op != 0u)
+                    draw_needle(frame, p->width, p->height, px, py, qx, qy,
+                                (int32_t)c->field.bar_width_q16, c->field.bar_shape,
+                                &col, op);
+                px = qx; py = qy;
+            }
+            break;
+        }
+        case ODM_FIELD_LAYOUT_GRID: {
+            /* Ecualizador de celdas: cada columna enciende tantas celdas como
+             * dice su medida. Es la misma medida cuantizada para leerse, no una
+             * medida distinta -- la celda superior encendida marca el valor. */
+            const uint32_t filas = 12u;
+            int64_t alto = (banda_h * 9) / 10;
+            int64_t celda_h = alto / (int64_t)filas;
+            int64_t paso = segs > 0u ? safe_w / (int64_t)segs : 0;
+            uint32_t k;
+            for (i = 0u; i < segs; ++i) {
+                int64_t x = (int64_t)p->safe_left_q16 + paso / 2 + paso * (int64_t)i;
+                uint32_t encendidas;
+                uint32_t op;
+                odm_rgba16 col;
+                field_segment_authority(c, p, i, &a);
+                encendidas = (uint32_t)(((uint64_t)a.final_q31 * filas) / (uint64_t)INT32_MAX);
+                op = a.provenance ? a.body_op : a.simple_op;
+                col = a.provenance ? a.body_col : a.simple_col;
+                if (op == 0u) continue;
+                for (k = 0u; k < encendidas && k < filas; ++k) {
+                    int64_t y0 = banda_bot - celda_h * (int64_t)k;
+                    int64_t y1 = y0 - celda_h / 2;
+                    draw_needle(frame, p->width, p->height, (int32_t)x, (int32_t)y0,
+                                (int32_t)x, (int32_t)y1,
+                                (int32_t)c->field.bar_width_q16, c->field.bar_shape,
+                                &col, op);
+                }
+                /* La punta del ataque se marca sobre la celda siguiente. */
+                if (a.provenance && a.tip_op != 0u && encendidas < filas) {
+                    int64_t y0 = banda_bot - celda_h * (int64_t)encendidas;
+                    int64_t y1 = y0 - celda_h / 2;
+                    draw_needle(frame, p->width, p->height, (int32_t)x, (int32_t)y0,
+                                (int32_t)x, (int32_t)y1,
+                                (int32_t)c->field.bar_width_q16, c->field.bar_shape,
+                                &a.tip_col, a.tip_op);
+                }
+            }
+            break;
+        }
+        default:
+            for (i = 0u; i < segs; ++i) {
+                uint32_t phase=p->ring_phase+(uint32_t)(((uint64_t)i<<32)/segs);
+                int32_t cs=cos_q31(phase),sn=sin_q31(phase);
+                field_segment_authority(c, p, i, &a);
+                memset(&g, 0, sizeof(g));
+                g.radial = 1;
+                g.cx = p->center_x_q16; g.cy = p->center_y_q16;
+                g.r0 = (int64_t)core_boundary_radius_q16(c,p,cs,sn)+(int64_t)c->field.ring_gap_q16;
+                g.ux = cs; g.uy = sn;
+                field_draw_segment(frame, p->width, p->height, c, &a, &g,
+                                   (int64_t)c->field.bar_max_q16,
+                                   a.provenance ? 0 : (int64_t)c->field.bar_min_q16);
+            }
+            break;
         }
     }
     if((c->field.flags&ODM_FIELD_PARTICLES)!=0u&&p->particle_count>0u&&p->particle_sim!=0u){
