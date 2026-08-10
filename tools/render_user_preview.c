@@ -4,6 +4,23 @@
 #include "odm_media_adapter.h"
 #include "odm_supersample.h"
 #include "odm_design.h"
+#include <stdio.h>
+#include <time.h>
+
+/* Marcas de tiempo por fase. Sirven para atacar lo que de verdad cuesta en vez
+ * de lo que uno cree que cuesta. */
+static double odm_bench_now(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+static double odm_bench_t0 = 0.0;
+static void odm_bench_mark(const char *fase) {
+    double t = odm_bench_now();
+    if (odm_bench_t0 != 0.0)
+        fprintf(stderr, "  [fase] %-28s %7.2f s\n", fase, t - odm_bench_t0);
+    odm_bench_t0 = t;
+}
 #include "odm_spectral_instrument.h"
 #include "odm_visual_scene.h"
 #include "odm_music_map.h"
@@ -819,6 +836,7 @@ int main(int argc, char **argv) {
     }
 
 
+    odm_bench_t0 = odm_bench_now();
     memset(&audio_facts, 0, sizeof(audio_facts));
     memset(&analysis_plan, 0, sizeof(analysis_plan));
     memset(&analysis_state, 0, sizeof(analysis_state));
@@ -839,33 +857,82 @@ int main(int argc, char **argv) {
 
     /* Cualquier contenedor soportado entra por la frontera de canonicalizacion.
      * WAV va por el camino nativo; el resto pasa por el adaptador y vuelve a
-     * ser verificado por el mismo decodificador nativo. */
+     * ser verificado por el mismo decodificador nativo.
+     *
+     * La canonicalizacion se hace UNA VEZ y el resultado se conserva en
+     * memoria. Antes se llamaba dos veces al cargador -- una para preguntar el
+     * tamano y otra para llenar el buffer -- y cada llamada volvia a lanzar
+     * ffmpeg sobre la cancion entera: medido, 15.4 s cuando ffmpeg por si solo
+     * tarda 1.6 s. Preguntar el tamano no puede costar lo mismo que hacer el
+     * trabajo. */
     {
         odm_media_adapter_provenance audio_prov;
-        odm_status st = odm_media_load_audio_q31(wav_path, NULL, 0u,
-                                                 &pcm_frames_required, &audio_facts,
-                                                 &audio_prov);
-        if (st != ODM_STATUS_BUFFER_TOO_SMALL && st != ODM_STATUS_OK) {
-            fprintf(stderr, "audio sizing failed st=%d\n", (int)st); return 4;
-        }
-        pcm = (odm_pcm_stereo_q31 *)malloc((size_t)pcm_frames_required * sizeof(*pcm));
-        if (!pcm) { fprintf(stderr, "oom pcm\n"); return 5; }
-        st = odm_media_load_audio_q31(wav_path, pcm, pcm_frames_required,
-                                      &pcm_frames_required, &audio_facts, &audio_prov);
-        if (st != ODM_STATUS_OK) {
-            fprintf(stderr, "audio decode failed st=%d\n", (int)st); return 6;
-        }
-        if (audio_prov.available && audio_prov.output_bytes) {
+        uint8_t *canonico = NULL;
+        uint64_t canonico_bytes = 0u;
+        odm_status st;
+
+        memset(&audio_prov, 0, sizeof(audio_prov));
+        st = odm_media_adapter_canonicalize_audio(wav_path, NULL, 0u,
+                                                  &canonico_bytes, &audio_prov);
+        if ((st == ODM_STATUS_BUFFER_TOO_SMALL || st == ODM_STATUS_OK) &&
+            canonico_bytes != 0u) {
+            canonico = (uint8_t *)malloc((size_t)canonico_bytes);
+            if (!canonico) { fprintf(stderr, "oom audio canonico\n"); return 5; }
+            st = odm_media_adapter_canonicalize_audio(wav_path, canonico, canonico_bytes,
+                                                      &canonico_bytes, &audio_prov);
+            if (st != ODM_STATUS_OK) {
+                fprintf(stderr, "audio canonicalize failed st=%d\n", (int)st);
+                free(canonico); return 4;
+            }
             fprintf(stderr, "media adapter: %s (%llu -> %llu bytes)\n",
                     audio_prov.identity,
                     (unsigned long long)audio_prov.input_bytes,
                     (unsigned long long)audio_prov.output_bytes);
+        } else if (st != ODM_STATUS_OK && st != ODM_STATUS_UNSUPPORTED) {
+            fprintf(stderr, "audio canonicalize failed st=%d\n", (int)st);
+            return 4;
+        }
+
+        if (canonico) {
+            /* El decodificador nativo sigue siendo quien manda: los bytes
+             * canonicos se verifican con el, no se dan por buenos. */
+            st = odm_media_decode_audio_q31(canonico, canonico_bytes, NULL, 0u,
+                                            &pcm_frames_required, &audio_facts);
+            if (st != ODM_STATUS_BUFFER_TOO_SMALL && st != ODM_STATUS_OK) {
+                fprintf(stderr, "audio sizing failed st=%d\n", (int)st);
+                free(canonico); return 4;
+            }
+            pcm = (odm_pcm_stereo_q31 *)malloc((size_t)pcm_frames_required * sizeof(*pcm));
+            if (!pcm) { fprintf(stderr, "oom pcm\n"); free(canonico); return 5; }
+            st = odm_media_decode_audio_q31(canonico, canonico_bytes, pcm,
+                                            pcm_frames_required,
+                                            &pcm_frames_required, &audio_facts);
+            free(canonico);
+            if (st != ODM_STATUS_OK) {
+                fprintf(stderr, "audio decode failed st=%d\n", (int)st); return 6;
+            }
+        } else {
+            /* WAV nativo: no hay adaptador que ahorrar, y leer la cabecera es
+             * barato. */
+            st = odm_media_load_audio_q31(wav_path, NULL, 0u,
+                                          &pcm_frames_required, &audio_facts, &audio_prov);
+            if (st != ODM_STATUS_BUFFER_TOO_SMALL && st != ODM_STATUS_OK) {
+                fprintf(stderr, "audio sizing failed st=%d\n", (int)st); return 4;
+            }
+            pcm = (odm_pcm_stereo_q31 *)malloc((size_t)pcm_frames_required * sizeof(*pcm));
+            if (!pcm) { fprintf(stderr, "oom pcm\n"); return 5; }
+            st = odm_media_load_audio_q31(wav_path, pcm, pcm_frames_required,
+                                          &pcm_frames_required, &audio_facts, &audio_prov);
+            if (st != ODM_STATUS_OK) {
+                fprintf(stderr, "audio decode failed st=%d\n", (int)st); return 6;
+            }
         }
         fprintf(stderr, "audio: %llu frames @48kHz (%.2f s)\n",
                 (unsigned long long)pcm_frames_required,
                 (double)pcm_frames_required / 48000.0);
     }
 
+    odm_bench_mark("decodificar audio");
     window_q31 = (int32_t *)malloc((size_t)ODM_MUSIC_WINDOW_SAMPLES * sizeof(*window_q31));
     twiddles = (odm_music_complex_q31 *)malloc((size_t)ODM_MUSIC_FFT_TWIDDLES * sizeof(*twiddles));
     if (!window_q31 || !twiddles) { fprintf(stderr, "oom analysis plan\n"); return 7; }
@@ -1042,6 +1109,7 @@ core_ready:
     cctx.rgba = core_rgba;
     cctx.samples_per_frame = (int64_t)ODM_MUSIC_SAMPLE_RATE / (int64_t)fps;
 
+    odm_bench_mark("analisis + reaccion");
     ss_factor = odm_supersample_factor(quality_tier);
     if (ss_factor == 0u) { fprintf(stderr, "nivel de calidad invalido\n"); return 2; }
     fsink.ss_factor = 1u;     /* el sink recibe ya el fotograma de entrega */
@@ -1190,6 +1258,7 @@ core_ready:
      * 2048 muestras con salto de 480 solapa un 77%, asi que la propia medida ya
      * esta limitada en banda. Se comprueba con tools/flicker_metrics sobre el
      * volcado de composicion. */
+    odm_bench_mark("preparacion y proyeccion");
     if (spectral_enabled && si_ticks) {
         uint64_t aplicados = 0u;
         /* Suavizado antes de proyectar: actua sobre la rejilla de 100 Hz, no
@@ -1246,6 +1315,7 @@ core_ready:
     } else {
         fprintf(stderr, "instrumento espectral: DESACTIVADO (control A/B)\n");
     }
+    odm_bench_mark("instrumento espectral");
     sctx.composition = presentation_comp;
     sctx.director = presentation_dir;
     sctx.frame_count = recipe.frame_count;
@@ -1308,6 +1378,7 @@ core_ready:
      * argv debe declarar ESE tamano: si declarara el del raster interno, ffmpeg
      * leeria los bytes desalineados y produciria basura. */
     {
+        odm_bench_mark("render + codificacion");
         char final_video_mp4[1200];
         if (snprintf(final_video_mp4, sizeof(final_video_mp4), "%s/video.mp4", final_dir) < 0) return 28;
         if (!run_ffmpeg_mux(&recipe, final_video_mp4, final_audio, out_mp4, argv_dump)) {
