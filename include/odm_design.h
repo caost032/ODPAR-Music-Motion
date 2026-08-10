@@ -117,7 +117,8 @@ typedef struct {
     uint32_t corner_q31;
     uint32_t border_q31;       /* ancho del borde, relativo al lado menor    */
     uint32_t opacity_q31;
-    uint32_t reactivity_q31;
+    uint32_t reactivity_q31;   /* cuanto crece con la musica                 */
+    uint32_t gain_q31;         /* cuanto se enciende con la musica           */
     odm_rgba16 border_color;
 } odm_design_core;
 

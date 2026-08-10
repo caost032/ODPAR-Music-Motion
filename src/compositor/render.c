@@ -85,7 +85,8 @@ static odm_status validate_plan_bound(const odm_layered_config *c,
         p->safe_right_q16 > ((int32_t)p->width << 16) ||
         p->safe_bottom_q16 > ((int32_t)p->height << 16) ||
         p->safe_left_q16 >= p->safe_right_q16 || p->safe_top_q16 >= p->safe_bottom_q16 ||
-        !zero_u32(p->reserved, 4u)) return ODM_STATUS_INVALID_DATA;
+        p->core_gain_q31 > (uint32_t)INT32_MAX ||
+        !zero_u32(p->reserved, 3u)) return ODM_STATUS_INVALID_DATA;
     if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE) != 0u &&
         (p->flags & (ODM_COMPOSITION_FLAG_RADIAL_HIRES |
                      ODM_COMPOSITION_FLAG_STRICT_CAUSAL)) !=

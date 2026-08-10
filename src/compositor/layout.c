@@ -134,6 +134,7 @@ odm_status odm_layered_config_init_default(odm_layered_config *out_config,
     c.core.opacity_q31 = (uint32_t)INT32_MAX;
     c.core.border_color.r = UINT16_MAX; c.core.border_color.g = UINT16_MAX;
     c.core.border_color.b = UINT16_MAX; c.core.border_color.a = UINT16_MAX;
+    c.core.gain_reactivity_q31 = 0u;  /* sin ganancia salvo que se pida */
 
     c.field.schema_version = ODM_LAYERED_SCHEMA_VERSION;
     c.field.flags = ODM_FIELD_RADIAL_BARS | ODM_FIELD_PARTICLES | ODM_FIELD_ORBIT_RING;
@@ -278,7 +279,8 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         !q31u(c->core.corner_radius_q31) || !q31u(c->core.scale_reactivity_q31) ||
         !q31u(c->core.opacity_q31) || c->core.border_q16 > (64u << 16) ||
         c->core.feather_q16 == 0u || c->core.feather_q16 > (8u << 16) ||
-        !rgba_valid(&c->core.border_color) || !bytes_zero_u32(c->core.reserved, 6u))
+        !rgba_valid(&c->core.border_color) || !q31u(c->core.gain_reactivity_q31) ||
+        !bytes_zero_u32(c->core.reserved, 5u))
         return ODM_STATUS_INVALID_DATA;
     if (c->core.shape == ODM_CORE_SHAPE_CIRCLE && c->core.width_q31 != c->core.height_q31)
         return ODM_STATUS_INVALID_DATA;
@@ -467,6 +469,21 @@ odm_status odm_layered_resolve_frame_plan(const odm_layered_config *c,
                               * descomposicion de Music-Reaction. */
                              ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT);
     p.core_opacity_q31 = c->core.opacity_q31;
+    {
+        /* Ganancia efectiva del cuadro. Sale del MISMO aliento que gobierna la
+         * escala -- el recorrido [0.48, 0.58] de core_scale -- de modo que el
+         * nucleo crece y se enciende con el mismo golpe en vez de con dos
+         * senales que podrian discrepar. */
+        const uint32_t base_q31 = UINT32_C(1030792151); /* 0.48 */
+        const uint32_t alto_q31 = UINT32_C(1245540515); /* 0.58 */
+        uint32_t sc = comp->core_scale_q31, aliento;
+        if (sc <= base_q31) aliento = 0u;
+        else if (sc >= alto_q31) aliento = LAYER_Q31_ONE;
+        else aliento = (uint32_t)(((uint64_t)(sc - base_q31) * (uint64_t)LAYER_Q31_ONE) /
+                                  (uint64_t)(alto_q31 - base_q31));
+        p.core_gain_q31 = (uint32_t)(((uint64_t)c->core.gain_reactivity_q31 *
+                                      (uint64_t)aliento) / (uint64_t)LAYER_Q31_ONE);
+    }
     st = odm_layered_reaction_eval(reaction.field_gain_route, comp, dir, &signal);
     if (st != ODM_STATUS_OK) return st;
     p.field_opacity_q31 = mul_q31u(c->field.field_opacity_q31, signal);
@@ -701,6 +718,7 @@ static odm_status layer_config_encode(const odm_layered_config *c, uint8_t *buff
     LC(odm_wire_write_u32(&w,c->core.width_q31)); LC(odm_wire_write_u32(&w,c->core.height_q31)); LC(odm_wire_write_u32(&w,c->core.corner_radius_q31));
     LC(odm_wire_write_u32(&w,c->core.border_q16)); LC(odm_wire_write_u32(&w,c->core.feather_q16));
     LC(odm_wire_write_u32(&w,c->core.scale_reactivity_q31)); LC(odm_wire_write_u32(&w,c->core.opacity_q31)); LC(write_rgba16(&w,&c->core.border_color));
+    LC(odm_wire_write_u32(&w,c->core.gain_reactivity_q31));
     LC(odm_wire_write_u32(&w,c->field.schema_version)); LC(odm_wire_write_u32(&w,c->field.flags)); LC(odm_wire_write_u32(&w,c->field.radial_segments));
     LC(odm_wire_write_u32(&w,c->field.particle_count)); LC(odm_wire_write_u32(&w,c->field.ring_gap_q16)); LC(odm_wire_write_u32(&w,c->field.bar_min_q16));
     LC(odm_wire_write_u32(&w,c->field.bar_max_q16)); LC(odm_wire_write_u32(&w,c->field.bar_width_q16)); LC(odm_wire_write_u32(&w,c->field.particle_radius_q16));
@@ -811,6 +829,7 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, ODM_LAYERED_FLAG_DITHER_OUTPUT)); /* difuminado declarado en la config */
     LP(odm_wire_write_u32(&w, ODM_FIELD_BAR_SHAPE_MAX + 1u)); /* formas de barra */
     LP(odm_wire_write_u32(&w, 1u)); /* bajo gobierno espectral directo la autoridad es la medida */
+    LP(odm_wire_write_u32(&w, 1u)); /* la ganancia del nucleo es emisiva: multiplica color, no alfa */
     LP(odm_wire_write_u32(&w, 2u)); /* perfil de profundidad: (1-(d/r)^2)^2 */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective grid uses bounded row-projective integer mapping */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective horizon suppresses sub-two-pixel projected cells */

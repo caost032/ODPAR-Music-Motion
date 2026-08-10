@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(16)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(17)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -277,7 +277,14 @@ typedef struct {
     uint32_t scale_reactivity_q31;
     uint32_t opacity_q31;
     odm_rgba16 border_color;
-    uint32_t reserved[6];
+    /* Ganancia de intensidad del nucleo con la musica, como EXCESO sobre 1.0:
+     * 0 = sin cambio, Q31 = hasta el doble de brillo en el pico.
+     *
+     * Es una ganancia emisiva: multiplica el color y NO el alfa. Tocar el alfa
+     * cambiaria la cobertura, es decir la forma; lo que se quiere es que la
+     * imagen se encienda, no que se vuelva mas opaca. */
+    uint32_t gain_reactivity_q31;
+    uint32_t reserved[5];
 } odm_core_config;
 
 typedef struct {
@@ -379,6 +386,10 @@ typedef struct {
     int64_t sample;
     int64_t duration_samples;
     uint32_t core_opacity_q31;
+    /* Ganancia efectiva de este cuadro, tambien como exceso sobre 1.0. Vive en
+     * el plan y no se recalcula en el rasterizador: el plan es la unica
+     * autoridad sobre lo que un cuadro vale. */
+    uint32_t core_gain_q31;
     uint32_t field_opacity_q31;
     uint32_t progress_q31;
     uint32_t particle_count;
@@ -392,7 +403,7 @@ typedef struct {
     uint32_t radial_release_q31[ODM_COMPOSITION_RADIAL_SEGMENTS_MAX];
     uint32_t radial_attack_q31[ODM_COMPOSITION_RADIAL_SEGMENTS_MAX];
     odm_sha256_digest config_sha256;
-    uint32_t reserved[4];
+    uint32_t reserved[3];
 } odm_layered_frame_plan;
 
 #define ODM_LAYERED_RADIAL_TRACE_SCHEMA_VERSION UINT32_C(1)

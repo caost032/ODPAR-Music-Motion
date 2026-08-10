@@ -149,7 +149,9 @@ static const dz_control dz_table[] = {
     DZ_SCALAR(26u, ODM_DESIGN_CAT_CORE, "nucleo.opacidad", "Opacidad",
               core.opacity_q31, 0u, R(1u,1u), R(1u,1u)),
     DZ_SCALAR(27u, ODM_DESIGN_CAT_CORE, "nucleo.reactividad", "Reactividad de escala",
-              core.reactivity_q31, 0u, R(1u,1u), R(2u,5u)),
+              core.reactivity_q31, 0u, R(1u,1u), R(3u,5u)),
+    DZ_SCALAR(28u, ODM_DESIGN_CAT_CORE, "nucleo.intensidad", "Intensidad con la musica",
+              core.gain_q31, 0u, R(1u,1u), R(2u,5u)),
 
     /* CAMPO */
     DZ_ENUM(30u, ODM_DESIGN_CAT_FIELD, "campo.gramatica", "Composicion del halo",
@@ -681,6 +683,8 @@ odm_status odm_design_compile(const odm_design *design,
     c.core.opacity_q31 = design->core.opacity_q31;
     c.core.scale_reactivity_q31 =
         dz_mul(design->core.reactivity_q31, design->motion.sensitivity_q31);
+    c.core.gain_reactivity_q31 =
+        dz_mul(design->core.gain_q31, design->motion.sensitivity_q31);
 
     /* CAMPO -------------------------------------------------------------- */
     if (design->field.grammar >= ODM_DESIGN_FIELD_COUNT) return ODM_STATUS_INVALID_DATA;

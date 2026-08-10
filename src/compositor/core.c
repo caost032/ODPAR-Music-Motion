@@ -245,6 +245,14 @@ static void sample_bilinear_parts_interior(const odm_render_surface_frame *s,
 #undef LFAST
 }
 
+/* Multiplica por (1 + exceso), saturando. El exceso llega en Q1.31 donde el
+ * maximo equivale a duplicar el brillo. */
+static uint16_t gain_u16(uint16_t v, uint32_t excess_q31) {
+    uint64_t p = (uint64_t)v +
+                 ((uint64_t)v * (uint64_t)excess_q31) / (uint64_t)INT32_MAX;
+    return p > UINT16_MAX ? UINT16_MAX : (uint16_t)p;
+}
+
 static void sample_bilinear(const odm_render_surface_frame *s,
                             int64_t sx_q16, int64_t sy_q16,
                             odm_layered_pixel16 *out) {
@@ -365,6 +373,14 @@ odm_status odm_layered_core_pixel_prevalidated(const odm_layered_config *config,
     sample_bilinear(surface, sx, sy, &sample);
     effective = (uint32_t)(((uint64_t)mask * plan->core_opacity_q31 + (uint64_t)INT32_MAX / 2u) /
                            (uint64_t)INT32_MAX);
+    /* Ganancia emisiva: solo color. Subir tambien el alfa cambiaria la
+     * cobertura, es decir la forma del nucleo, y lo que se quiere es que la
+     * imagen se encienda con el golpe, no que crezca por segunda vez. */
+    if (plan->core_gain_q31 != 0u) {
+        sample.r = gain_u16(sample.r, plan->core_gain_q31);
+        sample.g = gain_u16(sample.g, plan->core_gain_q31);
+        sample.b = gain_u16(sample.b, plan->core_gain_q31);
+    }
     sample.r = mul_u16_q31(sample.r, effective);
     sample.g = mul_u16_q31(sample.g, effective);
     sample.b = mul_u16_q31(sample.b, effective);
