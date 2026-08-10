@@ -308,6 +308,87 @@ void odm_test_design(odm_test_context *context) {
         }
     }
 
+    /* --- CAMBIAR DE COMPOSICION NO CAMBIA LA REACCION -----------------------
+     *
+     * Esta es la propiedad sobre la que se sostiene todo el catalogo futuro.
+     *
+     * Si elegir otro fondo, otra gramatica de halo, otra forma de barra o otra
+     * forma de nucleo alterase la reaccion a la musica, cada composicion nueva
+     * habria que reajustarla a mano contra la musica, y anadir la decima
+     * costaria lo mismo que costo la primera. Como NO la altera, anadir
+     * composiciones es solo dibujar: la reaccion ya esta resuelta y es la
+     * misma para todas.
+     *
+     * Se comprueba sobre el plan de cuadro, que es donde la evidencia musical
+     * se vuelve numeros que el rasterizador consume: dos disenos que solo
+     * difieren en decisiones de apariencia tienen que producir exactamente los
+     * mismos valores de reaccion sobre la misma muestra. */
+    {
+        odm_design a, b;
+        odm_design_control ctl;
+        odm_layered_config ca, cb;
+        odm_layered_frame_plan pa, pb;
+        odm_composition_frame_state comp;
+        odm_director_frame_state dir;
+        uint32_t k;
+
+        ODM_TEST_CHECK(context, odm_template_load(0u, 0u, &a) == ODM_STATUS_OK);
+        b = a;
+        /* Solo apariencia: fondo, gramatica del halo, forma de barra y forma
+         * del nucleo. Ni una sola decision de reaccion. */
+        ODM_TEST_CHECK(context, odm_design_control_find("fondo.estilo", &ctl) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_design_set(&b, ctl.id, ODM_BACKGROUND_DOT_MATRIX) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_design_control_find("campo.gramatica", &ctl) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_design_set(&b, ctl.id, ODM_DESIGN_FIELD_BARS) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_design_control_find("campo.forma", &ctl) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_design_set(&b, ctl.id, ODM_FIELD_BAR_DOTS) == ODM_STATUS_OK);
+
+        ODM_TEST_CHECK(context, odm_design_compile(&a, 512u, 512u, 30, 9u, &ca) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context, odm_design_compile(&b, 512u, 512u, 30, 9u, &cb) == ODM_STATUS_OK);
+
+        /* La MISMA evidencia musical entra en los dos. */
+        memset(&comp, 0, sizeof(comp));
+        memset(&dir, 0, sizeof(dir));
+        comp.schema_version = ODM_COMPOSITION_SCHEMA_VERSION;
+        comp.radial_gain_q31 = (uint32_t)INT32_MAX;
+        comp.radial_aperture_q31 = (uint32_t)INT32_MAX;
+        comp.core_scale_q31 = 1150000000u;
+        comp.flags = ODM_COMPOSITION_FLAG_RADIAL_HIRES | ODM_COMPOSITION_FLAG_STRICT_CAUSAL |
+                     ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE | ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE;
+        for (k = 0u; k < ODM_COMPOSITION_RADIAL_SEGMENTS_MAX; ++k) {
+            uint32_t v = (uint32_t)(((uint64_t)(k + 1u) * 22369621u) % 2147483647u);
+            comp.radial_q31[k] = v;
+            comp.radial_body_q31[k] = v;
+        }
+        dir.schema_version = ODM_DIRECTOR_SCHEMA_VERSION;
+        dir.layout = ODM_DIRECTOR_LAYOUT_MONOLITH;
+
+        ODM_TEST_CHECK(context,
+            odm_layered_resolve_frame_plan(&ca, &comp, &dir, 4800, 48000, &pa) == ODM_STATUS_OK);
+        ODM_TEST_CHECK(context,
+            odm_layered_resolve_frame_plan(&cb, &comp, &dir, 4800, 48000, &pb) == ODM_STATUS_OK);
+
+        /* Los valores que vienen de la musica son identicos. */
+        for (k = 0u; k < ODM_COMPOSITION_RADIAL_SEGMENTS_MAX; ++k) {
+            ODM_TEST_CHECK(context, pa.radial_q31[k] == pb.radial_q31[k]);
+            ODM_TEST_CHECK(context, pa.radial_body_q31[k] == pb.radial_body_q31[k]);
+            ODM_TEST_CHECK(context, pa.radial_release_q31[k] == pb.radial_release_q31[k]);
+            ODM_TEST_CHECK(context, pa.radial_attack_q31[k] == pb.radial_attack_q31[k]);
+        }
+        ODM_TEST_CHECK(context, pa.sample == pb.sample);
+        ODM_TEST_CHECK(context, pa.tick_index == pb.tick_index);
+        ODM_TEST_CHECK(context, pa.progress_q31 == pb.progress_q31);
+        ODM_TEST_CHECK(context, pa.core_gain_q31 == pb.core_gain_q31);
+        ODM_TEST_CHECK(context, pa.duration_samples == pb.duration_samples);
+
+        /* Y control negativo: la APARIENCIA si tiene que haber cambiado. Si no,
+         * el test estaria comparando dos cosas iguales y no probaria nada. */
+        ODM_TEST_CHECK(context, ca.background.style != cb.background.style);
+        ODM_TEST_CHECK(context, ca.field.bar_shape != cb.field.bar_shape);
+        ODM_TEST_CHECK(context, ca.field.bar_max_q16 != cb.field.bar_max_q16 ||
+                                ca.field.bar_width_q16 != cb.field.bar_width_q16);
+    }
+
     /* --- EL MANIFIESTO DESCRIBE TODO LO QUE HAY ----------------------------
      *
      * Si el manifiesto se quedara corto, quien lo lea concluiria que el motor
