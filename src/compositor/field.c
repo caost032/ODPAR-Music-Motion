@@ -449,87 +449,90 @@ void odm_layered_field_render(const odm_layered_config *c,
         int32_t range=maxr-p->ring_inner_radius_q16;
         if(range>0){
             if ((p->flags & ODM_COMPOSITION_FLAG_STRICT_CAUSAL) != 0u) {
-                /* Strict Music-Reaction particles are spatially indexed by the
-                 * causal radial field. Their placement is seed-stable, while
-                 * visibility comes only from the corresponding music-derived
-                 * radial amplitude. No sample/tick clock advances position or
-                 * opacity in this path. */
+                /* POLVO EN EL AIRE, NO UN ANILLO.
+                 *
+                 * Las particulas ocupan TODO el cuadro, como polvo suspendido,
+                 * no una orbita alrededor del nucleo. Su sitio base sale de la
+                 * semilla y es estable: la misma muestra da la misma imagen, y
+                 * no hay reloj que las mueva -- lo que las mueve es la musica.
+                 *
+                 * La reaccion es LOCAL: el golpe empuja hacia fuera, y empuja
+                 * mucho mas a las que estan cerca del nucleo que a las del
+                 * borde. Eso es lo que hace que el aire parezca desplazado por
+                 * algo que ocurre en el centro, en vez de una capa de puntos
+                 * que parpadea entera a la vez.
+                 *
+                 * La profundidad decide tamano, brillo y cuanto la empuja el
+                 * golpe; y las lejanas desaparecen tras la silueta del nucleo.
+                 */
                 uint32_t segments = c->field.radial_segments;
+                uint32_t dep = c->field.particle_depth_q31;
+                int64_t ref = (int64_t)(p->width < p->height ? p->width : p->height) << 15;
+                uint32_t golpe;
+                {   /* Un solo golpe global: la media exacta del campo radial. */
+                    uint64_t acc = 0u;
+                    uint32_t k;
+                    for (k = 0u; k < segments; ++k) acc += p->radial_q31[k];
+                    golpe = (uint32_t)((acc + segments / 2u) / segments);
+                }
                 for(i=0u;i<p->particle_count;++i){
                     uint64_t h=mix64(UINT64_C(0x51a7c0de9e3779b9) ^
                                      ((uint64_t)i * UINT64_C(0x9e3779b97f4a7c15)));
-                    uint32_t sector=(uint32_t)(((uint64_t)i * UINT64_C(73)) % (uint64_t)segments);
-                    uint64_t cell=UINT64_C(0x100000000)/(uint64_t)segments;
-                    uint64_t base=((uint64_t)sector*UINT64_C(0x100000000))/(uint64_t)segments;
-                    uint64_t jitter=((h>>48u)&UINT64_C(0xffff))*cell/UINT64_C(65536);
-                    uint32_t phase=(uint32_t)(base+jitter);
-                    uint32_t amp=p->radial_q31[sector];
-                    uint32_t rq=(uint32_t)(mix64(h^UINT64_C(0x5bf03635))>>33);
-                    int32_t pcs,psn;
-                    int64_t boundary,r;
-                    int32_t x,y;
+                    uint64_t h2=mix64(h ^ UINT64_C(0x5bf03635));
+                    uint32_t z=(uint32_t)((h2>>16)&UINT64_C(0xffff));
+                    /* Sitio base en todo el lienzo. */
+                    int64_t bx=(int64_t)(((h & UINT64_C(0xffffffff)) * (uint64_t)p->width) >> 32) << 16;
+                    int64_t by=(int64_t)(((h2 & UINT64_C(0xffffffff)) * (uint64_t)p->height) >> 32) << 16;
+                    int64_t dx=bx-(int64_t)p->center_x_q16;
+                    int64_t dy=by-(int64_t)p->center_y_q16;
+                    int64_t dist=(int64_t)odm_layered_isqrt_u64(
+                        (uint64_t)((dx>>8)*(dx>>8)+(dy>>8)*(dy>>8)))<<8;
+                    int64_t cercania, empuje;
+                    int32_t x,y,radio_px;
                     uint32_t op;
-                    if(amp==0u)continue;
-                    pcs=cos_q31(phase);psn=sin_q31(phase);
-                    boundary=(int64_t)core_boundary_radius_q16(c,p,pcs,psn)+(int64_t)c->field.ring_gap_q16;
-                    /* The base scatter is fixed, but radial distance is
-                     * music-authoritative. 25..50% of the available range is
-                     * static topology; the remaining 0..50% is driven by this
-                     * sector's exact radial amplitude. No wall-clock term is
-                     * present, so a held spectrum produces a held position. */
-                    /* PROFUNDIDAD.
-                     *
-                     * Cada particula recibe una z estable por semilla -- no un
-                     * reloj, no ruido de cuadro -- y esa z gobierna cuatro
-                     * cosas a la vez: a que distancia orbita, que tamano tiene,
-                     * cuanto brilla y cuanto la empuja la musica. Cambiar solo
-                     * el tamano daria una textura con puntos de distinto
-                     * calibre; es la coherencia entre las cuatro lo que el ojo
-                     * lee como espacio.
-                     *
-                     * Y lo que de verdad lo vende: las lejanas que caen dentro
-                     * de la silueta del nucleo NO se dibujan. Quedan detras.
-                     * Sin esa oclusion todo el campo flota delante y la
-                     * profundidad es una promesa que la imagen desmiente. */
-                    {
-                        int64_t base_q31 = INT64_C(536870912) + (int64_t)rq / 4;
-                        int64_t music_q31 = (int64_t)amp / 2;
-                        int64_t radius_q31, escala_q16 = 65536, prof;
-                        int32_t radio_px;
-                        uint32_t z = (uint32_t)((h >> 16) & UINT64_C(0xffff));
-                        uint32_t dep = c->field.particle_depth_q31;
-                        if (dep != 0u) {
-                            /* La musica empuja mas a las cercanas. */
-                            music_q31 = (music_q31 * (INT64_C(32768) + (int64_t)z)) / INT64_C(65536);
-                            /* Orbita: lejanas hacia dentro, cercanas hacia fuera. */
-                            prof = INT64_C(45875) + ((int64_t)z * INT64_C(32768)) / INT64_C(65536);
-                            escala_q16 = 65536 + (((prof - 65536) * (int64_t)dep) / INT32_MAX);
-                        }
-                        radius_q31 = base_q31 + music_q31;
-                        if (radius_q31 > INT32_MAX) radius_q31 = INT32_MAX;
-                        r=boundary+((int64_t)range*radius_q31+INT32_MAX/2)/INT32_MAX;
-                        r=(r*escala_q16)/INT64_C(65536);
 
-                        /* Oclusion: una lejana dentro del nucleo esta detras. */
-                        if (dep != 0u && z < UINT32_C(32768) &&
-                            r < (int64_t)core_boundary_radius_q16(c,p,pcs,psn))
-                            continue;
+                    /* Cercania al nucleo: 1 en el centro, 0 en la referencia. */
+                    cercania = dist >= ref ? 0 : (((ref - dist) * INT32_MAX) / ref);
 
-                        x=(int32_t)((int64_t)p->center_x_q16+(r*pcs)/INT32_MAX);
-                        y=(int32_t)((int64_t)p->center_y_q16+(r*psn)/INT32_MAX);
-                        op=(uint32_t)(((uint64_t)p->field_opacity_q31*(uint64_t)amp+INT32_MAX/2u)/INT32_MAX);
-                        radio_px=(int32_t)c->field.particle_radius_q16;
-                        if (dep != 0u) {
-                            /* Tamano y brillo con la distancia. */
-                            int64_t t = INT64_C(36044) + ((int64_t)z * INT64_C(58982)) / INT64_C(65536);
-                            int64_t k = 65536 + (((t - 65536) * (int64_t)dep) / INT32_MAX);
-                            radio_px = (int32_t)(((int64_t)radio_px * k) / INT64_C(65536));
-                            if (radio_px < (1 << 12)) radio_px = 1 << 12;
-                            op = (uint32_t)(((uint64_t)op * (uint64_t)k) / UINT64_C(65536));
-                            if (op > (uint32_t)INT32_MAX) op = (uint32_t)INT32_MAX;
-                        }
-                        draw_disk(frame,p->width,p->height,x,y,radio_px,&c->field.particle_color,op);
+                    /* Empuje radial del golpe, mas fuerte cuanto mas cerca.
+                     * Las cercanas al nucleo tambien pesan mas por profundidad. */
+                    empuje = (((int64_t)golpe * cercania) / INT32_MAX);
+                    if (dep != 0u)
+                        empuje = (empuje * (INT64_C(32768) + (int64_t)z)) / INT64_C(65536);
+                    /* Hasta un octavo del lado menor de desplazamiento. */
+                    empuje = (empuje * (ref / 4)) / INT32_MAX;
+
+                    if (dist > 0) {
+                        x=(int32_t)(bx + (dx * empuje) / dist);
+                        y=(int32_t)(by + (dy * empuje) / dist);
+                    } else { x=(int32_t)bx; y=(int32_t)by; }
+
+                    /* Oclusion: una lejana dentro de la silueta esta detras. */
+                    if (dep != 0u && z < UINT32_C(32768)) {
+                        int64_t ndx=(int64_t)x-(int64_t)p->center_x_q16;
+                        int64_t ndy=(int64_t)y-(int64_t)p->center_y_q16;
+                        int64_t nd=(int64_t)odm_layered_isqrt_u64(
+                            (uint64_t)((ndx>>8)*(ndx>>8)+(ndy>>8)*(ndy>>8)))<<8;
+                        int32_t pcs2 = nd > 0 ? (int32_t)((ndx*INT32_MAX)/nd) : INT32_MAX;
+                        int32_t psn2 = nd > 0 ? (int32_t)((ndy*INT32_MAX)/nd) : 0;
+                        if (nd < (int64_t)core_boundary_radius_q16(c,p,pcs2,psn2)) continue;
                     }
+
+                    /* El polvo respira con el golpe, pero nunca desaparece:
+                     * un suelo de presencia mantiene el aire habitado. */
+                    op=(uint32_t)(((uint64_t)p->field_opacity_q31 *
+                                   (UINT64_C(429496729) + (uint64_t)golpe / 2u)) / INT32_MAX);
+                    radio_px=(int32_t)c->field.particle_radius_q16;
+                    if (dep != 0u) {
+                        int64_t t = INT64_C(36044) + ((int64_t)z * INT64_C(58982)) / INT64_C(65536);
+                        int64_t k = 65536 + (((t - 65536) * (int64_t)dep) / INT32_MAX);
+                        radio_px = (int32_t)(((int64_t)radio_px * k) / INT64_C(65536));
+                        if (radio_px < (1 << 12)) radio_px = 1 << 12;
+                        op = (uint32_t)(((uint64_t)op * (uint64_t)k) / UINT64_C(65536));
+                    }
+                    if (op > (uint32_t)INT32_MAX) op = (uint32_t)INT32_MAX;
+                    if (op != 0u)
+                        draw_disk(frame,p->width,p->height,x,y,radio_px,&c->field.particle_color,op);
                 }
             } else {
                 for(i=0u;i<p->particle_count;++i){
