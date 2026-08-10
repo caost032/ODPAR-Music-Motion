@@ -156,6 +156,7 @@ odm_status odm_layered_config_init_default(odm_layered_config *out_config,
      * usaban antes. Separar la categoria no puede cambiar lo que ya se veia:
      * cambia lo que se puede controlar, no lo que se dibuja por omision. */
     c.field.particle_color = c.field.primary_color;
+    c.field.bar_shape = ODM_FIELD_BAR_LINE;
     c.field.seed = UINT64_C(0x0d130d130d130d13);
 
     c.hud.schema_version = ODM_LAYERED_SCHEMA_VERSION;
@@ -293,7 +294,8 @@ odm_status odm_layered_config_validate(const odm_layered_config *c) {
         c->field.particle_radius_q16 > (32u << 16) || !q31u(c->field.field_opacity_q31) ||
         !rgba_valid(&c->field.primary_color) || !rgba_valid(&c->field.secondary_color) ||
         !rgba_valid(&c->field.particle_color) ||
-        !bytes_zero_u32(c->field.reserved, 4u)) return ODM_STATUS_INVALID_DATA;
+        c->field.bar_shape > ODM_FIELD_BAR_SHAPE_MAX ||
+        !bytes_zero_u32(c->field.reserved, 3u)) return ODM_STATUS_INVALID_DATA;
 
     if (c->hud.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
         (c->hud.flags & ~(ODM_HUD_PROGRESS_BAR | ODM_HUD_TIME_CODE | ODM_HUD_TITLE | ODM_HUD_ARTIST)) != 0u ||
@@ -458,7 +460,12 @@ odm_status odm_layered_resolve_frame_plan(const odm_layered_config *c,
     p.flags = comp->flags & (ODM_COMPOSITION_FLAG_RADIAL_HIRES |
                              ODM_COMPOSITION_FLAG_STRICT_CAUSAL |
                              ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE |
-                             ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE);
+                             ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE |
+                             /* El gobierno del instrumento directo tiene que
+                              * llegar al rasterizador: es lo que decide si la
+                              * autoridad de la aguja es su medida o la
+                              * descomposicion de Music-Reaction. */
+                             ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT);
     p.core_opacity_q31 = c->core.opacity_q31;
     st = odm_layered_reaction_eval(reaction.field_gain_route, comp, dir, &signal);
     if (st != ODM_STATUS_OK) return st;
@@ -698,7 +705,8 @@ static odm_status layer_config_encode(const odm_layered_config *c, uint8_t *buff
     LC(odm_wire_write_u32(&w,c->field.particle_count)); LC(odm_wire_write_u32(&w,c->field.ring_gap_q16)); LC(odm_wire_write_u32(&w,c->field.bar_min_q16));
     LC(odm_wire_write_u32(&w,c->field.bar_max_q16)); LC(odm_wire_write_u32(&w,c->field.bar_width_q16)); LC(odm_wire_write_u32(&w,c->field.particle_radius_q16));
     LC(odm_wire_write_u32(&w,c->field.field_opacity_q31)); LC(write_rgba16(&w,&c->field.primary_color)); LC(write_rgba16(&w,&c->field.secondary_color));
-    LC(write_rgba16(&w,&c->field.particle_color)); LC(odm_wire_write_u64(&w,c->field.seed));
+    LC(write_rgba16(&w,&c->field.particle_color)); LC(odm_wire_write_u32(&w,c->field.bar_shape));
+    LC(odm_wire_write_u64(&w,c->field.seed));
     LC(odm_wire_write_u32(&w,c->hud.schema_version)); LC(odm_wire_write_u32(&w,c->hud.flags)); LC(odm_wire_write_u32(&w,c->hud.margin_q16));
     LC(odm_wire_write_u32(&w,c->hud.progress_height_q16)); LC(odm_wire_write_u32(&w,c->hud.progress_width_q31)); LC(odm_wire_write_u32(&w,c->hud.text_scale_q16));
     LC(odm_wire_write_u32(&w,c->hud.line_gap_q16)); LC(odm_wire_write_u32(&w,c->hud.opacity_q31)); LC(write_rgba16(&w,&c->hud.foreground_color)); LC(write_rgba16(&w,&c->hud.background_color));
@@ -801,6 +809,8 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, 64u)); /* celdas de la matriz de difuminado */
     LP(odm_wire_write_u32(&w, 255u)); /* amplitud del difuminado: 1 paso de 8 bits, centrado */
     LP(odm_wire_write_u32(&w, ODM_LAYERED_FLAG_DITHER_OUTPUT)); /* difuminado declarado en la config */
+    LP(odm_wire_write_u32(&w, ODM_FIELD_BAR_SHAPE_MAX + 1u)); /* formas de barra */
+    LP(odm_wire_write_u32(&w, 1u)); /* bajo gobierno espectral directo la autoridad es la medida */
     LP(odm_wire_write_u32(&w, 2u)); /* perfil de profundidad: (1-(d/r)^2)^2 */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective grid uses bounded row-projective integer mapping */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective horizon suppresses sub-two-pixel projected cells */

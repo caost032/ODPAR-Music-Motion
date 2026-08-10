@@ -81,6 +81,8 @@ def config_bytes():
     rgba(b,(65535,65535,65535,65535));rgba(b,(32767,32767,32767,65535))
     # Las particulas llevan su propio color; la sonda no lo fija, asi que es cero.
     rgba(b,(0,0,0,0))
+    # forma de la barra: la sonda no la fija, asi que es el trazo por defecto
+    u32(b,0)
     u64(b,0x0d130d130d130d13)
     # HUD
     for v in (1,15,2<<16,1<<16,qr(3,4),1<<16,1<<16,Q):u32(b,v)
@@ -100,7 +102,7 @@ def policy_bytes():
     b=bytearray(b'ODMLAYR3')
     # v14: paridad de las dos rutas de fondo, radio radial = media diagonal.
     # v15: difuminado ordenado declarado en la configuracion.
-    vals0=(15,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
+    vals0=(16,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
@@ -108,7 +110,7 @@ def policy_bytes():
               # v12: estilos de fondo (5 con el campo de profundidad), luego el
               # contrato del difuminado ordenado: matriz Bayer 8x8 determinista,
               # 64 celdas, y perfil de profundidad (1-(d/r)^2)^2.
-              9,1,64,255,1,2,
+              9,1,64,255,1,4,1,2,
               1,1,1,
               6,3,3,1,1,
               1,26,6,6,1,1,1,16,

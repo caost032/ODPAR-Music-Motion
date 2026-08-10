@@ -86,6 +86,7 @@ static const char *const dz_opt_background[] = {
 static const char *const dz_opt_core_shape[] = { "Circulo", "Cuadrado", "Rectangulo redondeado" };
 static const char *const dz_opt_core_fit[]   = { "Llenar", "Contener", "Estirar" };
 static const char *const dz_opt_field[]      = { "Filamentos", "Barras", "Corona", "Anillo", "Ninguno" };
+static const char *const dz_opt_bar[]        = { "Trazo", "Capsula", "Cuna", "Puntos" };
 static const char *const dz_opt_detail[]     = { "48 sectores", "96 sectores" };
 static const char *const dz_opt_anchor[]     = {
     "Arriba izquierda", "Arriba centro", "Arriba derecha",
@@ -151,10 +152,12 @@ static const dz_control dz_table[] = {
     /* CAMPO */
     DZ_ENUM(30u, ODM_DESIGN_CAT_FIELD, "campo.gramatica", "Composicion del halo",
             field.grammar, 5u, 0u, dz_opt_field),
+    DZ_ENUM(37u, ODM_DESIGN_CAT_FIELD, "campo.forma", "Forma de la barra",
+            field.shape, 4u, 1u, dz_opt_bar),
     DZ_SCALAR(31u, ODM_DESIGN_CAT_FIELD, "campo.longitud", "Alcance",
               field.length_q31, R(1u,40u), R(1u,3u), R(1u,7u)),
     DZ_SCALAR(32u, ODM_DESIGN_CAT_FIELD, "campo.grosor", "Grosor del trazo",
-              field.weight_q31, R(1u,4000u), R(1u,60u), R(1u,240u)),
+              field.weight_q31, R(1u,4000u), R(1u,25u), R(1u,150u)),
     DZ_SCALAR(33u, ODM_DESIGN_CAT_FIELD, "campo.opacidad", "Opacidad",
               field.opacity_q31, 0u, R(1u,1u), R(1u,1u)),
     DZ_ENUM(34u, ODM_DESIGN_CAT_FIELD, "campo.detalle", "Detalle angular",
@@ -397,6 +400,7 @@ odm_status odm_design_from_theme(const odm_theme *theme, uint32_t aspect,
     }
     d.field.length_q31 = theme->field_length_q31;
     d.field.weight_q31 = theme->field_weight_q31;
+    d.field.shape = ODM_FIELD_BAR_CAPSULE;
     d.field.color = theme->role[ODM_THEME_ROLE_PRIMARY];
     d.field.accent = theme->role[ODM_THEME_ROLE_ACCENT];
 
@@ -687,6 +691,7 @@ odm_status odm_design_compile(const odm_design *design,
     c.field.field_opacity_q31 = design->field.opacity_q31;
     c.field.primary_color = dz_lin(&design->field.accent);
     c.field.secondary_color = dz_lin(&design->field.color);
+    c.field.bar_shape = design->field.shape;
     c.field.seed = seed;
 
     /* PARTICULAS --------------------------------------------------------- */

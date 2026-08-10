@@ -79,7 +79,8 @@ static odm_status validate_plan_bound(const odm_layered_config *c,
         (p->flags & ~(ODM_COMPOSITION_FLAG_RADIAL_HIRES |
                       ODM_COMPOSITION_FLAG_STRICT_CAUSAL |
                       ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE |
-                      ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE)) != 0u ||
+                      ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE |
+                      ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT)) != 0u ||
         p->safe_left_q16 < 0 || p->safe_top_q16 < 0 ||
         p->safe_right_q16 > ((int32_t)p->width << 16) ||
         p->safe_bottom_q16 > ((int32_t)p->height << 16) ||
@@ -93,6 +94,20 @@ static odm_status validate_plan_bound(const odm_layered_config *c,
     if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_TIMESCALE) != 0u &&
         (p->flags & ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE) == 0u)
         return ODM_STATUS_INVALID_DATA;
+    /* El gobierno espectral directo no es una etiqueta libre: declara que el
+     * extremo ES la medida y que no hay ataque ni cola que explicar. Si el plan
+     * lo anuncia y aun asi trae descomposicion, la provenance describe otra
+     * cosa distinta del valor, que es justo lo que esta bandera existe para
+     * impedir. Se comprueba aqui, en la frontera del render. */
+    if ((p->flags & ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT) != 0u) {
+        if ((p->flags & ODM_COMPOSITION_FLAG_RADIAL_PROVENANCE) == 0u)
+            return ODM_STATUS_INVALID_DATA;
+        for (i = 0u; i < c->field.radial_segments; ++i) {
+            if (p->radial_body_q31[i] != p->radial_q31[i] ||
+                p->radial_release_q31[i] != 0u || p->radial_attack_q31[i] != 0u)
+                return ODM_STATUS_INVALID_DATA;
+        }
+    }
     /* STRICT_CAUSAL is a render-boundary promise, not merely a hint emitted
      * by the normal resolver. A forged/direct frame plan must not be able to
      * smuggle clock/phase motion back into a path that advertises causal

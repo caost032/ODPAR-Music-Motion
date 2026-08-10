@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(15)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(16)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
 
@@ -63,6 +63,14 @@ extern "C" {
 #define ODM_CORE_FIT_COVER          UINT32_C(1)
 #define ODM_CORE_FIT_CONTAIN        UINT32_C(2)
 #define ODM_CORE_FIT_STRETCH        UINT32_C(3)
+
+/* Forma de la barra radial. Es un eje de composicion propio: cambia como ocupa
+ * el espacio cada aguja sin tocar su valor, su color ni su longitud. */
+#define ODM_FIELD_BAR_LINE    UINT32_C(0)  /* trazo de grosor constante        */
+#define ODM_FIELD_BAR_CAPSULE UINT32_C(1)  /* extremos redondeados             */
+#define ODM_FIELD_BAR_WEDGE   UINT32_C(2)  /* afilada hacia fuera              */
+#define ODM_FIELD_BAR_DOTS    UINT32_C(3)  /* columna de puntos                */
+#define ODM_FIELD_BAR_SHAPE_MAX ODM_FIELD_BAR_DOTS
 
 #define ODM_FIELD_RADIAL_BARS UINT32_C(1)
 #define ODM_FIELD_PARTICLES   UINT32_C(2)
@@ -289,8 +297,9 @@ typedef struct {
      * modo que retocar el acento de las barras cambiaba tambien las particulas:
      * dos categorias distintas atadas al mismo control. */
     odm_rgba16 particle_color;
+    uint32_t bar_shape;           /* ODM_FIELD_BAR_*                          */
     uint64_t seed;
-    uint32_t reserved[4];
+    uint32_t reserved[3];
 } odm_field_config;
 
 typedef struct {

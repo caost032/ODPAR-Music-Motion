@@ -123,12 +123,13 @@ typedef struct {
 
 typedef struct {
     uint32_t grammar;          /* ODM_DESIGN_FIELD_*                         */
+    uint32_t shape;            /* ODM_FIELD_BAR_*: forma de cada aguja       */
     uint32_t length_q31;
     uint32_t weight_q31;
     uint32_t opacity_q31;
     uint32_t detail;           /* 0 = 48 sectores, 1 = 96                    */
-    odm_rgba16 color;
-    odm_rgba16 accent;
+    odm_rgba16 color;          /* bandas debiles                             */
+    odm_rgba16 accent;         /* bandas fuertes                             */
 } odm_design_field;
 
 typedef struct {

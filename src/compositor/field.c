@@ -124,6 +124,22 @@ static void draw_disk(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
 
 /* Segment rasterization is canonically Q24.8.  Projection uses Q16 t so all
  * products fit signed 64-bit for the admitted 16k canvas / 2k bar limits. */
+/* Mezcla lineal de dos colores. Bajo gobierno espectral directo el color de la
+ * aguja sale de SU PROPIA intensidad: apagado en las bandas debiles, acento
+ * pleno en las fuertes. Antes el acento solo se encendia con el ataque de
+ * Music-Reaction, asi que con la medida directa -- donde ataque y cola valen
+ * cero por definicion -- ninguna barra llegaba a encenderse: todas quedaban en
+ * el color apagado y en el suelo de opacidad. Se veian flacas y muertas. */
+static odm_rgba16 field_mix_color(const odm_rgba16 *a, const odm_rgba16 *b, uint32_t t_q31) {
+    odm_rgba16 o;
+    uint64_t inv = (uint64_t)INT32_MAX - (uint64_t)t_q31;
+    o.r = (uint16_t)(((uint64_t)a->r * inv + (uint64_t)b->r * t_q31) / (uint64_t)INT32_MAX);
+    o.g = (uint16_t)(((uint64_t)a->g * inv + (uint64_t)b->g * t_q31) / (uint64_t)INT32_MAX);
+    o.b = (uint16_t)(((uint64_t)a->b * inv + (uint64_t)b->b * t_q31) / (uint64_t)INT32_MAX);
+    o.a = (uint16_t)(((uint64_t)a->a * inv + (uint64_t)b->a * t_q31) / (uint64_t)INT32_MAX);
+    return o;
+}
+
 static void draw_segment(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
                          int32_t ax_q16, int32_t ay_q16,
                          int32_t bx_q16, int32_t by_q16,
@@ -156,6 +172,62 @@ static void draw_segment(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
         dist_q16=(int64_t)odm_layered_isqrt_u64((uint64_t)(dx*dx+dy*dy))<<8;
         cov=odm_layered_coverage_q31(dist_q16,width_q16/2,65536);
         if(cov)odm_layered_blend16(&frame[(uint64_t)y*w+(uint64_t)x],color,cov,opacity_q31);
+    }
+}
+
+/* Una aguja radial, con forma. La forma no cambia el valor ni la longitud: solo
+ * como ocupa el espacio ese mismo valor. Todas se construyen sobre el mismo
+ * segmento, asi que ninguna introduce geometria que las demas no puedan
+ * reproducir. */
+static void draw_needle(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
+                        int32_t ax, int32_t ay, int32_t bx, int32_t by,
+                        int32_t width_q16, uint32_t shape,
+                        const odm_rgba16 *color, uint32_t opacity_q31) {
+    if (opacity_q31 == 0u || width_q16 <= 0) return;
+    switch (shape) {
+        case ODM_FIELD_BAR_CAPSULE: {
+            draw_segment(frame, w, h, ax, ay, bx, by, width_q16, color, opacity_q31);
+            draw_disk(frame, w, h, bx, by, width_q16 / 2, color, opacity_q31);
+            draw_disk(frame, w, h, ax, ay, width_q16 / 2, color, opacity_q31);
+            break;
+        }
+        case ODM_FIELD_BAR_WEDGE: {
+            /* Cuatro tramos con grosor decreciente: afilada hacia fuera sin
+             * necesitar un rasterizador de poligonos aparte. */
+            uint32_t k;
+            for (k = 0u; k < 4u; ++k) {
+                int32_t x0 = ax + (int32_t)(((int64_t)(bx - ax) * (int32_t)k) / 4);
+                int32_t y0 = ay + (int32_t)(((int64_t)(by - ay) * (int32_t)k) / 4);
+                int32_t x1 = ax + (int32_t)(((int64_t)(bx - ax) * (int32_t)(k + 1u)) / 4);
+                int32_t y1 = ay + (int32_t)(((int64_t)(by - ay) * (int32_t)(k + 1u)) / 4);
+                int32_t ww = (int32_t)(((int64_t)width_q16 * (int64_t)(4u - k)) / 4);
+                if (ww < (1 << 12)) ww = 1 << 12;
+                draw_segment(frame, w, h, x0, y0, x1, y1, ww, color, opacity_q31);
+            }
+            break;
+        }
+        case ODM_FIELD_BAR_DOTS: {
+            /* Columna de puntos separados un diametro y medio. El numero sale
+             * de la longitud, asi que una banda mas alta tiene mas puntos en
+             * vez de puntos mas grandes. */
+            int64_t dx = (int64_t)bx - ax, dy = (int64_t)by - ay;
+            int64_t len = (int64_t)odm_layered_isqrt_u64((uint64_t)((dx >> 8) * (dx >> 8) +
+                                                                     (dy >> 8) * (dy >> 8))) << 8;
+            int64_t paso = (int64_t)width_q16 * 3 / 2;
+            int64_t n, i2;
+            if (paso <= 0) paso = 1 << 16;
+            n = len / paso;
+            if (n > 64) n = 64;
+            for (i2 = 0; i2 <= n; ++i2) {
+                int32_t px = ax + (int32_t)((dx * i2) / (n > 0 ? n : 1));
+                int32_t py = ay + (int32_t)((dy * i2) / (n > 0 ? n : 1));
+                draw_disk(frame, w, h, px, py, width_q16 / 2, color, opacity_q31);
+            }
+            break;
+        }
+        default:
+            draw_segment(frame, w, h, ax, ay, bx, by, width_q16, color, opacity_q31);
+            break;
     }
 }
 
@@ -306,16 +378,31 @@ void odm_layered_field_render(const odm_layered_config *c,
                      * a faint body, but a bright protrusion requires same-lane
                      * transient/release evidence. This prevents dense songs
                      * from leaving a static white crown around the Core. */
-                    uint32_t local_activity = p->radial_attack_q31[i];
-                    uint32_t tail_activity = field_mul_q31(p->radial_release_q31[i],
-                                                          LAYER_RADIAL_TAIL_WEIGHT);
-                    uint32_t activity = local_activity > tail_activity ? local_activity : tail_activity;
-                    uint32_t authority = LAYER_RADIAL_AUTHORITY_FLOOR;
-                    authority += field_mul_q31((uint32_t)INT32_MAX - authority, activity);
-                    draw_segment(frame,p->width,p->height,ax,ay,bdx,bdy,
-                                 (int32_t)c->field.bar_width_q16,
-                                 &c->field.secondary_color,
-                                 field_mul_q31(p->field_opacity_q31, authority));
+                    const int directo =
+                        (p->flags & ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT) != 0u;
+                    uint32_t authority;
+                    odm_rgba16 col;
+                    if (directo) {
+                        /* La medida ES la evidencia: no hay nada que exigirle
+                         * ademas. Y el color sale de su propia intensidad, de
+                         * modo que las bandas fuertes se encienden con el
+                         * acento en vez de quedarse en el color apagado. */
+                        authority = p->radial_q31[i];
+                        col = field_mix_color(&c->field.secondary_color,
+                                              &c->field.primary_color, p->radial_q31[i]);
+                    } else {
+                        uint32_t local_activity = p->radial_attack_q31[i];
+                        uint32_t tail_activity = field_mul_q31(p->radial_release_q31[i],
+                                                              LAYER_RADIAL_TAIL_WEIGHT);
+                        uint32_t activity = local_activity > tail_activity ? local_activity : tail_activity;
+                        authority = LAYER_RADIAL_AUTHORITY_FLOOR;
+                        authority += field_mul_q31((uint32_t)INT32_MAX - authority, activity);
+                        col = c->field.secondary_color;
+                    }
+                    draw_needle(frame,p->width,p->height,ax,ay,bdx,bdy,
+                                (int32_t)c->field.bar_width_q16, c->field.bar_shape,
+                                &col,
+                                field_mul_q31(p->field_opacity_q31, authority));
                 }
                 if (release_len > body_len && p->radial_release_q31[i] != 0u) {
                     int64_t rr=r0+release_len;
@@ -324,9 +411,9 @@ void odm_layered_field_render(const odm_layered_config *c,
                     rdx=(int32_t)((int64_t)p->center_x_q16+(rr*cs)/INT32_MAX);
                     rdy=(int32_t)((int64_t)p->center_y_q16+(rr*sn)/INT32_MAX);
                     if (release_opacity != 0u)
-                        draw_segment(frame,p->width,p->height,bdx,bdy,rdx,rdy,
-                                     (int32_t)c->field.bar_width_q16,
-                                     &c->field.secondary_color,release_opacity);
+                        draw_needle(frame,p->width,p->height,bdx,bdy,rdx,rdy,
+                                    (int32_t)c->field.bar_width_q16, c->field.bar_shape,
+                                    &c->field.secondary_color,release_opacity);
                 }
                 if (final_len > release_len && p->radial_attack_q31[i] != 0u) {
                     int64_t rf=r0+final_len;
@@ -337,9 +424,9 @@ void odm_layered_field_render(const odm_layered_config *c,
                     uint32_t tip_opacity=field_mul_q31(p->field_opacity_q31,
                                                       tip_authority);
                     if (tip_opacity != 0u)
-                        draw_segment(frame,p->width,p->height,rdx,rdy,tx,ty,
-                                     (int32_t)c->field.bar_width_q16,
-                                     &c->field.primary_color,tip_opacity);
+                        draw_needle(frame,p->width,p->height,rdx,rdy,tx,ty,
+                                    (int32_t)c->field.bar_width_q16, c->field.bar_shape,
+                                    &c->field.primary_color,tip_opacity);
                 }
             } else {
                 int64_t span=(int64_t)c->field.bar_max_q16-(int64_t)c->field.bar_min_q16;
@@ -349,8 +436,9 @@ void odm_layered_field_render(const odm_layered_config *c,
                 int32_t bx=(int32_t)((int64_t)p->center_x_q16+(r1*cs)/INT32_MAX);
                 int32_t by=(int32_t)((int64_t)p->center_y_q16+(r1*sn)/INT32_MAX);
                 const odm_rgba16 *col=(i&1u)?&c->field.secondary_color:&c->field.primary_color;
-                draw_segment(frame,p->width,p->height,ax,ay,bx,by,
-                             (int32_t)c->field.bar_width_q16,col,p->field_opacity_q31);
+                draw_needle(frame,p->width,p->height,ax,ay,bx,by,
+                            (int32_t)c->field.bar_width_q16,c->field.bar_shape,
+                            col,p->field_opacity_q31);
             }
         }
     }

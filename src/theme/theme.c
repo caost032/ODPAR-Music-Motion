@@ -149,7 +149,7 @@ static void th_common(odm_theme *t) {
     t->core_border_q31 = th_q_ratio(1u, 720u);
     t->field = ODM_THEME_FIELD_FILAMENT;
     t->field_length_q31 = th_q_ratio(1u, 7u);
-    t->field_weight_q31 = th_q_ratio(1u, 240u);
+    t->field_weight_q31 = th_q_ratio(1u, 150u);
     t->particle_density_q31 = 0u;
     t->hud_show_progress = 1u;
     t->hud_show_time = 1u;
@@ -183,7 +183,7 @@ static void th_architect(odm_theme *t) {
     t->background_intensity_q31 = th_q_ratio(2u, 5u);
     t->field = ODM_THEME_FIELD_BARS;
     t->field_length_q31 = th_q_ratio(1u, 9u);
-    t->field_weight_q31 = th_q_ratio(1u, 190u);
+    t->field_weight_q31 = th_q_ratio(1u, 120u);
     t->core_shape = ODM_THEME_CORE_ROUNDED;
     t->role[ODM_THEME_ROLE_BACKGROUND_DEEP] = rgb(0, 1200, 2600);
     t->role[ODM_THEME_ROLE_BACKGROUND_BASE] = rgb(1000, 2200, 4200);
@@ -219,7 +219,7 @@ static void th_ember(odm_theme *t) {
     t->background = ODM_THEME_BG_DEPTH_FIELD;
     t->field = ODM_THEME_FIELD_CORONA;
     t->field_length_q31 = th_q_ratio(1u, 11u);
-    t->field_weight_q31 = th_q_ratio(1u, 170u);
+    t->field_weight_q31 = th_q_ratio(1u, 110u);
     t->particle_density_q31 = th_q_ratio(1u, 6u);
     t->role[ODM_THEME_ROLE_BACKGROUND_DEEP] = rgb(1800, 400, 200);
     t->role[ODM_THEME_ROLE_BACKGROUND_BASE] = rgb(3000, 800, 400);
