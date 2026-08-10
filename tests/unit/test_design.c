@@ -5,6 +5,7 @@
 
 #include "test_harness.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 /* Vista por categoria del documento. La aislacion se comprueba sobre estas
@@ -304,6 +305,44 @@ void odm_test_design(odm_test_context *context) {
             ODM_TEST_CHECK(context, odm_theme_builtin(th, &t) == ODM_STATUS_OK);
             ODM_TEST_CHECK(context, odm_design_from_theme(&t, 0u, &d) == ODM_STATUS_OK);
             ODM_TEST_CHECK(context, odm_design_validate(&d, &rep) == ODM_STATUS_OK);
+        }
+    }
+
+    /* --- EL MANIFIESTO DESCRIBE TODO LO QUE HAY ----------------------------
+     *
+     * Si el manifiesto se quedara corto, quien lo lea concluiria que el motor
+     * hace menos de lo que hace -- que es exactamente el problema que existe
+     * para resolver. Se comprueba que TODA clave publicada aparece en el. */
+    {
+        uint64_t need = 0u;
+        char *json;
+        ODM_TEST_CHECK(context,
+            odm_design_manifest_json(NULL, 0u, &need) == ODM_STATUS_BUFFER_TOO_SMALL);
+        ODM_TEST_CHECK(context, need > 1000u);
+        json = (char *)malloc((size_t)need);
+        ODM_TEST_CHECK(context, json != NULL);
+        if (json != NULL) {
+            uint32_t k;
+            ODM_TEST_CHECK(context,
+                odm_design_manifest_json(json, need, &need) == ODM_STATUS_OK);
+            ODM_TEST_CHECK(context, json[0] == '{');
+            ODM_TEST_CHECK(context, json[need - 2u] == '}');
+            for (k = 0u; k < n; ++k) {
+                odm_design_control c;
+                ODM_TEST_CHECK(context, odm_design_control_at(k, &c) == ODM_STATUS_OK);
+                ODM_TEST_CHECK(context, strstr(json, c.key) != NULL);
+                ODM_TEST_CHECK(context, strstr(json, c.label) != NULL);
+            }
+            for (k = 0u; k < nt; ++k)
+                ODM_TEST_CHECK(context, strstr(json, odm_template_name(k)) != NULL);
+            free(json);
+        }
+        /* Un buffer justo por debajo debe fallar, no truncar en silencio. */
+        {
+            char corto[64];
+            uint64_t req = 0u;
+            ODM_TEST_CHECK(context,
+                odm_design_manifest_json(corto, sizeof(corto), &req) == ODM_STATUS_BUFFER_TOO_SMALL);
         }
     }
 

@@ -69,7 +69,7 @@
 #include <stdint.h>
 
 #define ODM_SPECTRAL_INSTRUMENT_SCHEMA_VERSION UINT32_C(1)
-#define ODM_SPECTRAL_INSTRUMENT_POLICY_VERSION UINT32_C(3)
+#define ODM_SPECTRAL_INSTRUMENT_POLICY_VERSION UINT32_C(4)
 #define ODM_SPECTRAL_INSTRUMENT_BAND_COUNT     UINT32_C(96)
 #define ODM_SPECTRAL_INSTRUMENT_MIN_HZ         UINT32_C(34)
 #define ODM_SPECTRAL_INSTRUMENT_MAX_HZ         UINT32_C(15000)
@@ -125,6 +125,52 @@ odm_status odm_spectral_instrument_band_bins_q16(uint32_t band, uint32_t *out_bi
 /* log2 exacto en Q16.16, expuesto porque es la pieza que define la escala. */
 uint32_t odm_spectral_instrument_log2_q16(uint32_t value);
 
+/* Simetria del reparto de bandas sobre el arco. */
+enum {
+    ODM_SPECTRAL_SYMMETRY_NONE     = 0u, /* 96 bandas, de graves a agudos      */
+    ODM_SPECTRAL_SYMMETRY_MIRROR   = 1u, /* espejo izquierda/derecha           */
+    ODM_SPECTRAL_SYMMETRY_QUADRANT = 2u, /* espejo en los dos ejes             */
+    ODM_SPECTRAL_SYMMETRY_COUNT    = 3u
+};
+
+/* Suaviza la secuencia de ticks EN EL SITIO.
+ *
+ * POR QUE HACE FALTA
+ *
+ * La medida directa no tiene memoria: es su virtud y tambien su problema. A 60
+ * cuadros por segundo cada uno es una medicion independiente, asi que la aguja
+ * salta sin continuidad; y en el eje de frecuencia la musica tiene armonicos,
+ * de modo que bandas vecinas caen encima o al lado de un parcial y difieren
+ * muchisimo. Las dos cosas son fisicamente ciertas y las dos se leen como
+ * ruido: una corona de puas que cambia de forma cada cuadro no comunica la
+ * musica, distrae de ella.
+ *
+ * QUE HACE, EXACTAMENTE
+ *
+ * - TEMPORAL: un polo asimetrico sobre la rejilla de 100 Hz, con peso de
+ *   subida y de bajada distintos. Subir rapido conserva el ataque -- que es
+ *   informacion real -- y bajar despacio da la cola que el ojo necesita para
+ *   leer continuidad. Al operar sobre TICKS y no sobre cuadros, el resultado no
+ *   depende de los FPS: la misma cancion da la misma envolvente a 24, 30 o 60.
+ *
+ * - LATERAL: un nucleo simetrico [1,2,1]/4 sobre el eje de bandas, aplicado
+ *   `band_blur` veces. No inventa energia ni la desplaza: reparte la de un
+ *   parcial entre sus vecinas, que es lo que convierte un peine de armonicos en
+ *   una envolvente legible.
+ *
+ * Ninguna de las dos es una afirmacion sobre la musica: son filtros declarados,
+ * con sus parametros publicados, aplicados a una medida que sigue siendo la
+ * medida. Por eso viven aqui y no dentro de la extraccion. */
+odm_status odm_spectral_instrument_smooth(odm_spectral_instrument_tick *ticks,
+                                          uint64_t tick_count,
+                                          uint32_t rise_q31,
+                                          uint32_t fall_q31,
+                                          uint32_t band_blur);
+
+/* Reparte las bandas sobre el arco con la simetria pedida. */
+odm_status odm_spectral_instrument_symmetry_band(uint32_t symmetry, uint32_t sector,
+                                                 uint32_t *out_band);
+
 /* Extrae despues de odm_music_analyze_tick(), mientras el scratch sigue siendo
  * el del mismo tick. No modifica el estado de Music Map. */
 odm_status odm_spectral_instrument_extract_tick(
@@ -147,6 +193,7 @@ odm_status odm_spectral_instrument_project_centered(
  * que no cubre lo que gobierna. */
 odm_status odm_composition_apply_spectral_instrument_projection(
     const odm_spectral_instrument_projection *projection,
+    uint32_t symmetry,
     odm_composition_frame_state *in_out_frame);
 
 odm_status odm_spectral_instrument_policy_bytes(uint8_t *buffer, uint64_t capacity,

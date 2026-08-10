@@ -87,6 +87,8 @@ static const char *const dz_opt_core_shape[] = { "Circulo", "Cuadrado", "Rectang
 static const char *const dz_opt_core_fit[]   = { "Llenar", "Contener", "Estirar" };
 static const char *const dz_opt_field[]      = { "Filamentos", "Barras", "Corona", "Anillo", "Ninguno" };
 static const char *const dz_opt_bar[]        = { "Trazo", "Capsula", "Cuna", "Puntos" };
+static const char *const dz_opt_sym[]        = { "Ninguna", "Espejo", "Cuadrante" };
+static const char *const dz_opt_blur[]       = { "Ninguno", "Suave", "Medio", "Alto", "Maximo" };
 static const char *const dz_opt_detail[]     = { "48 sectores", "96 sectores" };
 static const char *const dz_opt_anchor[]     = {
     "Arriba izquierda", "Arriba centro", "Arriba derecha",
@@ -162,6 +164,14 @@ static const dz_control dz_table[] = {
               field.opacity_q31, 0u, R(1u,1u), R(1u,1u)),
     DZ_ENUM(34u, ODM_DESIGN_CAT_FIELD, "campo.detalle", "Detalle angular",
             field.detail, 2u, 1u, dz_opt_detail),
+    DZ_ENUM(38u, ODM_DESIGN_CAT_FIELD, "campo.simetria", "Simetria del arco",
+            field.symmetry, 3u, 0u, dz_opt_sym),
+    DZ_ENUM(39u, ODM_DESIGN_CAT_FIELD, "campo.difuminado", "Difuminado entre bandas",
+            field.band_blur, 5u, 1u, dz_opt_blur),
+    DZ_SCALAR(3010u, ODM_DESIGN_CAT_FIELD, "campo.suavizado_subida", "Rapidez de subida",
+              field.smooth_rise_q31, R(1u,50u), R(1u,1u), R(4u,5u)),
+    DZ_SCALAR(3011u, ODM_DESIGN_CAT_FIELD, "campo.suavizado_bajada", "Rapidez de bajada",
+              field.smooth_fall_q31, R(1u,50u), R(1u,1u), R(1u,6u)),
     DZ_COLOR(35u, ODM_DESIGN_CAT_FIELD, "campo.color", "Color del cuerpo",
              field.color),
     DZ_COLOR(36u, ODM_DESIGN_CAT_FIELD, "campo.acento", "Color del ataque",
@@ -810,4 +820,127 @@ odm_status odm_design_policy_bytes(uint8_t *buffer, uint64_t capacity,
     }
 #undef DP
     return odm_wire_writer_finish(&w, out_required);
+}
+
+/* --- Manifiesto ------------------------------------------------------------ */
+
+typedef struct { char *buf; uint64_t cap, used; } dz_json;
+
+static void dz_put(dz_json *j, const char *txt) {
+    while (*txt) {
+        if (j->buf && j->used < j->cap) j->buf[j->used] = *txt;
+        ++j->used; ++txt;
+    }
+}
+
+static void dz_put_num(dz_json *j, uint32_t v) {
+    char tmp[12];
+    int n = 0, k;
+    if (v == 0u) { dz_put(j, "0"); return; }
+    while (v != 0u && n < 11) { tmp[n++] = (char)('0' + (v % 10u)); v /= 10u; }
+    for (k = n - 1; k >= 0; --k) {
+        if (j->buf && j->used < j->cap) j->buf[j->used] = tmp[k];
+        ++j->used;
+    }
+}
+
+/* Cadena JSON. Todo texto del motor es ASCII imprimible por contrato, asi que
+ * solo hay que escapar comilla y barra invertida. */
+static void dz_put_str(dz_json *j, const char *txt) {
+    dz_put(j, "\"");
+    while (*txt) {
+        if (*txt == '"' || *txt == '\\') dz_put(j, "\\");
+        if (j->buf && j->used < j->cap) j->buf[j->used] = *txt;
+        ++j->used; ++txt;
+    }
+    dz_put(j, "\"");
+}
+
+static void dz_field(dz_json *j, const char *name, uint32_t v, int last) {
+    dz_put_str(j, name); dz_put(j, ":"); dz_put_num(j, v);
+    if (!last) dz_put(j, ",");
+}
+
+odm_status odm_design_manifest_json(char *buffer, uint64_t capacity,
+                                    uint64_t *out_required) {
+    dz_json j;
+    uint32_t i, n, cat;
+    static const char *const kinds[ODM_DESIGN_KIND_COUNT] =
+        { "toggle", "enum", "escalar", "color" };
+    if (!out_required) return ODM_STATUS_INVALID_ARGUMENT;
+    j.buf = buffer; j.cap = buffer ? capacity : 0u; j.used = 0u;
+    n = odm_design_control_count();
+
+    dz_put(&j, "{\"motor\":\"ODPAR Music\",");
+    dz_put(&j, "\"q31\":2147483647,");
+    dz_put(&j, "\"politicas\":{");
+    dz_field(&j, "diseno", ODM_DESIGN_POLICY_VERSION, 0);
+    dz_field(&j, "tema", ODM_THEME_POLICY_VERSION, 0);
+    dz_field(&j, "capas", ODM_LAYERED_POLICY_VERSION, 1);
+    dz_put(&j, "},");
+
+    dz_put(&j, "\"categorias\":[");
+    for (cat = 0u; cat < ODM_DESIGN_CAT_COUNT; ++cat) {
+        if (cat) dz_put(&j, ",");
+        dz_put(&j, "{"); dz_field(&j, "id", cat, 0);
+        dz_put_str(&j, "nombre"); dz_put(&j, ":");
+        dz_put_str(&j, odm_design_category_name(cat));
+        dz_put(&j, "}");
+    }
+    dz_put(&j, "],\"controles\":[");
+    for (i = 0u; i < n; ++i) {
+        odm_design_control c;
+        if (odm_design_control_at(i, &c) != ODM_STATUS_OK) return ODM_STATUS_INVARIANT_BROKEN;
+        if (i) dz_put(&j, ",");
+        dz_put(&j, "{");
+        dz_put_str(&j, "clave"); dz_put(&j, ":"); dz_put_str(&j, c.key); dz_put(&j, ",");
+        dz_put_str(&j, "etiqueta"); dz_put(&j, ":"); dz_put_str(&j, c.label); dz_put(&j, ",");
+        dz_put_str(&j, "tipo"); dz_put(&j, ":"); dz_put_str(&j, kinds[c.kind]); dz_put(&j, ",");
+        dz_field(&j, "categoria", c.category, 0);
+        dz_field(&j, "id", c.id, 0);
+        if (c.kind == ODM_DESIGN_KIND_COLOR) {
+            dz_put_str(&j, "formato"); dz_put(&j, ":"); dz_put_str(&j, "#rrggbb");
+        } else {
+            dz_field(&j, "min", c.min_value, 0);
+            dz_field(&j, "max", c.max_value, 0);
+            dz_field(&j, "defecto", c.default_value, c.kind != ODM_DESIGN_KIND_ENUM);
+            if (c.kind == ODM_DESIGN_KIND_ENUM) {
+                uint32_t o;
+                dz_put_str(&j, "opciones"); dz_put(&j, ":[");
+                for (o = 0u; o < c.option_count; ++o) {
+                    if (o) dz_put(&j, ",");
+                    dz_put_str(&j, odm_design_option_label(c.id, o));
+                }
+                dz_put(&j, "]");
+            }
+        }
+        dz_put(&j, "}");
+    }
+    dz_put(&j, "],\"plantillas\":[");
+    for (i = 0u; i < odm_template_count(); ++i) {
+        if (i) dz_put(&j, ",");
+        dz_put(&j, "{"); dz_field(&j, "id", i, 0);
+        dz_put_str(&j, "nombre"); dz_put(&j, ":"); dz_put_str(&j, odm_template_name(i)); dz_put(&j, ",");
+        dz_put_str(&j, "resumen"); dz_put(&j, ":"); dz_put_str(&j, odm_template_summary(i));
+        dz_put(&j, "}");
+    }
+    dz_put(&j, "],\"temas\":[");
+    for (i = 0u; i < odm_theme_count(); ++i) {
+        odm_theme t;
+        odm_theme_contrast_report rep;
+        if (odm_theme_builtin(i, &t) != ODM_STATUS_OK) return ODM_STATUS_INVARIANT_BROKEN;
+        (void)odm_theme_validate(&t, &rep);
+        if (i) dz_put(&j, ",");
+        dz_put(&j, "{"); dz_field(&j, "id", i, 0);
+        dz_put_str(&j, "nombre"); dz_put(&j, ":"); dz_put_str(&j, t.name); dz_put(&j, ",");
+        dz_field(&j, "contraste_titulo", rep.title_on_background, 0);
+        dz_field(&j, "contraste_autoria", rep.metadata_on_background, 1);
+        dz_put(&j, "}");
+    }
+    dz_put(&j, "]}");
+
+    *out_required = j.used + 1u;
+    if (!buffer || capacity < j.used + 1u) return ODM_STATUS_BUFFER_TOO_SMALL;
+    buffer[j.used] = '\0';
+    return ODM_STATUS_OK;
 }

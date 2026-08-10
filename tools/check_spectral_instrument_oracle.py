@@ -152,7 +152,7 @@ int main(int ac, char **av) {
             frame.radial_release_q31[i] = 888u;
             frame.radial_attack_q31[i] = 777u;
         }
-        if (odm_composition_apply_spectral_instrument_projection(&pr, &frame) != ODM_STATUS_OK)
+        if (odm_composition_apply_spectral_instrument_projection(&pr, ODM_SPECTRAL_SYMMETRY_NONE, &frame) != ODM_STATUS_OK)
             return 10;
         {
             uint32_t coherente = 1u;
@@ -170,7 +170,7 @@ int main(int ac, char **av) {
             odm_composition_frame_state lejos = frame;
             lejos.center_sample = 100000u;
             printf("R,%d\n",
-                   (int)odm_composition_apply_spectral_instrument_projection(&pr, &lejos));
+                   (int)odm_composition_apply_spectral_instrument_projection(&pr, ODM_SPECTRAL_SYMMETRY_NONE, &lejos));
         }
     }
     return 0;

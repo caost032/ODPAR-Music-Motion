@@ -670,6 +670,23 @@ int main(int argc, char **argv) {
         int a;
         for (a = 1; a < argc; ++a) {
             if (strcmp(argv[a], "--list") == 0) { listar_esquema(); return 0; }
+            if (strcmp(argv[a], "--manifest") == 0) {
+                /* El motor se describe a si mismo. Cualquier programa -- o
+                 * cualquiera que llegue a este codigo por primera vez -- puede
+                 * saber que hace sin releerlo entero. */
+                uint64_t need = 0u;
+                char *json;
+                if (odm_design_manifest_json(NULL, 0u, &need) != ODM_STATUS_BUFFER_TOO_SMALL)
+                    return 2;
+                json = (char *)malloc((size_t)need);
+                if (!json) return 5;
+                if (odm_design_manifest_json(json, need, &need) != ODM_STATUS_OK) {
+                    free(json); return 2;
+                }
+                fputs(json, stdout); fputc('\n', stdout);
+                free(json);
+                return 0;
+            }
         }
     }
     if (argc < 5) {
@@ -686,7 +703,8 @@ int main(int argc, char **argv) {
             "  --aspect N    : 0=1:1  1=16:9  2=9:16  3=4:5  4=4:3\n"
             "  --set k=v     : ajusta un control; v entero, razon 9/10 o color #rrggbb\n"
             "  --title T / --artist A : metadatos del HUD\n"
-            "  --list        : imprime plantillas y controles disponibles y termina\n",
+            "  --list        : imprime plantillas y controles disponibles y termina\n"
+            "  --manifest    : vuelca en JSON todo lo que el motor sabe hacer\n",
             argv[0]);
         return 2;
     }
@@ -1146,6 +1164,18 @@ core_ready:
      * volcado de composicion. */
     if (spectral_enabled && si_ticks) {
         uint64_t aplicados = 0u;
+        /* Suavizado antes de proyectar: actua sobre la rejilla de 100 Hz, no
+         * sobre los cuadros, asi que la envolvente no depende de los FPS. */
+        if (odm_spectral_instrument_smooth(si_ticks, tick_count,
+                                           design.field.smooth_rise_q31,
+                                           design.field.smooth_fall_q31,
+                                           design.field.band_blur) != ODM_STATUS_OK) {
+            fprintf(stderr, "spectral smoothing failed\n"); return 25;
+        }
+        fprintf(stderr, "suavizado: subida %u%% bajada %u%% difuminado %u, simetria %u\n",
+                (uint32_t)(((uint64_t)design.field.smooth_rise_q31 * 100u) / (uint64_t)INT32_MAX),
+                (uint32_t)(((uint64_t)design.field.smooth_fall_q31 * 100u) / (uint64_t)INT32_MAX),
+                design.field.band_blur, design.field.symmetry);
         for (i = 0u; i < recipe.frame_count; ++i) {
             odm_spectral_instrument_projection pr;
             int64_t sample = 0;
@@ -1176,7 +1206,7 @@ core_ready:
              * proyeccion se expresa en ella para la comprobacion de vecindad. */
             pr.presentation_sample = presentation_comp[i].center_sample;
             if (odm_composition_apply_spectral_instrument_projection(
-                    &pr, &presentation_comp[i]) != ODM_STATUS_OK) {
+                    &pr, design.field.symmetry, &presentation_comp[i]) != ODM_STATUS_OK) {
                 fprintf(stderr, "spectral apply failed at frame %llu\n",
                         (unsigned long long)i);
                 return 25;

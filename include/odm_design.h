@@ -128,6 +128,10 @@ typedef struct {
     uint32_t weight_q31;
     uint32_t opacity_q31;
     uint32_t detail;           /* 0 = 48 sectores, 1 = 96                    */
+    uint32_t symmetry;         /* ODM_SPECTRAL_SYMMETRY_*                    */
+    uint32_t smooth_rise_q31;  /* peso de subida del polo temporal           */
+    uint32_t smooth_fall_q31;  /* peso de bajada                             */
+    uint32_t band_blur;        /* pasadas del nucleo lateral [1,2,1]/4       */
     odm_rgba16 color;          /* bandas debiles                             */
     odm_rgba16 accent;         /* bandas fuertes                             */
 } odm_design_field;
@@ -263,5 +267,27 @@ odm_status odm_design_set_metadata(odm_design *design, const char *title,
 
 odm_status odm_design_policy_bytes(uint8_t *buffer, uint64_t capacity,
                                    uint64_t *out_required);
+
+/* MANIFIESTO: el motor se describe a si mismo, en JSON.
+ *
+ * POR QUE EXISTE
+ *
+ * El motor no tiene interfaz. Sin esto, saber que sabe hacer exige leerse el
+ * codigo entero y deducirlo -- cada vez, y por cada persona o programa que se
+ * acerque. Peor: una plantilla o un tema pueden quedarse viejos cuando aparecen
+ * opciones nuevas, y quien los mire concluira "esto es lo que hay", cuando en
+ * realidad hay mas. El conocimiento se pierde en cuanto se cierra la sesion.
+ *
+ * El manifiesto es la respuesta: una descripcion completa y legible por
+ * maquina de TODO lo editable -- categorias, controles con su clave estable,
+ * tipo, rango, valor por omision y etiquetas de opcion; plantillas; temas;
+ * catalogos de fondos, formas y simetrias; y las versiones de politica que
+ * gobiernan cada cosa.
+ *
+ * Se genera recorriendo las MISMAS tablas que usa la compilacion, no una copia.
+ * Por eso no puede quedarse viejo: anadir un control lo hace aparecer aqui sin
+ * tocar nada mas, y una app puede construir su interfaz entera leyendolo. */
+odm_status odm_design_manifest_json(char *buffer, uint64_t capacity,
+                                    uint64_t *out_required);
 
 #endif /* ODM_DESIGN_H */

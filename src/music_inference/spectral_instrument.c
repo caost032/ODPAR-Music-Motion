@@ -238,6 +238,78 @@ static uint32_t si_lerp(uint32_t a, uint32_t b, uint32_t t_q31) {
     return n > (uint64_t)SI_Q31 ? SI_Q31 : (uint32_t)n;
 }
 
+odm_status odm_spectral_instrument_symmetry_band(uint32_t symmetry, uint32_t sector,
+                                                 uint32_t *out_band) {
+    const uint32_t n = ODM_SPECTRAL_INSTRUMENT_BAND_COUNT;
+    if (!out_band || sector >= n) return ODM_STATUS_INVALID_ARGUMENT;
+    switch (symmetry) {
+        case ODM_SPECTRAL_SYMMETRY_NONE:
+            *out_band = sector;
+            return ODM_STATUS_OK;
+        case ODM_SPECTRAL_SYMMETRY_MIRROR: {
+            /* Cada mitad recorre el espectro entero, asi que la corona es
+             * simetrica respecto al eje vertical. Se usan bandas pares para
+             * cubrir todo el rango con la mitad de sectores. */
+            uint32_t m = sector < n / 2u ? sector : (n - 1u - sector);
+            *out_band = (m * 2u) < n ? m * 2u : n - 1u;
+            return ODM_STATUS_OK;
+        }
+        case ODM_SPECTRAL_SYMMETRY_QUADRANT: {
+            uint32_t q = sector % (n / 2u);
+            uint32_t m = q < n / 4u ? q : (n / 2u - 1u - q);
+            *out_band = (m * 4u) < n ? m * 4u : n - 1u;
+            return ODM_STATUS_OK;
+        }
+        default:
+            return ODM_STATUS_INVALID_ARGUMENT;
+    }
+}
+
+odm_status odm_spectral_instrument_smooth(odm_spectral_instrument_tick *ticks,
+                                          uint64_t tick_count,
+                                          uint32_t rise_q31,
+                                          uint32_t fall_q31,
+                                          uint32_t band_blur) {
+    const uint32_t n = ODM_SPECTRAL_INSTRUMENT_BAND_COUNT;
+    uint64_t t;
+    uint32_t b, pass;
+    uint32_t estado[ODM_SPECTRAL_INSTRUMENT_BAND_COUNT];
+    uint32_t tmp[ODM_SPECTRAL_INSTRUMENT_BAND_COUNT];
+    if (!ticks || tick_count == 0u) return ODM_STATUS_INVALID_ARGUMENT;
+    if (rise_q31 > SI_Q31 || fall_q31 > SI_Q31 || band_blur > 4u)
+        return ODM_STATUS_INVALID_ARGUMENT;
+
+    /* Lateral primero: suavizar en frecuencia y despues en tiempo evita que el
+     * filtro temporal persiga un peine que el lateral va a borrar de todos
+     * modos. */
+    for (pass = 0u; pass < band_blur; ++pass) {
+        for (t = 0u; t < tick_count; ++t) {
+            uint32_t *v = ticks[t].band_presence_q31;
+            for (b = 0u; b < n; ++b) {
+                uint64_t izq = v[b == 0u ? 0u : b - 1u];
+                uint64_t der = v[b + 1u < n ? b + 1u : n - 1u];
+                tmp[b] = (uint32_t)((izq + 2u * (uint64_t)v[b] + der + 2u) / 4u);
+            }
+            for (b = 0u; b < n; ++b) v[b] = tmp[b];
+        }
+    }
+
+    for (b = 0u; b < n; ++b) estado[b] = ticks[0].band_presence_q31[b];
+    for (t = 0u; t < tick_count; ++t) {
+        uint32_t *v = ticks[t].band_presence_q31;
+        for (b = 0u; b < n; ++b) {
+            uint32_t x = v[b], y = estado[b];
+            uint32_t w = x > y ? rise_q31 : fall_q31;
+            uint64_t d = x > y ? (uint64_t)(x - y) : (uint64_t)(y - x);
+            uint32_t paso = (uint32_t)((d * (uint64_t)w) / (uint64_t)SI_Q31);
+            y = x > y ? y + paso : y - paso;
+            estado[b] = y;
+            v[b] = y;
+        }
+    }
+    return ODM_STATUS_OK;
+}
+
 odm_status odm_spectral_instrument_project_centered(
     const odm_spectral_instrument_tick *ticks,
     uint64_t tick_count,
@@ -281,6 +353,7 @@ odm_status odm_spectral_instrument_project_centered(
 
 odm_status odm_composition_apply_spectral_instrument_projection(
     const odm_spectral_instrument_projection *projection,
+    uint32_t symmetry,
     odm_composition_frame_state *in_out_frame) {
     const uint32_t required = ODM_COMPOSITION_FLAG_RADIAL_HIRES |
                               ODM_COMPOSITION_FLAG_STRICT_CAUSAL |
@@ -309,8 +382,12 @@ odm_status odm_composition_apply_spectral_instrument_projection(
             projection->presentation_sample)
         return ODM_STATUS_INVALID_DATA;
 
+    if (symmetry >= ODM_SPECTRAL_SYMMETRY_COUNT) return ODM_STATUS_INVALID_ARGUMENT;
     for (i = 0u; i < ODM_COMPOSITION_RADIAL_SEGMENTS_MAX; ++i) {
-        uint32_t v = projection->band_presence_q31[i];
+        uint32_t banda = i, v;
+        odm_status sb = odm_spectral_instrument_symmetry_band(symmetry, i, &banda);
+        if (sb != ODM_STATUS_OK) return sb;
+        v = projection->band_presence_q31[banda];
         if (v > SI_Q31) return ODM_STATUS_INVALID_DATA;
         in_out_frame->radial_q31[i] = v;
         /* La provenance describe el valor que acompana, no el que hubo antes.
@@ -354,6 +431,9 @@ odm_status odm_spectral_instrument_policy_bytes(uint8_t *buffer, uint64_t capaci
     SP(odm_wire_write_u32(&w, 1u)); /* log2 exacto bit a bit, no mantisa lineal */
     SP(odm_wire_write_u32(&w, 1u)); /* la interpolacion centrada no es causal */
     SP(odm_wire_write_u32(&w, 1u)); /* la provenance describe la medida directa */
+    SP(odm_wire_write_u32(&w, ODM_SPECTRAL_SYMMETRY_COUNT)); /* simetrias del arco */
+    SP(odm_wire_write_u32(&w, 4u)); /* nucleo lateral [1,2,1]/4, hasta 4 pasadas */
+    SP(odm_wire_write_u32(&w, 1u)); /* el polo temporal actua sobre ticks, no sobre cuadros */
     for (i = 0u; i <= ODM_SPECTRAL_INSTRUMENT_BAND_COUNT; ++i)
         SP(odm_wire_write_u32(&w, si_band_edge_q16[i]));
 #undef SP

@@ -134,7 +134,7 @@ void odm_test_spectral_instrument(odm_test_context *context) {
                 frame.radial_attack_q31[b] = 42u;
             }
             ODM_TEST_CHECK(context,
-                odm_composition_apply_spectral_instrument_projection(&pr, &frame) == ODM_STATUS_OK);
+                odm_composition_apply_spectral_instrument_projection(&pr, ODM_SPECTRAL_SYMMETRY_NONE, &frame) == ODM_STATUS_OK);
             ODM_TEST_CHECK(context,
                 (frame.flags & ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT) != 0u);
             for (b = 0u; b < ODM_COMPOSITION_RADIAL_SEGMENTS_MAX; ++b) {
