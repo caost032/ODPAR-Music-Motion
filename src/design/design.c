@@ -149,7 +149,7 @@ static const dz_control dz_table[] = {
     DZ_SCALAR(26u, ODM_DESIGN_CAT_CORE, "nucleo.opacidad", "Opacidad",
               core.opacity_q31, 0u, R(1u,1u), R(1u,1u)),
     DZ_SCALAR(27u, ODM_DESIGN_CAT_CORE, "nucleo.reactividad", "Reactividad de escala",
-              core.reactivity_q31, 0u, R(1u,2u), R(1u,5u)),
+              core.reactivity_q31, 0u, R(1u,1u), R(2u,5u)),
 
     /* CAMPO */
     DZ_ENUM(30u, ODM_DESIGN_CAT_FIELD, "campo.gramatica", "Composicion del halo",
@@ -221,7 +221,7 @@ static const dz_control dz_table[] = {
 
     /* MOVIMIENTO */
     DZ_SCALAR(70u, ODM_DESIGN_CAT_MOTION, "movimiento.sensibilidad", "Sensibilidad",
-              motion.sensitivity_q31, 0u, R(1u,1u), R(1u,2u)),
+              motion.sensitivity_q31, 0u, R(1u,1u), R(4u,5u)),
     DZ_SCALAR(71u, ODM_DESIGN_CAT_MOTION, "movimiento.ataque", "Peso del ataque",
               motion.attack_q31, 0u, R(1u,1u), R(3u,4u)),
     DZ_SCALAR(72u, ODM_DESIGN_CAT_MOTION, "movimiento.caida", "Peso de la cola",

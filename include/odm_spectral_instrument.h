@@ -69,7 +69,7 @@
 #include <stdint.h>
 
 #define ODM_SPECTRAL_INSTRUMENT_SCHEMA_VERSION UINT32_C(1)
-#define ODM_SPECTRAL_INSTRUMENT_POLICY_VERSION UINT32_C(4)
+#define ODM_SPECTRAL_INSTRUMENT_POLICY_VERSION UINT32_C(5)
 #define ODM_SPECTRAL_INSTRUMENT_BAND_COUNT     UINT32_C(96)
 #define ODM_SPECTRAL_INSTRUMENT_MIN_HZ         UINT32_C(34)
 #define ODM_SPECTRAL_INSTRUMENT_MAX_HZ         UINT32_C(15000)
@@ -166,6 +166,19 @@ odm_status odm_spectral_instrument_smooth(odm_spectral_instrument_tick *ticks,
                                           uint32_t rise_q31,
                                           uint32_t fall_q31,
                                           uint32_t band_blur);
+
+/* Empuje del nucleo a partir de las bandas graves medidas.
+ *
+ * El nucleo respiraba con una senal generica de Music-Reaction y apenas se
+ * movia. Atarlo a un rango de bandas DECLARADO -- por omision 34-130 Hz, que es
+ * donde vive el bombo -- hace que el golpe empuje la imagen, y ademas se puede
+ * explicar: el empuje es la media de la presencia medida en ese rango, nada
+ * mas. No hay senal inventada ni estado oculto. */
+#define ODM_SPECTRAL_CORE_BAND_LO UINT32_C(0)
+#define ODM_SPECTRAL_CORE_BAND_HI UINT32_C(23)
+odm_status odm_spectral_instrument_core_drive(
+    const odm_spectral_instrument_projection *projection,
+    uint32_t band_lo, uint32_t band_hi, uint32_t *out_drive_q31);
 
 /* Reparte las bandas sobre el arco con la simetria pedida. */
 odm_status odm_spectral_instrument_symmetry_band(uint32_t symmetry, uint32_t sector,

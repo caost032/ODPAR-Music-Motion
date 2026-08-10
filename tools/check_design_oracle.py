@@ -220,7 +220,7 @@ RANGOS = {
     'nucleo.esquina':           (0, (1, 2), (1, 6)),
     'nucleo.borde':             (0, (1, 50), (1, 720)),
     'nucleo.opacidad':          (0, (1, 1), (1, 1)),
-    'nucleo.reactividad':       (0, (1, 2), (1, 5)),
+    'nucleo.reactividad':       (0, (1, 1), (2, 5)),
     'campo.gramatica':          (0, 4, 0),
     'campo.longitud':           ((1, 40), (1, 3), (1, 7)),
     'campo.grosor':             ((1, 4000), (1, 25), (1, 150)),
@@ -244,7 +244,7 @@ RANGOS = {
     'progreso.modo_tiempo':     (0, 2, 1),
     'progreso.ancho':           ((1, 10), (1, 1), (9, 10)),
     'progreso.alto':            ((1, 4000), (1, 60), (1, 420)),
-    'movimiento.sensibilidad':  (0, (1, 1), (1, 2)),
+    'movimiento.sensibilidad':  (0, (1, 1), (4, 5)),
     'movimiento.ataque':        (0, (1, 1), (3, 4)),
     'movimiento.caida':         (0, (1, 1), (1, 2)),
 }

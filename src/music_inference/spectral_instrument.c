@@ -238,6 +238,20 @@ static uint32_t si_lerp(uint32_t a, uint32_t b, uint32_t t_q31) {
     return n > (uint64_t)SI_Q31 ? SI_Q31 : (uint32_t)n;
 }
 
+odm_status odm_spectral_instrument_core_drive(
+    const odm_spectral_instrument_projection *projection,
+    uint32_t band_lo, uint32_t band_hi, uint32_t *out_drive_q31) {
+    uint64_t acc = 0u;
+    uint32_t b, n;
+    if (!projection || !out_drive_q31) return ODM_STATUS_INVALID_ARGUMENT;
+    if (band_hi < band_lo || band_hi >= ODM_SPECTRAL_INSTRUMENT_BAND_COUNT)
+        return ODM_STATUS_INVALID_ARGUMENT;
+    n = band_hi - band_lo + 1u;
+    for (b = band_lo; b <= band_hi; ++b) acc += projection->band_presence_q31[b];
+    *out_drive_q31 = (uint32_t)((acc + n / 2u) / n);
+    return ODM_STATUS_OK;
+}
+
 odm_status odm_spectral_instrument_symmetry_band(uint32_t symmetry, uint32_t sector,
                                                  uint32_t *out_band) {
     const uint32_t n = ODM_SPECTRAL_INSTRUMENT_BAND_COUNT;
@@ -398,6 +412,22 @@ odm_status odm_composition_apply_spectral_instrument_projection(
         in_out_frame->radial_release_q31[i] = 0u;
         in_out_frame->radial_attack_q31[i] = 0u;
     }
+    {
+        /* El nucleo respira con los graves medidos, sobre el mismo intervalo
+         * [0.48, 0.58] que ya usa la composicion, para que todo lo que
+         * normaliza aguas abajo -- la energia del Director, entre otros --
+         * siga leyendo la misma escala. */
+        const uint32_t base_q31 = UINT32_C(1030792151); /* 0.48 */
+        const uint32_t alto_q31 = UINT32_C(1245540515); /* 0.58 */
+        uint32_t drive = 0u;
+        odm_status sd = odm_spectral_instrument_core_drive(projection,
+                                                           ODM_SPECTRAL_CORE_BAND_LO,
+                                                           ODM_SPECTRAL_CORE_BAND_HI,
+                                                           &drive);
+        if (sd != ODM_STATUS_OK) return sd;
+        in_out_frame->core_scale_q31 = base_q31 +
+            (uint32_t)(((uint64_t)(alto_q31 - base_q31) * (uint64_t)drive) / (uint64_t)SI_Q31);
+    }
     in_out_frame->flags |= ODM_COMPOSITION_FLAG_DIRECT_SPECTRAL_INSTRUMENT;
     return ODM_STATUS_OK;
 }
@@ -434,6 +464,8 @@ odm_status odm_spectral_instrument_policy_bytes(uint8_t *buffer, uint64_t capaci
     SP(odm_wire_write_u32(&w, ODM_SPECTRAL_SYMMETRY_COUNT)); /* simetrias del arco */
     SP(odm_wire_write_u32(&w, 4u)); /* nucleo lateral [1,2,1]/4, hasta 4 pasadas */
     SP(odm_wire_write_u32(&w, 1u)); /* el polo temporal actua sobre ticks, no sobre cuadros */
+    SP(odm_wire_write_u32(&w, ODM_SPECTRAL_CORE_BAND_LO));
+    SP(odm_wire_write_u32(&w, ODM_SPECTRAL_CORE_BAND_HI));
     for (i = 0u; i <= ODM_SPECTRAL_INSTRUMENT_BAND_COUNT; ++i)
         SP(odm_wire_write_u32(&w, si_band_edge_q16[i]));
 #undef SP
