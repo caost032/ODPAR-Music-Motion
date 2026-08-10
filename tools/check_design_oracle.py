@@ -115,9 +115,10 @@ int main(void) {
         if (odm_template_load(t, 0u, &d) != ODM_STATUS_OK) return 10;
         st1 = odm_design_validate(&d, &rep);
         st2 = odm_design_compile(&d, 720u, 720u, 30, 3u, &cfg);
-        printf("T,%u,%d,%d,%u,%u,%u,%u,%u\n", t, (int)st1, (int)st2,
+        printf("T,%u,%d,%d,%u,%u,%u,%u,%u,%u,%u\n", t, (int)st1, (int)st2,
                rep.title_contrast, rep.artist_contrast, rep.field_contrast,
-               cfg.background.style, cfg.field.flags);
+               cfg.background.style, cfg.field.flags,
+               cfg.field.bar_shape, d.field.grammar);
     }
 
     /* La puerta de contraste, observada en el MOTOR: titulo del color del
@@ -375,14 +376,37 @@ def main() -> int:
         if int(f[2]) != 0 or int(f[3]) != 0:
             raise SystemExit(f'la plantilla {f[1]} no valida o no compila: '
                              f'validate={f[2]} compile={f[3]}')
-    estilos = {int(f[6]) for f in plantillas}
-    if len(estilos) < 4:
-        raise SystemExit('las plantillas no cubren fondos distintos; '
-                         'serian variaciones de color, no plantillas')
+    # COBERTURA DEL CATALOGO.
+    #
+    # El motor crece anadiendo fondos, formas y gramaticas. Si las plantillas no
+    # crecen con el, quien las mire concluira que el motor hace menos de lo que
+    # hace -- y esa conclusion es exactamente lo que el manifiesto y esta puerta
+    # existen para impedir. Aqui se exige que TODO lo que el esquema publica sea
+    # alcanzable desde al menos una plantilla.
+    estilos = {int(f[7]) for f in plantillas}
+    formas = {int(f[9]) for f in plantillas}
+    gramaticas = {int(f[10]) for f in plantillas}
+
+    def _opciones(clave):
+        return int(controles[clave][7])
+
+    faltan_fondo = set(range(_opciones('fondo.estilo'))) - estilos
+    if faltan_fondo:
+        raise SystemExit(
+            f'fondos que ninguna plantilla usa: {sorted(faltan_fondo)}. '
+            'El catalogo crecio y las plantillas no lo siguieron.')
+    faltan_forma = set(range(_opciones('campo.forma'))) - formas
+    if faltan_forma:
+        raise SystemExit(f'formas de barra que ninguna plantilla usa: {sorted(faltan_forma)}')
+    faltan_gram = set(range(_opciones('campo.gramatica'))) - gramaticas
+    if faltan_gram:
+        raise SystemExit(f'gramaticas que ninguna plantilla usa: {sorted(faltan_gram)}')
 
     print(f'design oracle OK: {revisados} rangos reconstruidos, '
           f'{aislados} controles aislados, {len(plantillas)} plantillas, '
-          f'{len(estilos)} fondos distintos, puerta de contraste cerrada')
+          f'{len(estilos)}/{_opciones("fondo.estilo")} fondos y '
+          f'{len(formas)}/{_opciones("campo.forma")} formas cubiertos por plantilla, '
+          f'puerta de contraste cerrada')
     return 0
 
 

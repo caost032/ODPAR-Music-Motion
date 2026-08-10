@@ -458,33 +458,46 @@ typedef struct {
     uint32_t particles;
     uint32_t show_text;
     uint32_t progress_style;
+    uint32_t bar_shape;        /* ODM_FIELD_BAR_*                            */
 } dz_template;
 
 static const dz_template dz_templates[] = {
     { "Estudio", "Campo de profundidad, filamentos y linea fina. El punto de partida neutro.",
       0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE },
     { "Concierto", "Corona densa sobre brasa, con particulas y barra en capsula.",
       3u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_CORONA, 0u, 1u, 1u,
-      ODM_HUD_PROGRESS_CAPSULE },
+      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE },
     { "Arquitectura", "Rejilla en fuga y barras separadas. Estructura visible.",
       2u, ODM_BACKGROUND_PERSPECTIVE_GRID, ODM_DESIGN_FIELD_BARS, 2u, 0u, 1u,
-      ODM_HUD_PROGRESS_RECT },
+      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_LINE },
     { "Minimo", "Sin fondo y sin halo. Solo el nucleo y el tiempo.",
       1u, ODM_BACKGROUND_NONE, ODM_DESIGN_FIELD_NONE, 2u, 0u, 0u,
-      ODM_HUD_PROGRESS_HAIRLINE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE },
     { "Editorial", "Fondo claro, anillos concentricos y tipografia presente.",
       4u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
-      ODM_HUD_PROGRESS_RECT },
+      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_CAPSULE },
     { "Horizonte", "Horizonte y anillo orbital. Composicion con suelo.",
       0u, ODM_BACKGROUND_HORIZON, ODM_DESIGN_FIELD_RING, 0u, 1u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_CAPSULE },
     { "Trama", "Matriz de puntos y barras. Textura sin peso.",
       1u, ODM_BACKGROUND_DOT_MATRIX, ODM_DESIGN_FIELD_BARS, 1u, 0u, 1u,
-      ODM_HUD_PROGRESS_HAIRLINE },
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_DOTS },
     { "Degradado", "Degradado difuminado y filamentos largos.",
       2u, ODM_BACKGROUND_GRADIENT, ODM_DESIGN_FIELD_FILAMENT, 0u, 1u, 1u,
-      ODM_HUD_PROGRESS_CAPSULE }
+      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_WEDGE },
+    { "Rejilla", "Rejilla plana que respira con la musica. Escenario con suelo.",
+      1u, ODM_BACKGROUND_GRID, ODM_DESIGN_FIELD_BARS, 2u, 0u, 1u,
+      ODM_HUD_PROGRESS_RECT, ODM_FIELD_BAR_DOTS },
+    { "Plano", "Un solo plano de color. Todo el peso en el nucleo y el halo.",
+      4u, ODM_BACKGROUND_SOLID, ODM_DESIGN_FIELD_CORONA, 0u, 0u, 1u,
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_LINE },
+    { "Cuadrante", "Corona simetrica en los dos ejes sobre campo de profundidad.",
+      0u, ODM_BACKGROUND_DEPTH_FIELD, ODM_DESIGN_FIELD_CORONA, 1u, 1u, 1u,
+      ODM_HUD_PROGRESS_CAPSULE, ODM_FIELD_BAR_CAPSULE },
+    { "Cuna", "Agujas afiladas sobre anillos concentricos.",
+      3u, ODM_BACKGROUND_CONCENTRIC, ODM_DESIGN_FIELD_FILAMENT, 0u, 0u, 1u,
+      ODM_HUD_PROGRESS_HAIRLINE, ODM_FIELD_BAR_WEDGE }
 };
 
 uint32_t odm_template_count(void) {
@@ -528,6 +541,7 @@ odm_status odm_template_load(uint32_t index, uint32_t aspect, odm_design *out_de
     d.text.show_title = t->show_text;
     d.text.show_artist = t->show_text;
     d.progress.style = t->progress_style;
+    d.field.shape = t->bar_shape;
 
     /* Una plantilla que produce un diseno ilegible no es una plantilla, es un
      * fallo que llegaria al usuario como un video sin titulo visible. */
