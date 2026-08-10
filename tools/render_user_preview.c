@@ -874,8 +874,36 @@ int main(int argc, char **argv) {
                                       &analysis_plan) != ODM_STATUS_OK) {
         fprintf(stderr, "analysis plan build failed\n"); return 8;
     }
+    /* El analisis solo tiene que llegar hasta el final del trozo que se
+     * renderiza, no hasta el final de la cancion.
+     *
+     * No es un recorte de calidad: la evidencia en el tick N depende
+     * exclusivamente de los ticks <= N, asi que truncar DESPUES del ultimo tick
+     * que el recorte necesita produce exactamente los mismos valores. Lo que se
+     * ahorra es trabajo que nadie iba a leer: una vista previa de dos segundos
+     * estaba analizando los 254 segundos completos -- 25420 ticks para usar
+     * 200 -- y eso era la mayor parte del tiempo total. */
     if (odm_music_tick_count(pcm_frames_required, &tick_count) != ODM_STATUS_OK || tick_count == 0u) {
         fprintf(stderr, "tick count failed\n"); return 9;
+    }
+    {
+        /* El rango del recorte se resuelve aqui a partir de datos ya conocidos;
+         * mas abajo se recalcula igual para el resto del proceso. */
+        uint64_t inicio = preview_start_sec * ODM_MUSIC_SAMPLE_RATE;
+        uint64_t disponible = inicio < pcm_frames_required
+                            ? pcm_frames_required - inicio : 0u;
+        uint64_t dur = preview_duration_sec == 0u
+                     ? disponible
+                     : (preview_duration_sec * ODM_MUSIC_SAMPLE_RATE < disponible
+                        ? preview_duration_sec * ODM_MUSIC_SAMPLE_RATE : disponible);
+        uint64_t fin = inicio + dur;
+        /* Dos ticks de margen: la proyeccion centrada mira al siguiente centro. */
+        uint64_t necesarios = fin / (uint64_t)ODM_MUSIC_TICK_SAMPLES + 2u;
+        if (necesarios < tick_count) {
+            fprintf(stderr, "analisis: %llu ticks de %llu (solo hasta el final del recorte)\n",
+                    (unsigned long long)necesarios, (unsigned long long)tick_count);
+            tick_count = necesarios;
+        }
     }
     ticks = (odm_music_analysis_tick *)calloc((size_t)tick_count, sizeof(*ticks));
     reaction_ticks = (odm_music_reaction_tick *)calloc((size_t)tick_count, sizeof(*reaction_ticks));

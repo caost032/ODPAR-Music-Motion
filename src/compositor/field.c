@@ -186,9 +186,11 @@ static void draw_needle(odm_layered_pixel16 *frame, uint32_t w, uint32_t h,
     if (opacity_q31 == 0u || width_q16 <= 0) return;
     switch (shape) {
         case ODM_FIELD_BAR_CAPSULE: {
+            /* Solo el casquete exterior. El interior nace pegado al borde del
+             * nucleo, que lo dibuja encima: pintarlo es trabajo que nadie ve, y
+             * son 96 discos por cuadro. */
             draw_segment(frame, w, h, ax, ay, bx, by, width_q16, color, opacity_q31);
             draw_disk(frame, w, h, bx, by, width_q16 / 2, color, opacity_q31);
-            draw_disk(frame, w, h, ax, ay, width_q16 / 2, color, opacity_q31);
             break;
         }
         case ODM_FIELD_BAR_WEDGE: {
