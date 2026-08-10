@@ -214,6 +214,20 @@ uint8_t odm_layered_linear_u16_to_srgb8_fast(uint16_t value) {
     return odm_layered_srgb16_to_srgb8_lut[value];
 }
 
+uint8_t odm_layered_linear_u16_to_srgb8_dither(uint16_t value, uint32_t x, uint32_t y) {
+    /* La tabla 8.8 dice DONDE cae el valor entre dos codigos, no solo cual es
+     * el mas cercano. Con esa fraccion el desplazamiento de Bayer decide el
+     * lado, de modo que un degradado que solo recorre siete codigos se
+     * distribuye en lugar de escalonarse. Centrado en cero: el valor medio de
+     * la imagen no cambia. */
+    int32_t q8 = (int32_t)odm_layered_srgb16_to_srgb8_q8_lut[value];
+    int32_t b = (int32_t)odm_layered_bayer8[((y & 7u) << 3) | (x & 7u)];
+    int32_t code = (q8 + 128 + (2 * b + 1 - 64) * 2) >> 8;
+    if (code < 0) code = 0;
+    if (code > 255) code = 255;
+    return (uint8_t)code;
+}
+
 static void write_u16le(uint8_t *dst, uint16_t value) {
     dst[0] = (uint8_t)value;
     dst[1] = (uint8_t)(value >> 8);
@@ -224,6 +238,14 @@ static void encode_pixel16le(const odm_layered_pixel16 *p, uint8_t *out) {
     write_u16le(out + 2u, p->g);
     write_u16le(out + 4u, p->b);
     write_u16le(out + 6u, p->a);
+}
+
+static void encode_pixel8_black_dither(const odm_layered_pixel16 *p, uint8_t *out,
+                                       uint32_t x, uint32_t y) {
+    out[0] = odm_layered_linear_u16_to_srgb8_dither(p->r, x, y);
+    out[1] = odm_layered_linear_u16_to_srgb8_dither(p->g, x, y);
+    out[2] = odm_layered_linear_u16_to_srgb8_dither(p->b, x, y);
+    out[3] = 255u;
 }
 
 static void encode_pixel8_black(const odm_layered_pixel16 *p, uint8_t *out) {
@@ -253,6 +275,10 @@ typedef struct {
     const odm_layered_core_raster_plan *raster;
     const odm_layered_core_map_entry *xmap;
     const int32_t *background_col_shifts;
+    /* La fase de codificacion no recibe la configuracion -- no la necesita --
+     * asi que la decision de difuminar viaja como dato, no como puntero a algo
+     * que en esta fase es nulo. */
+    uint32_t dither_output;
     odm_layered_pixel16 *work;
     uint8_t *stage;
     const odm_job_ticket *job_ticket;
@@ -326,7 +352,19 @@ static void layered_row_execute(odm_layered_row_job *job) {
             if (c->phase == ODM_LAYERED_ROW_ENCODE16) {
                 for (; i < end; ++i) encode_pixel16le(&c->work[i], c->stage + i * 8u);
             } else if (c->phase == ODM_LAYERED_ROW_ENCODE8) {
-                for (; i < end; ++i) encode_pixel8_black(&c->work[i], c->stage + i * 4u);
+                if (c->dither_output != 0u) {
+                    /* Recorrido por filas: la posicion en la matriz de Bayer
+                     * sale del indice, sin division por pixel. */
+                    uint32_t yy, xx;
+                    for (yy = y_begin; yy < y_end; ++yy) {
+                        uint64_t base = (uint64_t)yy * c->width;
+                        for (xx = 0u; xx < c->width; ++xx)
+                            encode_pixel8_black_dither(&c->work[base + xx],
+                                                       c->stage + (base + xx) * 4u, xx, yy);
+                    }
+                } else {
+                    for (; i < end; ++i) encode_pixel8_black(&c->work[i], c->stage + i * 4u);
+                }
             } else {
                 job->status = ODM_STATUS_INVALID_ARGUMENT;
                 return;
@@ -686,6 +724,7 @@ static odm_status render_frame_impl(
         rows.job_ticket = job_ticket;
         rows.phase = output_pixel_format == ODM_LAYERED_PIXEL_RGBA16LE_LINEAR_PREMUL
                    ? ODM_LAYERED_ROW_ENCODE16 : ODM_LAYERED_ROW_ENCODE8;
+        rows.dither_output = (config->flags & ODM_LAYERED_FLAG_DITHER_OUTPUT) != 0u ? 1u : 0u;
         st = layered_dispatch_row_phase(&rows, worker_pool);
         if (st != ODM_STATUS_OK) return st;
     }

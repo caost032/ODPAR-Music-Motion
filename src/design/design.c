@@ -29,6 +29,17 @@ static uint32_t dz_mul(uint32_t a_q31, uint32_t b_q31) {
     return (uint32_t)(((uint64_t)a_q31 * (uint64_t)b_q31) / (uint64_t)DZ_Q);
 }
 
+/* Espacio de autor -> espacio de render. TODO color que cruce hacia la
+ * configuracion de capas pasa por aqui: el compositor mezcla en luz lineal y el
+ * diseno se escribe en codigos sRGB. Que la conversion este en un solo punto es
+ * lo que impide que un color se cuele sin convertir y salga mas claro de lo
+ * escrito -- que es exactamente lo que pasaba con el fondo. */
+static odm_rgba16 dz_lin(const odm_rgba16 *autor) {
+    odm_rgba16 out;
+    odm_theme_srgb16_to_linear16(autor, &out);
+    return out;
+}
+
 /* Fraccion del lado menor -> pixeles en Q16.16. Todas las medidas salen de
  * aqui: un diseno pensado a 720 debe leerse igual de intencionado a 2160. */
 static uint32_t dz_px(uint32_t dim, uint32_t q31) {
@@ -143,9 +154,9 @@ static const dz_control dz_table[] = {
     DZ_SCALAR(31u, ODM_DESIGN_CAT_FIELD, "campo.longitud", "Alcance",
               field.length_q31, R(1u,40u), R(1u,3u), R(1u,7u)),
     DZ_SCALAR(32u, ODM_DESIGN_CAT_FIELD, "campo.grosor", "Grosor del trazo",
-              field.weight_q31, R(1u,4000u), R(1u,60u), R(1u,620u)),
+              field.weight_q31, R(1u,4000u), R(1u,60u), R(1u,240u)),
     DZ_SCALAR(33u, ODM_DESIGN_CAT_FIELD, "campo.opacidad", "Opacidad",
-              field.opacity_q31, 0u, R(1u,1u), R(4u,5u)),
+              field.opacity_q31, 0u, R(1u,1u), R(1u,1u)),
     DZ_ENUM(34u, ODM_DESIGN_CAT_FIELD, "campo.detalle", "Detalle angular",
             field.detail, 2u, 1u, dz_opt_detail),
     DZ_COLOR(35u, ODM_DESIGN_CAT_FIELD, "campo.color", "Color del cuerpo",
@@ -610,12 +621,15 @@ odm_status odm_design_compile(const odm_design *design,
 
     st = odm_layered_config_init_default(&c, aspect, width, height, fps);
     if (st != ODM_STATUS_OK) return st;
+    /* Un diseno se entrega en 8 bits, asi que se difumina al codificar. Sin
+     * esto, cualquier degradado oscuro sale escalonado en anillos. */
+    c.flags |= ODM_LAYERED_FLAG_DITHER_OUTPUT;
     dim = width < height ? width : height;
 
     /* FONDO -------------------------------------------------------------- */
     c.background.style = design->background.style;
-    c.background.solid_color = design->background.color;
-    c.background.grid_color = design->background.accent;
+    c.background.solid_color = dz_lin(&design->background.color);
+    c.background.grid_color = dz_lin(&design->background.accent);
     c.background.opacity_q31 = design->background.intensity_q31;
     /* Los limites de rejilla son legalidad de raster, no estetica: una
      * separacion por debajo de cuatro pixeles no se puede dibujar. El recorte
@@ -649,7 +663,7 @@ odm_status odm_design_compile(const odm_design *design,
     if (c.core.border_q16 == 0u) c.core.border_q16 = 1u << 12;
     c.core.feather_q16 = dz_px(dim, dz_ratio(1u, 900u));
     if (c.core.feather_q16 == 0u) c.core.feather_q16 = 1u << 12;
-    c.core.border_color = design->core.border_color;
+    c.core.border_color = dz_lin(&design->core.border_color);
     c.core.opacity_q31 = design->core.opacity_q31;
     c.core.scale_reactivity_q31 =
         dz_mul(design->core.reactivity_q31, design->motion.sensitivity_q31);
@@ -671,8 +685,8 @@ odm_status odm_design_compile(const odm_design *design,
     if (c.field.bar_width_q16 == 0u) c.field.bar_width_q16 = 1u << 12;
     c.field.ring_gap_q16 = dz_px(dim, dz_ratio(1u, g->gap_den));
     c.field.field_opacity_q31 = design->field.opacity_q31;
-    c.field.primary_color = design->field.accent;
-    c.field.secondary_color = design->field.color;
+    c.field.primary_color = dz_lin(&design->field.accent);
+    c.field.secondary_color = dz_lin(&design->field.color);
     c.field.seed = seed;
 
     /* PARTICULAS --------------------------------------------------------- */
@@ -686,7 +700,7 @@ odm_status odm_design_compile(const odm_design *design,
         c.field.particle_count = 0u;
         c.field.particle_radius_q16 = 1u << 16;
     }
-    c.field.particle_color = design->particles.color;
+    c.field.particle_color = dz_lin(&design->particles.color);
 
     /* TEXTO Y PROGRESO --------------------------------------------------- */
     c.hud.flags = 0u;
@@ -713,11 +727,11 @@ odm_status odm_design_compile(const odm_design *design,
         c.hud.text_scale_q16 = dz_clamp_u32(scale, 2u, 24u) << 16;
     }
     c.hud.line_gap_q16 = dz_px(dim, dz_ratio(1u, 200u));
-    c.hud.foreground_color = design->progress.color;
-    c.hud.title_color = design->text.title_color;
-    c.hud.artist_color = design->text.artist_color;
-    c.hud.progress_color = design->progress.color;
-    c.hud.progress_track_color = design->progress.track_color;
+    c.hud.foreground_color = dz_lin(&design->progress.color);
+    c.hud.title_color = dz_lin(&design->text.title_color);
+    c.hud.artist_color = dz_lin(&design->text.artist_color);
+    c.hud.progress_color = dz_lin(&design->progress.color);
+    c.hud.progress_track_color = dz_lin(&design->progress.track_color);
     c.hud.background_color.r = 0u; c.hud.background_color.g = 0u;
     c.hud.background_color.b = 0u; c.hud.background_color.a = 0u;
 
@@ -776,6 +790,7 @@ odm_status odm_design_policy_bytes(uint8_t *buffer, uint64_t capacity,
     DP(odm_wire_write_u32(&w, 1u)); /* cada control escribe en una sola categoria */
     DP(odm_wire_write_u32(&w, 1u)); /* fuera de rango falla, no se recorta */
     DP(odm_wire_write_u32(&w, 1u)); /* la puerta de contraste cierra la compilacion */
+    DP(odm_wire_write_u32(&w, 1u)); /* los colores de diseno son sRGB y se linealizan al compilar */
     n = odm_design_control_count();
     DP(odm_wire_write_u32(&w, n));
     for (i = 0u; i < n; ++i) {

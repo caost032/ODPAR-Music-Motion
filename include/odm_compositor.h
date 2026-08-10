@@ -14,9 +14,21 @@ extern "C" {
 #endif
 
 #define ODM_LAYERED_SCHEMA_VERSION UINT32_C(1)
-#define ODM_LAYERED_POLICY_VERSION UINT32_C(14)
+#define ODM_LAYERED_POLICY_VERSION UINT32_C(15)
 #define ODM_LAYERED_POLICY_BYTES UINT32_C(1536)
 #define ODM_LAYERED_CONFIG_BYTES UINT32_C(1024)
+
+/* Difuminado ordenado en la codificacion final a 8 bits.
+ *
+ * Un degradado oscuro y lento recorre pocos codigos de salida a lo largo de
+ * muchos pixeles -- el campo de profundidad abarca del codigo 0 al 7 en unos
+ * 700 px -- asi que redondear produce escalones de cien pixeles de ancho, que
+ * es lo que se ve como anillos. El difuminado reparte medio codigo con la
+ * matriz de Bayer y disuelve el escalon sin tocar el valor medio.
+ *
+ * Es una bandera explicita y no un comportamiento implicito porque cambia los
+ * pixeles de salida: forma parte de la configuracion y entra en su hash. */
+#define ODM_LAYERED_FLAG_DITHER_OUTPUT UINT32_C(1)
 
 #define ODM_CANVAS_ASPECT_CUSTOM          UINT32_C(0)
 #define ODM_CANVAS_ASPECT_HORIZONTAL_16_9 UINT32_C(1)

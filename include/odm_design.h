@@ -51,8 +51,11 @@
 
 #include <stdint.h>
 
+/* Los colores del diseno estan en ESPACIO DE AUTOR: codigos sRGB de 16 bits,
+ * que es como se escribe un color y como WCAG mide el contraste. La compilacion
+ * los lleva a luz lineal, que es donde compone el rasterizador. */
 #define ODM_DESIGN_SCHEMA_VERSION UINT32_C(1)
-#define ODM_DESIGN_POLICY_VERSION UINT32_C(1)
+#define ODM_DESIGN_POLICY_VERSION UINT32_C(2)
 #define ODM_DESIGN_NAME_BYTES     UINT32_C(48)
 #define ODM_DESIGN_KEY_BYTES      UINT32_C(32)
 #define ODM_DESIGN_LABEL_BYTES    UINT32_C(40)

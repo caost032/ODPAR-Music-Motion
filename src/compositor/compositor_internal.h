@@ -20,6 +20,8 @@ odm_status odm_layered_worker_pool_init(odm_layered_worker_pool *pool,
 void odm_layered_worker_pool_destroy(odm_layered_worker_pool *pool);
 
 uint8_t odm_layered_linear_u16_to_srgb8_fast(uint16_t value);
+uint8_t odm_layered_linear_u16_to_srgb8_dither(uint16_t value, uint32_t x, uint32_t y);
+extern const uint8_t odm_layered_bayer8[64];
 
 typedef struct {
     uint16_t r;

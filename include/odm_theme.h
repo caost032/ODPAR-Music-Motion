@@ -37,7 +37,7 @@
 #include <stdint.h>
 
 #define ODM_THEME_SCHEMA_VERSION UINT32_C(1)
-#define ODM_THEME_POLICY_VERSION UINT32_C(1)
+#define ODM_THEME_POLICY_VERSION UINT32_C(2)
 #define ODM_THEME_NAME_BYTES     UINT32_C(48)
 
 /* Umbrales de contraste en centesimas, para no usar coma flotante.
@@ -148,6 +148,20 @@ odm_status odm_theme_builtin(uint32_t index, odm_theme *out_theme);
 
 /* Nombre legible de un tema integrado, o NULL. */
 const char *odm_theme_builtin_name(uint32_t index);
+
+/* Convierte un color de ESPACIO DE AUTOR (codigos sRGB de 16 bits) a ESPACIO DE
+ * RENDER (luz lineal de 16 bits).
+ *
+ * La distincion no es academica. El compositor mezcla y compone en luz lineal
+ * -- su codificacion final es linear_u16 -> sRGB8 -- mientras que un tema se
+ * escribe en codigos sRGB, que es como piensa quien elige un color y como lo
+ * exige WCAG para el contraste. Sin esta conversion el mismo numero significa
+ * dos cosas distintas en dos capas: un gris de autor #23262B se renderizaba
+ * como si fuera luz lineal 0.137, es decir mucho mas claro de lo escrito, y la
+ * puerta de contraste garantizaba algo que no era lo que se veia.
+ *
+ * El alfa no se convierte: es cobertura, y la cobertura ya es lineal. */
+void odm_theme_srgb16_to_linear16(const odm_rgba16 *in_srgb, odm_rgba16 *out_linear);
 
 /* Luminancia relativa BT.709 de un color, en Q1.31 sobre luz lineal. */
 uint32_t odm_theme_relative_luminance(const odm_rgba16 *color);

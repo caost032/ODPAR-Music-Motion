@@ -99,7 +99,8 @@ def config_bytes():
 def policy_bytes():
     b=bytearray(b'ODMLAYR3')
     # v14: paridad de las dos rutas de fondo, radio radial = media diagonal.
-    vals0=(14,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
+    # v15: difuminado ordenado declarado en la configuracion.
+    vals0=(15,1,1,3,6,6,1,2,3,3,48,96,1,8,1,1,1)
     for v in vals0:u32(b,v)
     u64(b,0x51a7c0de9e3779b9)
     for v in (73,536870912,4,2,1,512,1,2,65536,
@@ -107,7 +108,7 @@ def policy_bytes():
               # v12: estilos de fondo (5 con el campo de profundidad), luego el
               # contrato del difuminado ordenado: matriz Bayer 8x8 determinista,
               # 64 celdas, y perfil de profundidad (1-(d/r)^2)^2.
-              9,1,64,255,2,
+              9,1,64,255,1,2,
               1,1,1,
               6,3,3,1,1,
               1,26,6,6,1,1,1,16,

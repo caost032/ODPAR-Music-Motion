@@ -20,6 +20,33 @@ static uint32_t th_q_ratio(uint32_t n, uint32_t d) {
     return (uint32_t)(((uint64_t)TH_Q * n + d / 2u) / d);
 }
 
+/* --- Espacio de autor -> espacio de render --------------------------------- */
+
+static uint16_t th_srgb16_to_linear16(uint16_t v) {
+    /* Se interpola la tabla EOTF congelada de 256 entradas en Q4.27 en vez de
+     * cuantizar a 8 bits primero. Cuantizar perderia los tonos intermedios que
+     * distinguen dos colores de tema vecinos, y con ellos la razon de ser de
+     * tener 16 bits de autor. La interpolacion es entera, monotona y exacta. */
+    uint32_t p = (uint32_t)(((uint64_t)v * UINT64_C(255) * UINT64_C(256) +
+                             UINT64_C(32767)) / UINT64_C(65535));
+    uint32_t idx = p >> 8, frac = p & 255u;
+    int64_t lo, hi, q27;
+    if (idx >= 255u)
+        return odm_renderer_q27_to_u16(odm_renderer_decode_u8(255u, ODM_COLOR_TRANSFER_SRGB));
+    lo = (int64_t)odm_renderer_decode_u8((uint8_t)idx, ODM_COLOR_TRANSFER_SRGB);
+    hi = (int64_t)odm_renderer_decode_u8((uint8_t)(idx + 1u), ODM_COLOR_TRANSFER_SRGB);
+    q27 = lo + ((hi - lo) * (int64_t)frac + 128) / 256;
+    return odm_renderer_q27_to_u16((odm_render_q4_27)q27);
+}
+
+void odm_theme_srgb16_to_linear16(const odm_rgba16 *in_srgb, odm_rgba16 *out_linear) {
+    if (!in_srgb || !out_linear) return;
+    out_linear->r = th_srgb16_to_linear16(in_srgb->r);
+    out_linear->g = th_srgb16_to_linear16(in_srgb->g);
+    out_linear->b = th_srgb16_to_linear16(in_srgb->b);
+    out_linear->a = in_srgb->a;
+}
+
 /* --- Contraste ----------------------------------------------------------- */
 
 uint32_t odm_theme_relative_luminance(const odm_rgba16 *color) {
@@ -122,7 +149,7 @@ static void th_common(odm_theme *t) {
     t->core_border_q31 = th_q_ratio(1u, 720u);
     t->field = ODM_THEME_FIELD_FILAMENT;
     t->field_length_q31 = th_q_ratio(1u, 7u);
-    t->field_weight_q31 = th_q_ratio(1u, 620u);
+    t->field_weight_q31 = th_q_ratio(1u, 240u);
     t->particle_density_q31 = 0u;
     t->hud_show_progress = 1u;
     t->hud_show_time = 1u;
@@ -156,7 +183,7 @@ static void th_architect(odm_theme *t) {
     t->background_intensity_q31 = th_q_ratio(2u, 5u);
     t->field = ODM_THEME_FIELD_BARS;
     t->field_length_q31 = th_q_ratio(1u, 9u);
-    t->field_weight_q31 = th_q_ratio(1u, 420u);
+    t->field_weight_q31 = th_q_ratio(1u, 190u);
     t->core_shape = ODM_THEME_CORE_ROUNDED;
     t->role[ODM_THEME_ROLE_BACKGROUND_DEEP] = rgb(0, 1200, 2600);
     t->role[ODM_THEME_ROLE_BACKGROUND_BASE] = rgb(1000, 2200, 4200);
@@ -192,7 +219,7 @@ static void th_ember(odm_theme *t) {
     t->background = ODM_THEME_BG_DEPTH_FIELD;
     t->field = ODM_THEME_FIELD_CORONA;
     t->field_length_q31 = th_q_ratio(1u, 11u);
-    t->field_weight_q31 = th_q_ratio(1u, 380u);
+    t->field_weight_q31 = th_q_ratio(1u, 170u);
     t->particle_density_q31 = th_q_ratio(1u, 6u);
     t->role[ODM_THEME_ROLE_BACKGROUND_DEEP] = rgb(1800, 400, 200);
     t->role[ODM_THEME_ROLE_BACKGROUND_BASE] = rgb(3000, 800, 400);
@@ -400,6 +427,7 @@ odm_status odm_theme_policy_bytes(uint8_t *buffer, uint64_t capacity,
     TP(odm_wire_write_u32(&w, 1u)); /* ratio WCAG con desplazamiento 0.05 */
     TP(odm_wire_write_u32(&w, 1u)); /* un tema que no pasa NO se materializa */
     TP(odm_wire_write_u32(&w, 1u)); /* categorias no se mezclan entre si */
+    TP(odm_wire_write_u32(&w, 1u)); /* los colores son de autor en sRGB y se linealizan al compilar */
     for (i = 0u; i < odm_theme_count(); ++i) {
         odm_theme t;
         odm_theme_contrast_report rep;

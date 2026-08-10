@@ -227,7 +227,8 @@ odm_status odm_layered_config_set_metadata(odm_layered_config *config,
 odm_status odm_layered_config_validate(const odm_layered_config *c) {
     uint64_t pixels;
     if (!c) return ODM_STATUS_INVALID_ARGUMENT;
-    if (c->schema_version != ODM_LAYERED_SCHEMA_VERSION || c->flags != 0u)
+    if (c->schema_version != ODM_LAYERED_SCHEMA_VERSION ||
+        (c->flags & ~ODM_LAYERED_FLAG_DITHER_OUTPUT) != 0u)
         return ODM_STATUS_VERSION_MISMATCH;
     if (!odm_layered_reaction_validate(&c->reaction)) return ODM_STATUS_INVALID_DATA;
     if (c->canvas.schema_version != ODM_LAYERED_SCHEMA_VERSION ||
@@ -799,6 +800,7 @@ static odm_status layer_policy_encode(uint8_t *buffer, uint64_t cap, uint64_t *r
     LP(odm_wire_write_u32(&w, 1u)); /* difuminado ordenado Bayer 8x8, determinista */
     LP(odm_wire_write_u32(&w, 64u)); /* celdas de la matriz de difuminado */
     LP(odm_wire_write_u32(&w, 255u)); /* amplitud del difuminado: 1 paso de 8 bits, centrado */
+    LP(odm_wire_write_u32(&w, ODM_LAYERED_FLAG_DITHER_OUTPUT)); /* difuminado declarado en la config */
     LP(odm_wire_write_u32(&w, 2u)); /* perfil de profundidad: (1-(d/r)^2)^2 */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective grid uses bounded row-projective integer mapping */
     LP(odm_wire_write_u32(&w, 1u)); /* perspective horizon suppresses sub-two-pixel projected cells */

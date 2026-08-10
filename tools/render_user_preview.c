@@ -1152,14 +1152,28 @@ core_ready:
             if (odm_export_frame_sample(&recipe, i, &sample) != ODM_STATUS_OK || sample < 0) {
                 fprintf(stderr, "frame sample mapping failed\n"); return 25;
             }
+            /* Las evidencias estan indexadas sobre la cancion COMPLETA, pero
+             * `sample` es local al recorte de vista previa. Proyectar con la
+             * local hacia dentro de un recorte que empieza en el segundo 28
+             * mostraba el espectro del segundo 0: el halo no era la musica que
+             * sonaba. La conversion a muestra absoluta es obligatoria. */
+            uint64_t absoluta = preview_start_frame + (uint64_t)sample;
             if (odm_spectral_instrument_project_centered(si_ticks, tick_count,
-                                                         (uint64_t)sample, &pr) != ODM_STATUS_OK) {
+                                                         absoluta, &pr) != ODM_STATUS_OK) {
                 fprintf(stderr, "spectral projection failed at frame %llu\n",
                         (unsigned long long)i);
                 return 25;
             }
-            /* La proyeccion vive en la muestra absoluta y el cuadro en la
-             * local del recorte; se realinea antes de comprobar vecindad. */
+            /* Y se comprueba que la proyeccion salio de donde se pidio, en vez
+             * de confiar en ello: es justo la comprobacion que faltaba. */
+            if (pr.lower_tick_index != absoluta / (uint64_t)ODM_MUSIC_TICK_SAMPLES &&
+                pr.lower_tick_index + 1u < tick_count) {
+                fprintf(stderr, "spectral projection out of place at frame %llu\n",
+                        (unsigned long long)i);
+                return 25;
+            }
+            /* El cuadro vive en la linea de tiempo local del recorte; la
+             * proyeccion se expresa en ella para la comprobacion de vecindad. */
             pr.presentation_sample = presentation_comp[i].center_sample;
             if (odm_composition_apply_spectral_instrument_projection(
                     &pr, &presentation_comp[i]) != ODM_STATUS_OK) {

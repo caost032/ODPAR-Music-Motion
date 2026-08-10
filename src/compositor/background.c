@@ -78,16 +78,6 @@ typedef struct {
  * estado -- el mismo pixel siempre recibe el mismo desplazamiento -- asi que no
  * introduce ruido temporal ni rompe la reproducibilidad byte a byte. Es lo que
  * permite un degradado oscuro sin bandas sin recurrir a grano visible. */
-static const uint8_t bg_bayer8[64] = {
-     0,32, 8,40, 2,34,10,42,
-    48,16,56,24,50,18,58,26,
-    12,44, 4,36,14,46, 6,38,
-    60,28,52,20,62,30,54,22,
-     3,35,11,43, 1,33, 9,41,
-    51,19,59,27,49,17,57,25,
-    15,47, 7,39,13,45, 5,37,
-    63,31,55,23,61,29,53,21
-};
 
 /* Difuminado ordenado sobre un peso Q1.31 antes de mezclar.
  *
@@ -110,7 +100,7 @@ static uint32_t bg_dither_q31(uint32_t weight_q31, uint32_t x, uint32_t y) {
      * degradado medio paso; centrado, el valor medio se conserva y lo unico que
      * cambia es donde cae el escalon. */
     const int64_t step = (int64_t)INT32_MAX / 255;   /* 1 LSB de 8 bits */
-    int64_t b = (int64_t)bg_bayer8[((y & 7u) << 3) | (x & 7u)];
+    int64_t b = (int64_t)odm_layered_bayer8[((y & 7u) << 3) | (x & 7u)];
     int64_t w = (int64_t)weight_q31 + ((2 * b + 1 - 64) * step) / 128;
     if (w < 0) w = 0;
     if (w > (int64_t)INT32_MAX) w = (int64_t)INT32_MAX;
