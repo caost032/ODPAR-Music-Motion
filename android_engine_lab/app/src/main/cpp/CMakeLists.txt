@@ -54,6 +54,13 @@ set(PNG_TESTS OFF CACHE BOOL "" FORCE)
 set(PNG_TOOLS OFF CACHE BOOL "" FORCE)
 set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")
+# png.c is one of the 182 ODPAR production objects, so its compile command must
+# see both libpng's public headers and the generated pnglibconf.h. Linking
+# png_static only at the final shared object is too late for that translation
+# unit. Make the compile-time dependency explicit; do not remove png.c.
+target_include_directories(odpar_engine PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng"
+  "${CMAKE_CURRENT_BINARY_DIR}/libpng")
 
 # Ed25519 package signing and accelerated SHA-256 remain intact. OpenSSL is
 # cross-compiled by CI for android-arm64; a missing crypto library is fatal.
