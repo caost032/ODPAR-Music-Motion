@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -17,6 +17,30 @@ jobs:
     steps:
       - name: Checkout build branch
         uses: actions/checkout@v4
+
+      - name: Publish exact Actions run locator
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .odpar/android-v03
+          python3 - <<'PYLOC'
+          import json, os, pathlib
+          data = {
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "workflow_sha": os.environ["GITHUB_SHA"],
+              "ref": os.environ["GITHUB_REF_NAME"],
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+          }
+          pathlib.Path('.odpar/android-v03/LATEST_RUN.json').write_text(json.dumps(data, sort_keys=True) + "\n")
+          PYLOC
+          git config user.name "ODPAR Spatial Lab CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add .odpar/android-v03/LATEST_RUN.json
+          if ! git diff --cached --quiet; then
+            git commit -m "CI: record Spatial Lab v0.3 run [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - uses: actions/setup-python@v5
         with:
