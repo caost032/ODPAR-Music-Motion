@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euxo pipefail
           python -m pip install --disable-pip-version-check -q gdown
-          gdown --id "$ODPAR_DRIVE_ID" -O official-engine.zip
+          gdown "$ODPAR_DRIVE_ID" -O official-engine.zip
           echo "$ODPAR_EXPECTED_SHA256  official-engine.zip" | sha256sum -c -
           mkdir -p app/src/main/cpp/engine app/src/main/cpp/generated app/src/main/cpp/third_party
           unzip -q official-engine.zip -d app/src/main/cpp/engine
