@@ -10,7 +10,7 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -51,11 +51,41 @@ jobs:
           python app/src/main/cpp/engine/tools/gen_build_meta.py --output app/src/main/cpp/generated/odm_build_meta.h
           grep -q '0.52.0-world3d-shadow-material-wip-v52' app/src/main/cpp/engine/CHECKPOINT_STATUS.json
 
-      - name: Fetch libpng for engine PNG media capability
+      - name: Fetch and build pinned native dependencies
         working-directory: android_engine_lab
+        env:
+          OPENSSL_COMMIT: 8cf17aaeb4599f8af87fefd810b5b5fee90fe69e
         run: |
-          mkdir -p app/src/main/cpp/third_party
-          git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git app/src/main/cpp/third_party/libpng
+          set -euxo pipefail
+          ROOT="$PWD"
+          THIRD="$ROOT/app/src/main/cpp/third_party"
+          mkdir -p "$THIRD"
+
+          git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git "$THIRD/libpng"
+
+          git clone --depth 1 --branch openssl-3.5.7 https://github.com/openssl/openssl.git "$THIRD/openssl-src"
+          test "$(git -C "$THIRD/openssl-src" rev-parse HEAD)" = "$OPENSSL_COMMIT"
+          export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/27.2.12479018"
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          cd "$THIRD/openssl-src"
+          ./Configure android-arm64 -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs \
+            --prefix="$THIRD/openssl-install" --libdir=lib
+          make -j2 build_libs
+          make install_sw
+          test -f "$THIRD/openssl-install/include/openssl/evp.h"
+          test -s "$THIRD/openssl-install/lib/libcrypto.a"
+
+          cat >> "$ROOT/app/src/main/cpp/CMakeLists.txt" <<'CMAKE'
+
+          # Android Engine Lab portability bridge: retain the engine's native
+          # Ed25519 package-signing and SHA-256 acceleration through OpenSSL 3.
+          target_include_directories(odpar_engine PRIVATE
+              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/include"
+          )
+          target_link_libraries(odpar_engine PUBLIC
+              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/lib/libcrypto.a"
+          )
+          CMAKE
 
       - name: Build ARM64 APK
         working-directory: android_engine_lab
