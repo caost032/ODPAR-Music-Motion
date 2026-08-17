@@ -23,13 +23,15 @@ jobs:
 
       - name: Materialize verified Android Lab v0.2 source
         env:
-          APP_DRIVE_ID: 1fhbnj1ON6tKT-3-SfceLnYLheCK_XpDO
           APP_SHA256: a0b82b5be30f88ba5ab73352329fcd1577392bcb84642c1bf874ec6b208a4d56
         shell: bash
         run: |
           set -euxo pipefail
-          python -m pip install --disable-pip-version-check -q gdown
-          gdown "$APP_DRIVE_ID" -O /tmp/android-lab-v02.tar.gz
+          cat .odpar/android-v02/app_payload.part00 \
+              .odpar/android-v02/app_payload.part01 \
+              .odpar/android-v02/app_payload.part02 \
+              .odpar/android-v02/app_payload.part03 \
+              .odpar/android-v02/app_payload.part04 | base64 -d > /tmp/android-lab-v02.tar.gz
           echo "$APP_SHA256  /tmp/android-lab-v02.tar.gz" | sha256sum -c -
           rm -rf android
           mkdir android
@@ -66,6 +68,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          python -m pip install --disable-pip-version-check -q gdown
           gdown "$ODPAR_DRIVE_ID" -O /tmp/ODPAR-Music-Motion-LATEST.zip
           echo "$ODPAR_SHA256  /tmp/ODPAR-Music-Motion-LATEST.zip" | sha256sum -c -
           mkdir -p android/app/src/main/cpp/engine android/app/src/main/cpp/generated android/app/src/main/cpp/third_party
