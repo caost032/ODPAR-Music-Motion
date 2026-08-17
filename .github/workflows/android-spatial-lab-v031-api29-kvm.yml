@@ -1,0 +1,192 @@
+name: ODPAR Spatial Lab v0.3.1 API29 KVM Smoke
+
+on:
+  push:
+    branches: [agent/android-engine-lab-v052]
+    paths:
+      - '.github/workflows/android-spatial-lab-v031-api29-kvm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  api29-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record exact KVM smoke run
+        run: |
+          set -euo pipefail
+          mkdir -p .odpar/android-v031
+          python3 - <<'PY'
+          import json, os, pathlib
+          pathlib.Path('.odpar/android-v031/KVM_SMOKE_RUN.json').write_text(json.dumps({
+            'run_id': int(os.environ['GITHUB_RUN_ID']),
+            'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+            'workflow_sha': os.environ['GITHUB_SHA'],
+            'ref': os.environ['GITHUB_REF_NAME']}, sort_keys=True)+'\n')
+          PY
+          git config user.name 'ODPAR Spatial Lab CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .odpar/android-v031/KVM_SMOKE_RUN.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'CI: record v0.3.1 KVM smoke run [skip ci]'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Materialize exact v0.3.1 code for x86_64 runtime certification
+        env:
+          APP_SHA256: e10f7eb554afb0ed3b97ee4190945f059b795dd9e6f61f12e5f7e8823d4f71cd
+        run: |
+          set -euxo pipefail
+          cat .odpar/android-v03/app_payload.part* | base64 -d > /tmp/v03.tar.gz
+          echo "$APP_SHA256  /tmp/v03.tar.gz" | sha256sum -c -
+          rm -rf android && mkdir android
+          tar -xzf /tmp/v03.tar.gz -C android
+          python3 .odpar/android-v031/hotfix.py android
+          python3 .odpar/android-v031/smoke_markers.py android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle'); s=p.read_text()
+          old="ndk { abiFilters 'arm64-v8a', 'x86_64' }"
+          assert s.count(old)==1
+          p.write_text(s.replace(old,"ndk { abiFilters 'x86_64' }",1))
+          PY
+          grep -q "versionName '0.3.1-spatial-lab'" android/app/build.gradle
+          grep -q "abiFilters 'x86_64'" android/app/build.gradle
+          grep -q 'NATIVE_LOAD_ERROR' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'ODPAR_SMOKE_ENGINE_OK' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'ODPAR_SMOKE_FRAME_OK' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'lab_world_geometry \*geo=NULL' android/app/src/main/cpp/odpar_lab_scene.c
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - uses: android-actions/setup-android@v3
+
+      - name: Enable KVM acceleration explicitly
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+          sudo chmod 666 /dev/kvm
+          test -c /dev/kvm
+          ls -l /dev/kvm
+
+      - name: Install pinned Android build toolchain
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'cmake;3.22.1' 'ndk;27.2.12479018'
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Fetch exact official ODPAR 0.52
+        env:
+          ODPAR_DRIVE_ID: 117etA7LrenJFEpgzYeRhD19T_jlY-TmA
+          ODPAR_SHA256: 64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8
+        run: |
+          set -euxo pipefail
+          python -m pip install --disable-pip-version-check -q gdown
+          gdown "$ODPAR_DRIVE_ID" -O /tmp/ODPAR-Music-Motion-LATEST.zip
+          echo "$ODPAR_SHA256  /tmp/ODPAR-Music-Motion-LATEST.zip" | sha256sum -c -
+          unzip -q /tmp/ODPAR-Music-Motion-LATEST.zip -d android/app/src/main/cpp/engine
+          test "$(find android/app/src/main/cpp/engine/src -name '*.c' | wc -l)" -eq 184
+          test "$(find android/app/src/main/cpp/engine/src -name '*.c' ! -path '*/cli/*' | wc -l)" -eq 182
+          test "$(find android/app/src/main/cpp/engine/tests/unit android/app/src/main/cpp/engine/tests/properties -name '*.c' | wc -l)" -eq 74
+          grep -q '0.52.0-world3d-shadow-material-wip-v52' android/app/src/main/cpp/engine/CHECKPOINT_STATUS.json
+          grep -q '"abi_version": 11' android/app/src/main/cpp/engine/CHECKPOINT_STATUS.json
+          mkdir -p android/app/src/main/cpp/generated android/app/src/main/cpp/third_party
+          python android/app/src/main/cpp/engine/tools/gen_build_meta.py --output android/app/src/main/cpp/generated/odm_build_meta.h
+
+      - name: Build pinned OpenSSL x86_64
+        run: |
+          set -euxo pipefail
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          SRC=/tmp/openssl-x86_64
+          DEST="$GITHUB_WORKSPACE/android/app/src/main/cpp/third_party/openssl/x86_64"
+          git clone --depth 1 --branch openssl-3.5.3 https://github.com/openssl/openssl.git "$SRC"
+          cd "$SRC"
+          ./Configure android-x86_64 -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs --prefix="$DEST"
+          make -j2 build_libs
+          make install_dev
+          cp "$DEST/lib/libcrypto.a" "$DEST/libcrypto.a"
+
+      - name: Wire libpng and official private test headers
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git android/app/src/main/cpp/third_party/libpng
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/cpp/CMakeLists.txt'); s=p.read_text()
+          a='add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")'
+          assert s.count(a)==1
+          p.write_text(s.replace(a,a+'\ntarget_include_directories(odpar_engine PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")',1))
+          PY
+          CMAKE=android/app/src/main/cpp/CMakeLists.txt
+          {
+            echo
+            echo 'target_include_directories(odpar_lab PRIVATE'
+            find "$GITHUB_WORKSPACE/android/app/src/main/cpp/engine/src" "$GITHUB_WORKSPACE/android/app/src/main/cpp/engine/tests" -type d -print | LC_ALL=C sort | while IFS= read -r d; do printf '  "%s"\n' "$d"; done
+            echo ')'
+          } >> "$CMAKE"
+
+      - name: Build x86_64 runtime-cert APK
+        run: |
+          set -euxo pipefail
+          gradle -p android --no-daemon --stacktrace :app:validateSigningDebug :app:assembleDebug | tee android/api29-kvm-build.log
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l "$APK" | grep 'lib/x86_64/libodpar_lab.so'
+
+      - name: Android 10 API29 KVM launch + first native Scene3D frame
+        timeout-minutes: 12
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          target: default
+          profile: pixel_2
+          disable-animations: true
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+          script: |
+            set -euxo pipefail
+            APK=android/app/build/outputs/apk/debug/app-debug.apk
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am force-stop com.odpar.musicmotionlab || true
+            adb shell am start -W -n com.odpar.musicmotionlab/.MainActivity | tee android/api29-kvm-am-start.txt
+            sleep 15
+            adb logcat -d -v threadtime > android/api29-kvm-logcat.txt
+            PID="$(adb shell pidof com.odpar.musicmotionlab | tr -d '\r')"
+            test -n "$PID"
+            grep -q 'ODPAR_SMOKE_ENGINE_OK' android/api29-kvm-logcat.txt
+            grep -q 'ODPAR_SMOKE_FRAME_OK' android/api29-kvm-logcat.txt
+            ! grep -E 'FATAL EXCEPTION|Fatal signal|UnsatisfiedLinkError|dlopen failed' android/api29-kvm-logcat.txt
+            adb shell dumpsys activity activities | grep -q 'com.odpar.musicmotionlab/.MainActivity'
+            echo "API29 KVM PASS pid=$PID" | tee android/API29_KVM_PASS.txt
+
+      - name: Upload API29 KVM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ODPAR-v031-API29-KVM-evidence
+          path: |
+            android/API29_KVM_PASS.txt
+            android/api29-kvm-logcat.txt
+            android/api29-kvm-am-start.txt
+            android/api29-kvm-build.log
+          if-no-files-found: warn
+          retention-days: 14
