@@ -1,0 +1,22 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.odpar.musicmotionlab'
+    compileSdk 35
+    ndkVersion '27.2.12479018'
+    defaultConfig {
+        applicationId 'com.odpar.musicmotionlab'
+        minSdk 28
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0-engine-lab'
+        ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_static'; cFlags '-O3' } }
+    }
+    externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }
+    buildTypes {
+        debug { debuggable true; jniDebuggable false }
+        release { minifyEnabled false; ndk { debugSymbolLevel 'SYMBOL_TABLE' } }
+    }
+    packaging { jniLibs { useLegacyPackaging true } }
+}
