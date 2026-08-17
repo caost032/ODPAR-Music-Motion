@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -43,7 +43,7 @@ jobs:
           ODPAR_EXPECTED_SHA256: 64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8
         run: |
           python -m pip install --disable-pip-version-check -q gdown
-          gdown --id "$ODPAR_DRIVE_ID" -O official-engine.zip
+          gdown "$ODPAR_DRIVE_ID" -O official-engine.zip
           echo "$ODPAR_EXPECTED_SHA256  official-engine.zip" | sha256sum -c -
           mkdir -p app/src/main/cpp/engine app/src/main/cpp/generated
           unzip -q official-engine.zip -d app/src/main/cpp/engine
