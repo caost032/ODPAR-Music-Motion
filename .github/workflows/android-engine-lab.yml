@@ -77,7 +77,30 @@ jobs:
 
       - name: Build ARM64 APK with all 182 production C translation units
         working-directory: android_engine_lab
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
+        shell: bash
+        run: |
+          set +e
+          gradle --no-daemon :app:assembleDebug --stacktrace > build.log 2>&1
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo '=== ODPAR ANDROID COMPILER/LINKER ERRORS ==='
+            grep -nE 'error:|fatal error:|undefined reference|CMake Error|ninja: build stopped|FAILURE:|What went wrong|Execution failed for task' build.log | tail -n 350 || true
+            echo '=== BUILD LOG TAIL ==='
+            tail -n 250 build.log || true
+          else
+            echo '=== ODPAR ARM64 BUILD PASS ==='
+            tail -n 80 build.log || true
+          fi
+          exit "$rc"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ODPAR-Android-build-log
+          path: android_engine_lab/build.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Verify APK native payload
         working-directory: android_engine_lab
