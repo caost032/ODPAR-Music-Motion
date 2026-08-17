@@ -1,0 +1,48 @@
+name: ODPAR Spatial Lab v0.3 Source Diagnostic
+
+on:
+  push:
+    branches: [agent/android-engine-lab-v052]
+    paths:
+      - '.github/workflows/android-v03-source-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize-source:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/android-engine-lab-v052
+      - name: Publish run locator
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p .odpar/android-v03
+          printf '{"run_id": %s, "run_attempt": %s, "workflow_sha": "%s"}\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SHA" > .odpar/android-v03/SOURCE_DIAGNOSTIC_RUN.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .odpar/android-v03/SOURCE_DIAGNOSTIC_RUN.json
+          git diff --cached --quiet || git commit -m 'Record Spatial Lab source diagnostic run'
+          git push origin HEAD:agent/android-engine-lab-v052
+      - name: Materialize exact v0.3 payload
+        env:
+          APP_SHA256: e10f7eb554afb0ed3b97ee4190945f059b795dd9e6f61f12e5f7e8823d4f71cd
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat .odpar/android-v03/app_payload.part* | base64 -d > /tmp/v03.tar.gz
+          echo "$APP_SHA256  /tmp/v03.tar.gz" | sha256sum -c -
+          mkdir /tmp/v03
+          tar -xzf /tmp/v03.tar.gz -C /tmp/v03
+          find /tmp/v03 -maxdepth 8 -type f | sort
+          tar -czf /tmp/ODPAR-Spatial-Lab-v03-source.tar.gz -C /tmp/v03 .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ODPAR-Spatial-Lab-v03-source
+          path: /tmp/ODPAR-Spatial-Lab-v03-source.tar.gz
+          if-no-files-found: error
+          retention-days: 3
