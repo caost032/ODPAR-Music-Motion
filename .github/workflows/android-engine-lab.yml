@@ -1,4 +1,4 @@
-name: ODPAR Android Spatial Lab v0.3
+name: ODPAR Android Spatial Lab v0.3.1
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   build-apk:
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 110
     steps:
       - name: Checkout build branch
         uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .odpar/android-v03
+          mkdir -p .odpar/android-v031
           python3 - <<'PYLOC'
           import json, os, pathlib
           data = {
@@ -32,13 +32,13 @@ jobs:
               "ref": os.environ["GITHUB_REF_NAME"],
               "workflow": os.environ["GITHUB_WORKFLOW"],
           }
-          pathlib.Path('.odpar/android-v03/LATEST_RUN.json').write_text(json.dumps(data, sort_keys=True) + "\n")
+          pathlib.Path('.odpar/android-v031/LATEST_RUN.json').write_text(json.dumps(data, sort_keys=True) + "\n")
           PYLOC
           git config user.name "ODPAR Spatial Lab CI"
           git config user.email "actions@users.noreply.github.com"
-          git add .odpar/android-v03/LATEST_RUN.json
+          git add .odpar/android-v031/LATEST_RUN.json
           if ! git diff --cached --quiet; then
-            git commit -m "CI: record Spatial Lab v0.3 run [skip ci]"
+            git commit -m "CI: record Spatial Lab v0.3.1 run [skip ci]"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
@@ -64,6 +64,21 @@ jobs:
           grep -q 'nativeLoadMusicWorld' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
           ! grep -R -q 'SeekBar\|Spinner' android/app/src/main/java
           grep -q "versionName '0.3.0-spatial-lab'" android/app/build.gradle
+
+      - name: Apply audited Android 10 crash hotfix v0.3.1
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "f7cba6173e97a4a17a4277c794a6b61bcdb2f4006f73598449eaeb223a8aab5d  .odpar/android-v031/hotfix.py" | sha256sum -c -
+          python3 .odpar/android-v031/hotfix.py android
+          python3 .odpar/android-v031/smoke_markers.py android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q "versionName '0.3.1-spatial-lab'" android/app/build.gradle
+          grep -q "abiFilters 'arm64-v8a', 'x86_64'" android/app/build.gradle
+          grep -q 'android:extractNativeLibs="true"' android/app/src/main/AndroidManifest.xml
+          grep -q 'ODPAR_SMOKE_ENGINE_OK' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'ODPAR_SMOKE_FRAME_OK' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'lab_world_geometry \*geo=NULL' android/app/src/main/cpp/odpar_lab_scene.c
+          test -f android/app/src/main/cpp/android_compat.c
 
       - name: Java 17
         uses: actions/setup-java@v4
@@ -106,21 +121,28 @@ jobs:
           grep -q '"abi_version": 11' android/app/src/main/cpp/engine/CHECKPOINT_STATUS.json
           python android/app/src/main/cpp/engine/tools/gen_build_meta.py --output android/app/src/main/cpp/generated/odm_build_meta.h
 
-      - name: Build OpenSSL 3.5.3 for Android ARM64
+      - name: Build OpenSSL 3.5.3 for Android ARM64 and x86_64
         shell: bash
         run: |
           set -euxo pipefail
-          rm -rf /tmp/openssl-src
-          git clone --depth 1 --branch openssl-3.5.3 https://github.com/openssl/openssl.git /tmp/openssl-src
           export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
-          DEST="$GITHUB_WORKSPACE/android/app/src/main/cpp/third_party/openssl"
-          cd /tmp/openssl-src
-          ./Configure android-arm64 -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs --prefix="$DEST"
-          make -j2 build_libs
-          make install_dev
-          cp "$DEST/lib/libcrypto.a" "$DEST/libcrypto.a"
-          test -s "$DEST/libcrypto.a"
-          test -s "$DEST/include/openssl/evp.h"
+          build_ssl() {
+            target="$1"
+            abi="$2"
+            src="/tmp/openssl-${abi}"
+            dest="$GITHUB_WORKSPACE/android/app/src/main/cpp/third_party/openssl/${abi}"
+            rm -rf "$src"
+            git clone --depth 1 --branch openssl-3.5.3 https://github.com/openssl/openssl.git "$src"
+            cd "$src"
+            ./Configure "$target" -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs --prefix="$dest"
+            make -j2 build_libs
+            make install_dev
+            cp "$dest/lib/libcrypto.a" "$dest/libcrypto.a"
+            test -s "$dest/libcrypto.a"
+            test -s "$dest/include/openssl/evp.h"
+          }
+          build_ssl android-arm64 arm64-v8a
+          build_ssl android-x86_64 x86_64
 
       - name: Fetch libpng 1.6.50 source
         shell: bash
@@ -155,10 +177,8 @@ jobs:
             done
             echo ')'
           } >> "$CMAKE"
-          grep -A5 -B2 'Android port: png.c' "$CMAKE"
-          grep -A8 -B1 'Android certification lane:' "$CMAKE" | head -n 30
 
-      - name: Build Spatial Lab APK with complete production and official test surfaces
+      - name: Build Spatial Lab v0.3.1 APK with complete production and official test surfaces
         shell: bash
         run: |
           set +e
@@ -177,50 +197,130 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ODPAR-Android-v03-build-log
+          name: ODPAR-Android-v031-build-log
           path: android/build.log
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Verify APK, full legacy JNI and Spatial Lab v0.3 JNI
+      - name: Verify APK, both ABIs, compatibility shim and full JNI surface
         shell: bash
         run: |
           set -euxo pipefail
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           unzip -t "$APK"
-          unzip -p "$APK" lib/arm64-v8a/libodpar_lab.so > android/libodpar_lab.so
-          test -s android/libodpar_lab.so
-          file android/libodpar_lab.so | tee android/native-file.txt
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeRenderScene
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeFullTestSuite
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeAnalyzeAudio
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeInspectOdparms
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeRenderWorld
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeLoadMusicWorld
-          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeClearMusicWorld
-          sha256sum "$APK" android/libodpar_lab.so | tee android/APK_SHA256.txt
-          cat > android/SPATIAL_LAB_V03.txt <<'TXT'
-          ODPAR Music Motion Spatial Lab v0.3
-          Main interaction: dynamic left-thumb movement + right-side free look; no camera sliders.
-          Native authority: official ODPAR 0.52 C11, ABI 11.
-          Production C sources staged by guard: 182 (plus CLI surfaces separately).
-          Official unit/property source families compiled into APK: 74.
-          Active world path: Scene3D + camera + PBR-lite + lights + shadows + prepared software raster.
-          Real music path: media -> canonical 48 kHz -> analysis -> music_reaction -> Scene3D.
-          Android responsibilities: host UI, touch/file transport, framebuffer display, audio output device.
-          Full Spine/capability/selftest/official-suite surfaces remain available from the Motor lab.
-          TXT
-          cp "$APK" android/ODPAR-Music-Motion-Spatial-Lab-v0.3-arm64.apk
+          mkdir -p android/verify
+          unzip -p "$APK" lib/arm64-v8a/libodpar_lab.so > android/verify/libodpar_lab-arm64.so
+          unzip -p "$APK" lib/x86_64/libodpar_lab.so > android/verify/libodpar_lab-x86_64.so
+          test -s android/verify/libodpar_lab-arm64.so
+          test -s android/verify/libodpar_lab-x86_64.so
+          file android/verify/libodpar_lab-arm64.so android/verify/libodpar_lab-x86_64.so | tee android/native-file.txt
+          for so in android/verify/libodpar_lab-arm64.so android/verify/libodpar_lab-x86_64.so; do
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeRenderScene
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeFullTestSuite
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeAnalyzeAudio
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeInspectOdparms
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeRenderWorld
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeLoadMusicWorld
+            nm -D "$so" | grep Java_com_odpar_musicmotionlab_MainActivity_nativeClearMusicWorld
+            nm -D "$so" | grep -E ' [Tt] memfd_create$'
+            if readelf -Ws "$so" | grep -E 'UND +memfd_create($|@)' ; then
+              echo 'memfd_create still unresolved' >&2
+              exit 1
+            fi
+          done
+          sha256sum "$APK" android/verify/libodpar_lab-arm64.so android/verify/libodpar_lab-x86_64.so | tee android/APK_SHA256.txt
 
-      - name: Upload installable Spatial Lab APK
+      - name: Install Android API 29 emulator image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sdkmanager "platform-tools" "emulator" "system-images;android-29;default;x86_64"
+          echo no | avdmanager create avd --force --name odpar_api29 --package "system-images;android-29;default;x86_64" --device "pixel_2"
+
+      - name: Android 10 API29 launch + first native frame smoke test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p android/smoke
+          ACCEL='-accel off'
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm || true
+            ACCEL='-accel on'
+          fi
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd odpar_api29 -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect $ACCEL >android/smoke/emulator.txt 2>&1 &
+          EMU_PID=$!
+          trap 'adb logcat -d > android/smoke/logcat.txt 2>/dev/null || true; kill "$EMU_PID" 2>/dev/null || true' EXIT
+          adb wait-for-device
+          ok=0
+          for i in $(seq 1 150); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" -eq 1
+          adb shell settings put global window_animation_scale 0 || true
+          adb shell settings put global transition_animation_scale 0 || true
+          adb shell settings put global animator_duration_scale 0 || true
+          adb install -r "$APK"
+          adb logcat -c
+          adb shell am force-stop com.odpar.musicmotionlab
+          adb shell am start -W -n com.odpar.musicmotionlab/.MainActivity | tee android/smoke/am-start.txt
+          engine_ok=0
+          frame_ok=0
+          alive=0
+          for i in $(seq 1 90); do
+            adb logcat -d > android/smoke/logcat.txt
+            grep -q 'ODPAR_SMOKE_ENGINE_OK' android/smoke/logcat.txt && engine_ok=1 || true
+            grep -q 'ODPAR_SMOKE_FRAME_OK' android/smoke/logcat.txt && frame_ok=1 || true
+            pid="$(adb shell pidof com.odpar.musicmotionlab 2>/dev/null | tr -d '\r')"
+            [ -n "$pid" ] && alive=1 || alive=0
+            if [ "$engine_ok" -eq 1 ] && [ "$frame_ok" -eq 1 ] && [ "$alive" -eq 1 ]; then break; fi
+            sleep 2
+          done
+          adb logcat -d > android/smoke/logcat.txt
+          echo "engine_ok=$engine_ok frame_ok=$frame_ok alive=$alive" | tee android/smoke/result.txt
+          if grep -E 'FATAL EXCEPTION|Fatal signal|UnsatisfiedLinkError|SIGSEGV|Abort message' android/smoke/logcat.txt; then
+            echo 'fatal runtime signature detected' >&2
+            exit 1
+          fi
+          test "$engine_ok" -eq 1
+          test "$frame_ok" -eq 1
+          test "$alive" -eq 1
+
+      - name: Upload API29 smoke evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ODPAR-Music-Motion-Spatial-Lab-v0.3-arm64
+          name: ODPAR-Android-v031-api29-smoke
+          path: android/smoke
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Package corrected installable APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          cat > android/SPATIAL_LAB_V031.txt <<'TXT'
+          ODPAR Music Motion Spatial Lab v0.3.1
+          Crash hardening: immersive world stack storage moved to heap (same geometry), 8 MiB render worker stack,
+          fail-safe native loader, explicit native extraction, Android API28/29 memfd syscall compatibility.
+          Runtime certification lane: Android 10 / API29 x86_64 emulator must load ODPAR C, produce first native Scene3D frame, and remain alive.
+          Native authority: official ODPAR 0.52 C11, ABI 11.
+          Production C sources: 182. Official unit/property families: 74.
+          TXT
+          cp "$APK" android/ODPAR-Music-Motion-Spatial-Lab-v0.3.1.apk
+
+      - name: Upload installable Spatial Lab v0.3.1 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ODPAR-Music-Motion-Spatial-Lab-v0.3.1
           path: |
-            android/ODPAR-Music-Motion-Spatial-Lab-v0.3-arm64.apk
+            android/ODPAR-Music-Motion-Spatial-Lab-v0.3.1.apk
             android/APK_SHA256.txt
             android/native-file.txt
-            android/SPATIAL_LAB_V03.txt
+            android/SPATIAL_LAB_V031.txt
+            android/smoke/result.txt
           if-no-files-found: error
           retention-days: 30
