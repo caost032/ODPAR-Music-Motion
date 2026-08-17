@@ -1,0 +1,42 @@
+name: Locate ODPAR Android Spatial Lab v0.3.1 APK Delivery
+
+on:
+  push:
+    branches: [agent/android-engine-lab-v052]
+    paths:
+      - '.github/workflows/android-apk-delivery-locator.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  locate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate latest APK delivery run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .odpar/android-v031-delivery
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/android-apk-delivery-v031.yml/runs?branch=${GITHUB_REF_NAME}&per_page=10" > /tmp/runs.json
+          python3 - <<'PY'
+          import json, pathlib
+          d=json.load(open('/tmp/runs.json'))
+          runs=d.get('workflow_runs', [])
+          if not runs:
+              raise SystemExit('no APK delivery workflow run found')
+          r=runs[0]
+          out={k:r.get(k) for k in ('id','status','conclusion','head_sha','created_at','updated_at','html_url')}
+          pathlib.Path('.odpar/android-v031-delivery/LATEST_RUN.json').write_text(json.dumps(out,sort_keys=True)+'\n')
+          print(json.dumps(out,indent=2,sort_keys=True))
+          PY
+          git config user.name "ODPAR Spatial Lab CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add .odpar/android-v031-delivery/LATEST_RUN.json
+          git commit -m "CI: record APK delivery run [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
