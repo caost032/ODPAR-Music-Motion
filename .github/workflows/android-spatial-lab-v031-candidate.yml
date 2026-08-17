@@ -1,0 +1,184 @@
+name: ODPAR Spatial Lab v0.3.1 ARM64 Candidate
+
+on:
+  push:
+    branches: [agent/android-engine-lab-v052]
+    paths:
+      - '.github/workflows/android-spatial-lab-v031-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record exact candidate run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .odpar/android-v031
+          python3 - <<'PY'
+          import json, os, pathlib
+          pathlib.Path('.odpar/android-v031/CANDIDATE_RUN.json').write_text(json.dumps({
+            'run_id': int(os.environ['GITHUB_RUN_ID']),
+            'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+            'workflow_sha': os.environ['GITHUB_SHA'],
+            'ref': os.environ['GITHUB_REF_NAME'],
+          }, sort_keys=True)+'\n')
+          PY
+          git config user.name 'ODPAR Spatial Lab CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .odpar/android-v031/CANDIDATE_RUN.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'CI: record v0.3.1 ARM64 candidate run [skip ci]'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Materialize v0.3 and apply exact v0.3.1 crash hotfix
+        env:
+          APP_SHA256: e10f7eb554afb0ed3b97ee4190945f059b795dd9e6f61f12e5f7e8823d4f71cd
+        run: |
+          set -euxo pipefail
+          cat .odpar/android-v03/app_payload.part* | base64 -d > /tmp/v03.tar.gz
+          echo "$APP_SHA256  /tmp/v03.tar.gz" | sha256sum -c -
+          rm -rf android && mkdir android
+          tar -xzf /tmp/v03.tar.gz -C android
+          python3 .odpar/android-v031/hotfix.py android
+          # Physical-device candidate is ARM64 only. The runtime-cert lane keeps x86_64 for its emulator.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle')
+          s=p.read_text()
+          old="ndk { abiFilters 'arm64-v8a', 'x86_64' }"
+          assert s.count(old)==1
+          p.write_text(s.replace(old,"ndk { abiFilters 'arm64-v8a' }",1))
+          PY
+          grep -q "versionName '0.3.1-spatial-lab'" android/app/build.gradle
+          grep -q "abiFilters 'arm64-v8a'" android/app/build.gradle
+          grep -q 'lab_world_geometry \*geo=NULL' android/app/src/main/cpp/odpar_lab_scene.c
+          grep -q '8L \* 1024L \* 1024L' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'NATIVE_LOAD_ERROR' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'android_compat.c' android/app/src/main/cpp/CMakeLists.txt
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android NDK
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'cmake;3.22.1' 'ndk;27.2.12479018'
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Fetch exact official ODPAR 0.52
+        env:
+          ODPAR_DRIVE_ID: 117etA7LrenJFEpgzYeRhD19T_jlY-TmA
+          ODPAR_SHA256: 64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8
+        run: |
+          set -euxo pipefail
+          python -m pip install --disable-pip-version-check -q gdown
+          gdown "$ODPAR_DRIVE_ID" -O /tmp/ODPAR-Music-Motion-LATEST.zip
+          echo "$ODPAR_SHA256  /tmp/ODPAR-Music-Motion-LATEST.zip" | sha256sum -c -
+          unzip -q /tmp/ODPAR-Music-Motion-LATEST.zip -d android/app/src/main/cpp/engine
+          test "$(find android/app/src/main/cpp/engine/src -name '*.c' | wc -l)" -eq 184
+          test "$(find android/app/src/main/cpp/engine/src -name '*.c' ! -path '*/cli/*' | wc -l)" -eq 182
+          test "$(find android/app/src/main/cpp/engine/tests/unit android/app/src/main/cpp/engine/tests/properties -name '*.c' | wc -l)" -eq 74
+          grep -q '0.52.0-world3d-shadow-material-wip-v52' android/app/src/main/cpp/engine/CHECKPOINT_STATUS.json
+          grep -q '"abi_version": 11' android/app/src/main/cpp/engine/CHECKPOINT_STATUS.json
+          mkdir -p android/app/src/main/cpp/generated android/app/src/main/cpp/third_party
+          python android/app/src/main/cpp/engine/tools/gen_build_meta.py --output android/app/src/main/cpp/generated/odm_build_meta.h
+
+      - name: Build pinned OpenSSL ARM64
+        run: |
+          set -euxo pipefail
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          SRC=/tmp/openssl-arm64
+          DEST="$GITHUB_WORKSPACE/android/app/src/main/cpp/third_party/openssl/arm64-v8a"
+          git clone --depth 1 --branch openssl-3.5.3 https://github.com/openssl/openssl.git "$SRC"
+          cd "$SRC"
+          ./Configure android-arm64 -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs --prefix="$DEST"
+          make -j2 build_libs
+          make install_dev
+          cp "$DEST/lib/libcrypto.a" "$DEST/libcrypto.a"
+          test -s "$DEST/libcrypto.a"
+          test -s "$DEST/include/openssl/evp.h"
+
+      - name: Fetch libpng and wire Android private headers
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git android/app/src/main/cpp/third_party/libpng
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/cpp/CMakeLists.txt')
+          s=p.read_text()
+          a='add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")'
+          assert s.count(a)==1
+          s=s.replace(a,a+'\n# Android png headers\ntarget_include_directories(odpar_engine PRIVATE\n  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng"\n  "${CMAKE_CURRENT_BINARY_DIR}/libpng")',1)
+          p.write_text(s)
+          PY
+          CMAKE=android/app/src/main/cpp/CMakeLists.txt
+          {
+            echo
+            echo 'target_include_directories(odpar_lab PRIVATE'
+            find "$GITHUB_WORKSPACE/android/app/src/main/cpp/engine/src" "$GITHUB_WORKSPACE/android/app/src/main/cpp/engine/tests" -type d -print | LC_ALL=C sort | while IFS= read -r d; do printf '  "%s"\n' "$d"; done
+            echo ')'
+          } >> "$CMAKE"
+
+      - name: Build signed-debug ARM64 crash-fix APK
+        run: |
+          set -euxo pipefail
+          gradle -p android --no-daemon --stacktrace :app:validateSigningDebug :app:assembleDebug | tee android/build-v031-candidate.log
+
+      - name: Verify candidate binary deeply
+        run: |
+          set -euxo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          unzip -l "$APK" | grep 'lib/arm64-v8a/libodpar_lab.so'
+          ! unzip -l "$APK" | grep -q 'lib/x86_64/libodpar_lab.so'
+          unzip -p "$APK" lib/arm64-v8a/libodpar_lab.so > android/libodpar_lab-arm64.so
+          file android/libodpar_lab-arm64.so | grep -q 'ARM aarch64'
+          nm -D android/libodpar_lab-arm64.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeRenderWorld
+          nm -D android/libodpar_lab-arm64.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeLoadMusicWorld
+          nm -D android/libodpar_lab-arm64.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeFullTestSuite
+          nm -D android/libodpar_lab-arm64.so | grep ' T memfd_create'
+          sha256sum "$APK" android/libodpar_lab-arm64.so | tee android/APK_SHA256.txt
+          cp "$APK" android/ODPAR-Music-Motion-Spatial-Lab-v0.3.1-ARM64.apk
+          cat > android/V031_CRASH_FIX.txt <<'TXT'
+          ODPAR Music Motion Spatial Lab v0.3.1 ARM64
+          - world transient geometry moved from ~303 KiB stack to heap
+          - render worker stack explicitly 8 MiB
+          - native loader fails visibly instead of silently closing Activity
+          - API28/29 memfd_create compatibility shim
+          - official ODPAR 0.52 C11 ABI 11 retained
+          - 182 production C translation units + official test surfaces retained
+          TXT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ODPAR-Music-Motion-Spatial-Lab-v0.3.1-ARM64
+          path: |
+            android/ODPAR-Music-Motion-Spatial-Lab-v0.3.1-ARM64.apk
+            android/APK_SHA256.txt
+            android/V031_CRASH_FIX.txt
+            android/build-v031-candidate.log
+          if-no-files-found: error
+          retention-days: 30
