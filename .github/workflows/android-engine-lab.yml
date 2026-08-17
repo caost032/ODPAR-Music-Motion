@@ -1,4 +1,4 @@
-name: ODPAR Android Engine Lab v0.2
+name: ODPAR Android Spatial Lab v0.3
 
 on:
   push:
@@ -22,23 +22,24 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Materialize verified Android Lab v0.2 source
+      - name: Materialize verified Android Spatial Lab v0.3 source
         env:
-          APP_SHA256: a0b82b5be30f88ba5ab73352329fcd1577392bcb84642c1bf874ec6b208a4d56
+          APP_SHA256: e10f7eb554afb0ed3b97ee4190945f059b795dd9e6f61f12e5f7e8823d4f71cd
         shell: bash
         run: |
           set -euxo pipefail
-          cat .odpar/android-v02/app_payload.part00 \
-              .odpar/android-v02/app_payload.part01 \
-              .odpar/android-v02/app_payload.part02 \
-              .odpar/android-v02/app_payload.part03 \
-              .odpar/android-v02/app_payload.part04 | base64 -d > /tmp/android-lab-v02.tar.gz
-          echo "$APP_SHA256  /tmp/android-lab-v02.tar.gz" | sha256sum -c -
+          cat .odpar/android-v03/app_payload.part* | base64 -d > /tmp/android-spatial-lab-v03.tar.gz
+          echo "$APP_SHA256  /tmp/android-spatial-lab-v03.tar.gz" | sha256sum -c -
           rm -rf android
           mkdir android
-          tar -xzf /tmp/android-lab-v02.tar.gz -C android
+          tar -xzf /tmp/android-spatial-lab-v03.tar.gz -C android
           test -f android/app/src/main/cpp/extended_bridge.c
           test -f android/app/src/main/cpp/android_test_runner.c
+          test -f android/app/src/main/java/com/odpar/musicmotionlab/ImmersiveControlsView.java
+          grep -q 'nativeRenderWorld' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          grep -q 'nativeLoadMusicWorld' android/app/src/main/java/com/odpar/musicmotionlab/MainActivity.java
+          ! grep -R -q 'SeekBar\|Spinner' android/app/src/main/java
+          grep -q "versionName '0.3.0-spatial-lab'" android/app/build.gradle
 
       - name: Java 17
         uses: actions/setup-java@v4
@@ -133,18 +134,18 @@ jobs:
           grep -A5 -B2 'Android port: png.c' "$CMAKE"
           grep -A8 -B1 'Android certification lane:' "$CMAKE" | head -n 30
 
-      - name: Build APK with complete production and official test surfaces
+      - name: Build Spatial Lab APK with complete production and official test surfaces
         shell: bash
         run: |
           set +e
-          gradle -p android --no-daemon --stacktrace :app:assembleDebug > android/build.log 2>&1
+          gradle -p android --no-daemon --stacktrace :app:validateSigningDebug :app:assembleDebug > android/build.log 2>&1
           rc=$?
           if [ "$rc" -ne 0 ]; then
             echo '=== ODPAR ANDROID COMPILER/LINKER ERRORS ==='
             grep -nE 'error:|fatal error:|undefined reference|CMake Error|ninja: build stopped|FAILURE:|What went wrong|Execution failed for task' android/build.log | tail -n 500 || true
-            tail -n 320 android/build.log || true
+            tail -n 360 android/build.log || true
           else
-            tail -n 120 android/build.log || true
+            tail -n 140 android/build.log || true
           fi
           exit "$rc"
 
@@ -152,17 +153,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ODPAR-Android-v02-build-log
+          name: ODPAR-Android-v03-build-log
           path: android/build.log
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Verify APK and extended JNI surface
+      - name: Verify APK, full legacy JNI and Spatial Lab v0.3 JNI
         shell: bash
         run: |
           set -euxo pipefail
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
+          unzip -t "$APK"
           unzip -p "$APK" lib/arm64-v8a/libodpar_lab.so > android/libodpar_lab.so
           test -s android/libodpar_lab.so
           file android/libodpar_lab.so | tee android/native-file.txt
@@ -170,16 +172,31 @@ jobs:
           nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeFullTestSuite
           nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeAnalyzeAudio
           nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeInspectOdparms
+          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeRenderWorld
+          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeLoadMusicWorld
+          nm -D android/libodpar_lab.so | grep Java_com_odpar_musicmotionlab_MainActivity_nativeClearMusicWorld
           sha256sum "$APK" android/libodpar_lab.so | tee android/APK_SHA256.txt
-          cp "$APK" android/ODPAR-Music-Motion-Engine-Lab-v0.2-arm64.apk
+          cat > android/SPATIAL_LAB_V03.txt <<'TXT'
+          ODPAR Music Motion Spatial Lab v0.3
+          Main interaction: dynamic left-thumb movement + right-side free look; no camera sliders.
+          Native authority: official ODPAR 0.52 C11, ABI 11.
+          Production C sources staged by guard: 182 (plus CLI surfaces separately).
+          Official unit/property source families compiled into APK: 74.
+          Active world path: Scene3D + camera + PBR-lite + lights + shadows + prepared software raster.
+          Real music path: media -> canonical 48 kHz -> analysis -> music_reaction -> Scene3D.
+          Android responsibilities: host UI, touch/file transport, framebuffer display, audio output device.
+          Full Spine/capability/selftest/official-suite surfaces remain available from the Motor lab.
+          TXT
+          cp "$APK" android/ODPAR-Music-Motion-Spatial-Lab-v0.3-arm64.apk
 
-      - name: Upload installable APK
+      - name: Upload installable Spatial Lab APK
         uses: actions/upload-artifact@v4
         with:
-          name: ODPAR-Music-Motion-Engine-Lab-v0.2-arm64
+          name: ODPAR-Music-Motion-Spatial-Lab-v0.3-arm64
           path: |
-            android/ODPAR-Music-Motion-Engine-Lab-v0.2-arm64.apk
+            android/ODPAR-Music-Motion-Spatial-Lab-v0.3-arm64.apk
             android/APK_SHA256.txt
             android/native-file.txt
+            android/SPATIAL_LAB_V03.txt
           if-no-files-found: error
           retention-days: 30
