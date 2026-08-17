@@ -3,7 +3,8 @@ name: ODPAR Android Engine Lab v0.2
 on:
   push:
     branches: [agent/android-engine-lab-v052]
-    paths: ['.github/workflows/android-engine-lab.yml']
+    paths:
+      - '.github/workflows/android-engine-lab.yml'
   workflow_dispatch:
 
 permissions:
@@ -110,22 +111,27 @@ jobs:
           from pathlib import Path
           p = Path('android/app/src/main/cpp/CMakeLists.txt')
           s = p.read_text()
-
-          png_anchor = 'add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")'
-          assert png_anchor in s, 'libpng add_subdirectory anchor missing; refusing blind patch'
-          png_wiring = png_anchor + '''\n# Android port: png.c is compiled inside odpar_engine before final linking, so\n# it must see libpng source headers and the generated pnglibconf.h here.\n# This preserves the native PNG module; it does not exclude or replace it.\ntarget_include_directories(odpar_engine PRIVATE\n  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng"\n  "${CMAKE_CURRENT_BINARY_DIR}/libpng")'''
-          assert 'Android port: png.c is compiled inside odpar_engine' not in s
-          s = s.replace(png_anchor, png_wiring, 1)
-
-          test_anchor = '''target_include_directories(odpar_lab PRIVATE
-  "${ENGINE_ROOT}/include" "${ENGINE_ROOT}/src/cli" "${ENGINE_ROOT}/tests" "${CMAKE_CURRENT_SOURCE_DIR}")'''
-          assert test_anchor in s, 'test include anchor missing; refusing blind patch'
-          test_wiring = '''# Android certification lane: official tests intentionally include private\n# engine headers (for example visual_internal.h). Discover the directories\n# containing official internal/test headers instead of weakening those tests.\nfile(GLOB_RECURSE ODM_TEST_PRIVATE_HEADERS CONFIGURE_DEPENDS\n  "${ENGINE_ROOT}/src/*.h"\n  "${ENGINE_ROOT}/tests/*.h")\nset(ODM_TEST_PRIVATE_INCLUDE_DIRS "")\nforeach(_odm_test_header IN LISTS ODM_TEST_PRIVATE_HEADERS)\n  get_filename_component(_odm_test_header_dir "${_odm_test_header}" DIRECTORY)\n  list(APPEND ODM_TEST_PRIVATE_INCLUDE_DIRS "${_odm_test_header_dir}")\nendforeach()\nlist(REMOVE_DUPLICATES ODM_TEST_PRIVATE_INCLUDE_DIRS)\ntarget_include_directories(odpar_lab PRIVATE\n  "${ENGINE_ROOT}/include" "${ENGINE_ROOT}/src/cli" "${ENGINE_ROOT}/tests" "${CMAKE_CURRENT_SOURCE_DIR}"\n  ${ODM_TEST_PRIVATE_INCLUDE_DIRS})'''
-          s = s.replace(test_anchor, test_wiring, 1)
-          p.write_text(s)
+          anchor = 'add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")'
+          assert anchor in s, 'libpng anchor missing; refusing blind patch'
+          assert 'Android port: png.c compile-time headers' not in s
+          addition = anchor + '\n# Android port: png.c compile-time headers; native PNG remains enabled.\n' + \
+              'target_include_directories(odpar_engine PRIVATE\n' + \
+              '  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng"\n' + \
+              '  "${CMAKE_CURRENT_BINARY_DIR}/libpng")'
+          p.write_text(s.replace(anchor, addition, 1))
           PY
-          grep -A7 -B2 'Android port: png.c' android/app/src/main/cpp/CMakeLists.txt
-          grep -A15 -B2 'Android certification lane: official tests' android/app/src/main/cpp/CMakeLists.txt
+          CMAKE=android/app/src/main/cpp/CMakeLists.txt
+          {
+            echo
+            echo '# Android certification lane: preserve official tests that include module-private headers.'
+            echo 'target_include_directories(odpar_lab PRIVATE'
+            find "$GITHUB_WORKSPACE/android/app/src/main/cpp/engine/src" "$GITHUB_WORKSPACE/android/app/src/main/cpp/engine/tests" -type d -print | LC_ALL=C sort | while IFS= read -r d; do
+              printf '  "%s"\n' "$d"
+            done
+            echo ')'
+          } >> "$CMAKE"
+          grep -A5 -B2 'Android port: png.c' "$CMAKE"
+          grep -A8 -B1 'Android certification lane:' "$CMAKE" | head -n 30
 
       - name: Build APK with complete production and official test surfaces
         shell: bash
