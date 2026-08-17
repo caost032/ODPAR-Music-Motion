@@ -102,6 +102,22 @@ jobs:
           set -euxo pipefail
           git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git android/app/src/main/cpp/third_party/libpng
 
+      - name: Apply audited Android portability wiring
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/cpp/CMakeLists.txt')
+          s = p.read_text()
+          needle = 'add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng" "${CMAKE_CURRENT_BINARY_DIR}/libpng")'
+          assert needle in s, 'libpng add_subdirectory anchor missing; refusing blind patch'
+          wiring = needle + '''\n# Android port: png.c is compiled inside odpar_engine before final linking, so\n# it must see libpng source headers and the generated pnglibconf.h here.\n# This preserves the native PNG module; it does not exclude or replace it.\ntarget_include_directories(odpar_engine PRIVATE\n  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/libpng"\n  "${CMAKE_CURRENT_BINARY_DIR}/libpng")'''
+          assert 'Android port: png.c is compiled inside odpar_engine' not in s
+          p.write_text(s.replace(needle, wiring, 1))
+          PY
+          grep -A7 -B2 'Android port: png.c' android/app/src/main/cpp/CMakeLists.txt
+
       - name: Build APK with complete production and official test surfaces
         shell: bash
         run: |
