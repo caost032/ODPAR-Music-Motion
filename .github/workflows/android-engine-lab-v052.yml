@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check -q gdown
-          gdown --fuzzy 'https://drive.google.com/file/d/117etA7LrenJFEpgzYeRhD19T_jlY-TmA/view?usp=drivesdk' -O /tmp/official-engine.zip
+          gdown 'https://drive.google.com/file/d/117etA7LrenJFEpgzYeRhD19T_jlY-TmA/view?usp=drivesdk' -O /tmp/official-engine.zip
           echo "$OFFICIAL_ENGINE_SHA256  /tmp/official-engine.zip" | sha256sum -c -
           mkdir -p android_engine_lab/app/src/main/cpp/engine
           unzip -q /tmp/official-engine.zip -d android_engine_lab/app/src/main/cpp/engine
