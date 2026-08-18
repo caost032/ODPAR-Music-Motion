@@ -1,13 +1,6 @@
-name: Build uploaded ODPAR Authoring Studio APK
+name: LEGACY - Uploaded Native Android Test (manual)
 
 on:
-  push:
-    branches:
-      - claude/motor-improvement-sr808c
-    paths:
-      - "ODPAR-Music-Motion-Android-Test-2026-08-18.zip"
-      - "android-test-overrides/**"
-      - ".github/workflows/build-uploaded-android-test.yml"
   workflow_dispatch:
 
 permissions:
@@ -72,7 +65,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: odpar-authoring-studio-apk
+          name: legacy-odpar-native-authoring-apk
           path: prepared/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
