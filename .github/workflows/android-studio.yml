@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   studio-apk:
@@ -17,6 +17,23 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Publish active Studio run pointer
+        run: |
+          mkdir -p .ci_state
+          cat > .ci_state/android_studio_run.md <<EOF
+          # Active ODPAR Music Motion Studio build
+
+          run_id=$GITHUB_RUN_ID
+          run_attempt=$GITHUB_RUN_ATTEMPT
+          source_commit=$GITHUB_SHA
+          target=ODPAR-Music-Motion-Studio-v0.5-arm64.apk
+          EOF
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .ci_state/android_studio_run.md
+          git commit -m "Publish active Studio build pointer"
+          git push origin HEAD:claude/motor-improvement-sr808c
 
       - uses: actions/setup-python@v5
         with:
