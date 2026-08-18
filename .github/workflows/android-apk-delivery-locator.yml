@@ -1,5 +1,6 @@
 name: Locate ODPAR Android Spatial Lab v0.3.1 APK Delivery
 
+# refresh: corrected OpenSSL delivery lane
 on:
   push:
     branches: [agent/android-engine-lab-v052]
