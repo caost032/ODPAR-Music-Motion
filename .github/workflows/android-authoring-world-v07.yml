@@ -1,4 +1,4 @@
-name: Build ODPAR Music Motion Authoring World v0.7
+name: Build ODPAR Music Motion Authoring World
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - name: Publish active v0.7 run pointer
         run: |
           cat > ANDROID_AUTHORING_WORLD_V07_RUN.md <<EOF
-          # Active ODPAR Music Motion Authoring World v0.7 build
+          # Active ODPAR Music Motion Authoring World build
 
           run_id=$GITHUB_RUN_ID
           run_attempt=$GITHUB_RUN_ATTEMPT
@@ -66,8 +66,8 @@ jobs:
           python - <<'PY'
           import re
           from pathlib import Path
-          j=Path('android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java').read_text()
-          c=Path('android_engine_lab/app/src/main/cpp/studio_native_bridge.c').read_text()
+          j = Path('android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java').read_text()
+          c = Path('android_engine_lab/app/src/main/cpp/studio_native_bridge.c').read_text()
           java=set(re.findall(r'private\s+synchronized\s+native\s+[\w\[\]]+\s+(native\w+)\s*\(',j))
           exports=set(re.findall(r'Java_com_odpar_musicmotion_MainActivity_(native\w+)\s*\(',c))
           print('Java native methods:',len(java),sorted(java))
@@ -142,11 +142,11 @@ jobs:
           test -s "$THIRD/openssl-install/lib/libcrypto.a"
           cat >> "$ROOT/app/src/main/cpp/CMakeLists.txt" <<'CMAKE'
 
-target_include_directories(odpar_engine PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/include")
-target_link_libraries(odpar_engine PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/lib/libcrypto.a")
-CMAKE
+          target_include_directories(odpar_engine PRIVATE
+              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/include")
+          target_link_libraries(odpar_engine PUBLIC
+              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/lib/libcrypto.a")
+          CMAKE
 
       - name: Build v0.7 ARM64 APK
         working-directory: android_engine_lab
@@ -157,8 +157,12 @@ CMAKE
         run: |
           set -euxo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          ZIPALIGN="$ANDROID_HOME/build-tools/35.0.0/zipalign"
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee apk-badging.txt
+          "$ZIPALIGN" -c -v 4 "$APK" > zipalign.txt
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-signature.txt
           grep -q "package: name='com.odpar.musicmotion'" apk-badging.txt
           grep -q "launchable-activity: name='com.odpar.musicmotion.MainActivity'" apk-badging.txt
           unzip -l "$APK" | tee apk-files.txt
@@ -216,6 +220,8 @@ CMAKE
             android_engine_lab/apk-badging.txt
             android_engine_lab/native-dynamic.txt
             android_engine_lab/jni-symbols.txt
+            android_engine_lab/apk-signature.txt
+            android_engine_lab/zipalign.txt
             android_engine_lab/AUTHORING_WORLD_BUILD_RECEIPT.md
           if-no-files-found: error
           retention-days: 14
