@@ -76,9 +76,45 @@ jobs:
           flutter config --no-analytics
           FLUTTER_SDK="$(dirname "$(dirname "$(command -v flutter)")")"
           printf 'flutter.sdk=%s\n' "$FLUTTER_SDK" > prepared/flutter_app/android/local.properties
-          gradle -p prepared/flutter_app/android wrapper \
-            --gradle-version 8.9 \
-            --distribution-type bin
+          flutter create \
+            --platforms=android \
+            --org com.odpar \
+            --project-name odpar_toolchain_probe \
+            /tmp/odpar-toolchain-probe
+          cp /tmp/odpar-toolchain-probe/android/gradlew prepared/flutter_app/android/
+          cp /tmp/odpar-toolchain-probe/android/gradlew.bat prepared/flutter_app/android/
+          cp -a /tmp/odpar-toolchain-probe/android/gradle/wrapper prepared/flutter_app/android/gradle/
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          probe_root = Path('/tmp/odpar-toolchain-probe/android')
+          probe = next(
+              p.read_text()
+              for p in (probe_root / 'settings.gradle.kts', probe_root / 'settings.gradle')
+              if p.exists()
+          )
+          target_path = Path('prepared/flutter_app/android/settings.gradle.kts')
+          target = target_path.read_text()
+          for plugin in ('com.android.application', 'org.jetbrains.kotlin.android'):
+              match = re.search(
+                  rf'(?:id\("{re.escape(plugin)}"\)|id\s+["\']{re.escape(plugin)}["\'])\s+version\s+["\']([^"\']+)',
+                  probe,
+              )
+              if not match:
+                  raise SystemExit(f'Flutter template omitted {plugin}')
+              version = match.group(1)
+              target, count = re.subn(
+                  rf'(id\("{re.escape(plugin)}"\)\s+version\s+")[^"]+("\s+apply\s+false)',
+                  rf'\g<1>{version}\g<2>',
+                  target,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit(f'Could not update {plugin}')
+          target_path.write_text(target)
+          PY
+          chmod +x prepared/flutter_app/android/gradlew
 
       - name: Resolve and analyze Flutter source
         working-directory: prepared/flutter_app
