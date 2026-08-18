@@ -6,6 +6,11 @@ on:
     paths:
       - "android_studio/**"
       - ".github/workflows/android-studio-v06-world-authority-20260817.yml"
+  pull_request:
+    branches: [ "claude/motor-improvement-sr808c" ]
+    paths:
+      - "android_studio/**"
+      - ".github/workflows/android-studio-v06-world-authority-20260817.yml"
   workflow_dispatch:
 
 permissions:
