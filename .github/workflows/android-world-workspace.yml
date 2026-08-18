@@ -1,0 +1,174 @@
+name: Build ODPAR Music Motion World Workspace
+
+on:
+  push:
+    branches: [ "claude/motor-improvement-sr808c" ]
+    paths:
+      - "android_workspace_payload/**"
+      - ".github/workflows/android-world-workspace.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish active v0.5 run pointer
+        run: |
+          cat > ANDROID_WORLD_WORKSPACE_RUN.md <<EOF
+          # Active ODPAR Music Motion World Workspace build
+
+          run_id=$GITHUB_RUN_ID
+          run_attempt=$GITHUB_RUN_ATTEMPT
+          source_commit=$GITHUB_SHA
+          target=ODPAR-Music-Motion-v0.5-World-Workspace-arm64.apk
+          EOF
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ANDROID_WORLD_WORKSPACE_RUN.md
+          git commit -m "Publish active World Workspace build pointer" || true
+          git push origin HEAD:claude/motor-improvement-sr808c || true
+
+      - name: Materialize legacy Android shell
+        run: |
+          rm -rf android_engine_lab
+          mkdir android_engine_lab
+          tar -xzf android_engine_lab_payload.tar.gz -C android_engine_lab
+          test -f android_engine_lab/app/src/main/cpp/CMakeLists.txt
+          echo "d9698dc4caa4072f088e0c461ed97074bd415b88859c5a77f0d0ac59d1196942  android_engine_lab_payload.tar.gz" | sha256sum -c -
+
+      - name: Replace Lab with World Workspace sources
+        run: |
+          python android_workspace_payload/materialize_android_workspace.py
+          test -f android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'WORLD WORKSPACE' android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'nativeMeshExtrude' android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'odm_editor_catalog_prepare' android_engine_lab/app/src/main/cpp/native_bridge.c
+          grep -q 'odm_mesh_authoring_extrude_face_normal' android_engine_lab/app/src/main/cpp/native_bridge.c
+          grep -q 'add_library(odpar_music_motion SHARED' android_engine_lab/app/src/main/cpp/CMakeLists.txt
+          ! grep -R -q 'System.loadLibrary("odpar_lab")' android_engine_lab/app/src/main/java || false
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android toolchain
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+
+      - name: Fetch canonical ODPAR engine from Drive
+        working-directory: android_engine_lab
+        env:
+          ODPAR_DRIVE_ID: 117etA7LrenJFEpgzYeRhD19T_jlY-TmA
+          ODPAR_EXPECTED_SHA256: 64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8
+        run: |
+          python -m pip install --disable-pip-version-check -q gdown
+          gdown "$ODPAR_DRIVE_ID" -O official-engine.zip
+          echo "$ODPAR_EXPECTED_SHA256  official-engine.zip" | sha256sum -c -
+          mkdir -p app/src/main/cpp/engine app/src/main/cpp/generated
+          unzip -q official-engine.zip -d app/src/main/cpp/engine
+          test "$(find app/src/main/cpp/engine/src -name '*.c' ! -path '*/cli/*' | wc -l)" -eq 182
+          python app/src/main/cpp/engine/tools/gen_build_meta.py --output app/src/main/cpp/generated/odm_build_meta.h
+          grep -q '0.52.0-world3d-shadow-material-wip-v52' app/src/main/cpp/engine/CHECKPOINT_STATUS.json
+
+      - name: Fetch and build pinned native dependencies
+        working-directory: android_engine_lab
+        env:
+          OPENSSL_COMMIT: 8cf17aaeb4599f8af87fefd810b5b5fee90fe69e
+        run: |
+          set -euxo pipefail
+          ROOT="$PWD"
+          THIRD="$ROOT/app/src/main/cpp/third_party"
+          mkdir -p "$THIRD"
+          git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git "$THIRD/libpng"
+          git clone --depth 1 --branch openssl-3.5.7 https://github.com/openssl/openssl.git "$THIRD/openssl-src"
+          test "$(git -C "$THIRD/openssl-src" rev-parse HEAD)" = "$OPENSSL_COMMIT"
+          export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/27.2.12479018"
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          cd "$THIRD/openssl-src"
+          ./Configure android-arm64 -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs \
+            --prefix="$THIRD/openssl-install" --libdir=lib
+          make -j2 build_libs
+          make install_sw
+          test -s "$THIRD/openssl-install/lib/libcrypto.a"
+          cat >> "$ROOT/app/src/main/cpp/CMakeLists.txt" <<'CMAKE'
+
+          target_include_directories(odpar_engine PRIVATE
+              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/include")
+          target_link_libraries(odpar_engine PUBLIC
+              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/lib/libcrypto.a")
+          CMAKE
+
+      - name: Build v0.5 ARM64 APK
+        working-directory: android_engine_lab
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Verify World Workspace APK
+        working-directory: android_engine_lab
+        run: |
+          set -euxo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee apk-badging.txt
+          grep -q "package: name='com.odpar.musicmotion'" apk-badging.txt
+          grep -q "launchable-activity: name='com.odpar.musicmotion.MainActivity'" apk-badging.txt
+          unzip -l "$APK" | tee apk-files.txt
+          grep -q 'lib/arm64-v8a/libodpar_music_motion.so' apk-files.txt
+          ! grep -q 'lib/arm64-v8a/libodpar_lab.so' apk-files.txt
+          unzip -p "$APK" lib/arm64-v8a/libodpar_music_motion.so > /tmp/libodpar_music_motion.so
+          "$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d /tmp/libodpar_music_motion.so | tee native-dynamic.txt
+          sha256sum "$APK" | tee app-debug.apk.sha256
+          cp "$APK" ODPAR-Music-Motion-v0.5-World-Workspace-arm64.apk
+
+      - name: Publish v0.5 build receipt
+        working-directory: android_engine_lab
+        run: |
+          {
+            echo "# ODPAR Music Motion v0.5 World Workspace build receipt"
+            echo
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "commit=$GITHUB_SHA"
+            echo "apk=ODPAR-Music-Motion-v0.5-World-Workspace-arm64.apk"
+            echo "sha256=$(cut -d' ' -f1 app-debug.apk.sha256)"
+            echo
+            echo "## Launcher"
+            grep "launchable-activity:" apk-badging.txt
+            echo
+            echo "## Package"
+            grep "package: name=" apk-badging.txt | head -1
+            echo
+            echo "## Native DT_NEEDED"
+            grep NEEDED native-dynamic.txt || true
+          } > WORLD_WORKSPACE_BUILD_RECEIPT.md
+          cp WORLD_WORKSPACE_BUILD_RECEIPT.md ../WORLD_WORKSPACE_BUILD_RECEIPT.md
+          cd ..
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add WORLD_WORKSPACE_BUILD_RECEIPT.md
+          git commit -m "Publish World Workspace v0.5 build receipt" || true
+          git push origin HEAD:claude/motor-improvement-sr808c || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ODPAR-Music-Motion-v0.5-World-Workspace-APK
+          path: |
+            android_engine_lab/ODPAR-Music-Motion-v0.5-World-Workspace-arm64.apk
+            android_engine_lab/app-debug.apk.sha256
+            android_engine_lab/apk-badging.txt
+            android_engine_lab/native-dynamic.txt
+            android_engine_lab/WORLD_WORKSPACE_BUILD_RECEIPT.md
+          if-no-files-found: error
+          retention-days: 14
