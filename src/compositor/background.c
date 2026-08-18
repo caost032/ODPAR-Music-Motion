@@ -1,4 +1,5 @@
 #include "compositor_internal.h"
+#include "odm_fixed.h"
 
 #include <limits.h>
 #include <stddef.h>
@@ -122,11 +123,30 @@ static int64_t bg_reference_radius_q16(const odm_layered_frame_plan *plan) {
      * hay gradiente en todo el cuadro y no hay ningun borde. La raiz es entera
      * y exacta, la misma que usa la mascara del nucleo. */
     uint64_t w = (uint64_t)plan->width, h = (uint64_t)plan->height;
-    return (int64_t)(odm_layered_isqrt_u64((w * w + h * h) << 32) / 2u);
+    return (int64_t)(odm_u64_isqrt((w * w + h * h) << 32) / 2u);
 }
 
 static uint32_t bg_scale_q31(uint32_t a_q31, uint32_t b_q31) {
     return (uint32_t)(((uint64_t)a_q31 * (uint64_t)b_q31) / (uint64_t)INT32_MAX);
+}
+
+/* Exact floor((n*m)/d) for n<d and a 32-bit multiplier. The recurrence keeps
+ * the remainder below d and therefore avoids the overflowing 95-bit product. */
+static uint64_t bg_muldiv_floor_u64_u32_u64(uint64_t n, uint32_t m, uint64_t d) {
+    uint64_t q = 0u, r = 0u;
+    int bit;
+    if (d == 0u || n == 0u || m == 0u) return 0u;
+    if (n >= d) return n == d ? (uint64_t)m : UINT64_MAX;
+    for (bit = 31; bit >= 0; --bit) {
+        q <<= 1;
+        if (r >= d - r) { r = r - (d - r); ++q; }
+        else r += r;
+        if (((m >> (unsigned)bit) & 1u) != 0u) {
+            if (r >= d - n) { r = r - (d - n); ++q; }
+            else r += n;
+        }
+    }
+    return q;
 }
 
 /* Perfil de profundidad: 1.0 en el centro, cayendo suavemente hacia los bordes.
@@ -141,7 +161,8 @@ static uint32_t bg_depth_weight(int64_t dx_q16, int64_t dy_q16, int64_t radius_q
     if (d2 >= r2) return 0u;
     /* (1 - (d/r)^2)^2: caida suave, derivada nula en el centro y en el borde,
      * asi que no hay anillo perceptible donde el campo termina. */
-    t = (int64_t)INT32_MAX - (d2 * (int64_t)INT32_MAX) / r2;
+    t = (int64_t)INT32_MAX - (int64_t)bg_muldiv_floor_u64_u32_u64(
+        (uint64_t)d2, (uint32_t)INT32_MAX, (uint64_t)r2);
     t = (t * t) / (int64_t)INT32_MAX;
     if (t < 0) t = 0;
     if (t > (int64_t)INT32_MAX) t = (int64_t)INT32_MAX;
@@ -319,6 +340,42 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
     }
     odm_layered_blend16(&base, &config->background.solid_color,
                         (uint32_t)INT32_MAX, config->background.opacity_q31);
+    if (config->background.style == ODM_BACKGROUND_PEARL) {
+        /* V18 Pearl surface. The canvas stays luminous: the accent never floods
+         * the page. It only builds a shallow cool edge falloff plus a tiny
+         * diagonal bias, with ordered dither below visible grain scale. */
+        int64_t cx = plan->center_x_q16, cy2 = plan->center_y_q16;
+        int64_t radius = bg_reference_radius_q16(plan);
+        int64_t span = (int64_t)plan->width + (int64_t)plan->height;
+        if (span < 1) span = 1;
+        for (y = y_begin; y < y_end; ++y) {
+            uint32_t x;
+            for (x = 0u; x < plan->width; ++x) {
+                odm_layered_pixel16 out = base;
+                int64_t dx = (((int64_t)x << 16) + 32768) - cx;
+                int64_t dy = (((int64_t)y << 16) + 32768) - cy2;
+                int64_t dist = (int64_t)odm_u64_isqrt(
+                    (uint64_t)((dx >> 8) * (dx >> 8) + (dy >> 8) * (dy >> 8))) << 8;
+                uint32_t edge = radius > 0
+                    ? (uint32_t)((dist >= radius) ? INT32_MAX
+                        : (uint32_t)(((uint64_t)dist * (uint64_t)INT32_MAX) / (uint64_t)radius))
+                    : 0u;
+                uint32_t edge2 = (uint32_t)(((uint64_t)edge * edge) / INT32_MAX);
+                uint32_t diag = (uint32_t)((((uint64_t)x + (uint64_t)y) *
+                                            (uint64_t)INT32_MAX) / (uint64_t)span);
+                /* 3% center tint -> at most ~16% at the far corner. */
+                uint64_t ww = (uint64_t)INT32_MAX * 2u / 100u;
+                ww += (uint64_t)edge2 * 15u / 100u;
+                ww += (uint64_t)diag * 2u / 100u;
+                if (ww > (uint64_t)INT32_MAX) ww = (uint64_t)INT32_MAX;
+                odm_layered_blend16(&out, &config->background.grid_color,
+                                    bg_dither_q31((uint32_t)ww, x, y),
+                                    config->background.opacity_q31);
+                frame[(uint64_t)y * plan->width + x] = out;
+            }
+        }
+        return;
+    }
     if (config->background.style == ODM_BACKGROUND_DEPTH_FIELD) {
         int64_t cx = plan->center_x_q16, cy2 = plan->center_y_q16;
         int64_t radius = bg_reference_radius_q16(plan);
@@ -386,7 +443,7 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
                 /* Radio exacto por raiz entera: el mismo operador que usa la
                  * mascara del nucleo, asi que los anillos y el borde del nucleo
                  * son concentricos de verdad y no aproximadamente. */
-                int64_t r = (int64_t)odm_layered_isqrt_u64(
+                int64_t r = (int64_t)odm_u64_isqrt(
                     (uint64_t)((dx >> 4) * (dx >> 4) + (dy >> 4) * (dy >> 4))) << 4;
                 uint32_t cov = odm_layered_coverage_q31(nearest_grid_distance(r, sp),
                                                         (int64_t)plan->grid_line_q16 / 2,
@@ -417,7 +474,7 @@ void odm_layered_background_render_rows(const odm_layered_config *config,
                 odm_layered_pixel16 out = base;
                 int64_t xq = ((int64_t)x << 16) + 32768;
                 int64_t dxg = nearest_grid_distance(xq + plan->grid_offset_x_q16, sp);
-                int64_t d = (int64_t)odm_layered_isqrt_u64(
+                int64_t d = (int64_t)odm_u64_isqrt(
                     (uint64_t)((dxg >> 4) * (dxg >> 4) + (dyg >> 4) * (dyg >> 4))) << 4;
                 uint32_t cov = odm_layered_coverage_q31(d, (int64_t)plan->grid_line_q16,
                                                         plan->grid_feather_q16);
