@@ -1,0 +1,69 @@
+name: Build uploaded Android test APK
+
+on:
+  push:
+    branches:
+      - claude/motor-improvement-sr808c
+    paths:
+      - "ODPAR-Music-Motion-Android-Test-2026-08-18.zip"
+      - ".github/workflows/build-uploaded-android-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uploaded-android-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract prepared engine
+        run: |
+          test -s ODPAR-Music-Motion-Android-Test-2026-08-18.zip
+          mkdir prepared
+          unzip -q ODPAR-Music-Motion-Android-Test-2026-08-18.zip -d prepared
+          test -f prepared/android/app/src/main/cpp/native_bridge.c
+          test -f prepared/android/app/build.gradle.kts
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android toolchain
+        run: |
+          sdkmanager --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "cmake;3.22.1" \
+            "ndk;29.0.14206865"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build debug APK
+        run: gradle -p prepared/android --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=prepared/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          unzip -l "$APK" | grep 'lib/arm64-v8a/libodpar_authoring3d.so'
+          unzip -l "$APK" | grep 'lib/x86_64/libodpar_authoring3d.so'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: odpar-motor-test-apk
+          path: prepared/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
