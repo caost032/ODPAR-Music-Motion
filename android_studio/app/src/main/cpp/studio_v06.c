@@ -1,0 +1,5 @@
+#include "studio_v06_core.inc"
+#include "studio_v06_workspace.inc"
+#include "studio_v06_ops.inc"
+#include "studio_v06_jni.inc"
+#include "studio_v06_mesh.inc"
