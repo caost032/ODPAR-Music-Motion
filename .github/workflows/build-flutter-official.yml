@@ -1,0 +1,146 @@
+name: ODPAR Music Motion APK (Flutter - Official)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/motor-improvement-sr808c
+    paths:
+      - "ODPAR-Music-Motion-Android-Test-2026-08-18.zip"
+      - "android-test-overrides/**"
+      - "flutter-app-official-overrides.zip.b64"
+      - ".github/workflows/build-flutter-official.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-official-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble authoritative engine source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s ODPAR-Music-Motion-Android-Test-2026-08-18.zip
+          test -s flutter-app-official-overrides.zip.b64
+          mkdir prepared
+          unzip -q ODPAR-Music-Motion-Android-Test-2026-08-18.zip -d prepared
+          if test -d android-test-overrides; then
+            cp -a android-test-overrides/. prepared/
+          fi
+          base64 --decode flutter-app-official-overrides.zip.b64 > /tmp/odpar-flutter-overrides.zip
+          unzip -q -o /tmp/odpar-flutter-overrides.zip -d prepared
+          test -f prepared/flutter_app/pubspec.yaml
+          test -f prepared/flutter_app/lib/engine/odpar_engine_ffi.dart
+          test -f prepared/include/odm_mobile_app.h
+          test -f prepared/src/app/mobile_app.c
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android native toolchain
+        run: |
+          sdkmanager --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "cmake;3.22.1" \
+            "ndk;29.0.14206865"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Prepare Flutter and Gradle
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter --version
+          flutter config --no-analytics
+          FLUTTER_SDK="$(dirname "$(dirname "$(command -v flutter)")")"
+          printf 'flutter.sdk=%s\n' "$FLUTTER_SDK" > prepared/flutter_app/android/local.properties
+          gradle -p prepared/flutter_app/android wrapper \
+            --gradle-version 8.9 \
+            --distribution-type bin
+
+      - name: Resolve and analyze Flutter source
+        working-directory: prepared/flutter_app
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
+      - name: Build installable universal APK
+        working-directory: prepared/flutter_app
+        run: |
+          flutter build apk \
+            --debug \
+            --target-platform android-arm64,android-x64
+
+      - name: Verify APK, FFI surface and 16 KiB compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=prepared/flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$APK"
+          unzip -l "$APK" | grep 'lib/arm64-v8a/libodpar_mobile.so'
+          unzip -l "$APK" | grep 'lib/x86_64/libodpar_mobile.so'
+          mkdir -p /tmp/odpar-mobile-apk
+          unzip -q "$APK" 'lib/*/*.so' -d /tmp/odpar-mobile-apk
+          NDK_BIN="$ANDROID_HOME/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          grep -rho "'odm_mobile_app_[A-Za-z0-9_]*'" prepared/flutter_app/lib | \
+            tr -d "'" | sort -u > /tmp/odpar-mobile-ffi-lookups
+          test "$(wc -l < /tmp/odpar-mobile-ffi-lookups)" -eq 46
+          while IFS= read -r SO; do
+            "$NDK_BIN/llvm-readelf" -lW "$SO" | python3 -c '
+          import sys
+          aligns = [int(line.split()[-1], 0) for line in sys.stdin if line.lstrip().startswith("LOAD ")]
+          if not aligns or any(value < 16384 or value % 16384 for value in aligns):
+              raise SystemExit(1)
+          '
+          done < <(find /tmp/odpar-mobile-apk/lib -type f -name '*.so' -print | sort)
+          for ABI in arm64-v8a x86_64; do
+            SO="/tmp/odpar-mobile-apk/lib/$ABI/libodpar_mobile.so"
+            "$NDK_BIN/llvm-nm" -D --defined-only --extern-only "$SO" | \
+              awk '{ sub(/@.*/, "", $NF); print $NF }' | sort -u > "/tmp/odpar-mobile-$ABI.symbols"
+            test "$(grep -c '^odm_mobile_app_' "/tmp/odpar-mobile-$ABI.symbols")" -eq 46
+            if grep '^odm_' "/tmp/odpar-mobile-$ABI.symbols" | grep -v '^odm_mobile_app_'; then
+              echo "Unexpected public ODPAR symbol in $ABI" >&2
+              exit 1
+            fi
+            comm -23 /tmp/odpar-mobile-ffi-lookups "/tmp/odpar-mobile-$ABI.symbols" > "/tmp/odpar-mobile-$ABI.missing"
+            test ! -s "/tmp/odpar-mobile-$ABI.missing"
+          done
+
+      - name: Package reproducible source
+        shell: bash
+        run: |
+          cd prepared
+          zip -q -r ../ODPAR-Music-Motion-Flutter-Official-Source.zip . \
+            -x 'flutter_app/build/*' 'flutter_app/.dart_tool/*' 'flutter_app/android/.gradle/*'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: odpar-music-motion-flutter-official
+          path: |
+            prepared/flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+            ODPAR-Music-Motion-Flutter-Official-Source.zip
+          if-no-files-found: error
+          retention-days: 30
