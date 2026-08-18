@@ -194,7 +194,6 @@ jobs:
             echo "## Native DT_NEEDED"
             grep NEEDED native-dynamic.txt || true
           } > BUILD_RECEIPT.md
-          cp BUILD_RECEIPT.md ../android_engine_lab/BUILD_RECEIPT.md
           cd ..
           git add android_engine_lab/BUILD_RECEIPT.md
           if ! git diff --cached --quiet; then
