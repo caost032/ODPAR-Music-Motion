@@ -17,23 +17,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Publish active Studio run pointer
+      - name: Publish active Studio v0.6 run pointer
         run: |
           mkdir -p .ci_state
           cat > .ci_state/android_studio_run.md <<EOF
-          # Active ODPAR Music Motion Studio build
+          # Active ODPAR Music Motion Studio v0.6 build
 
           run_id=$GITHUB_RUN_ID
           run_attempt=$GITHUB_RUN_ATTEMPT
           source_commit=$GITHUB_SHA
           workflow=android-engine-lab.yml
-          target=ODPAR-Music-Motion-Studio-v0.5-arm64.apk
+          target=ODPAR-Music-Motion-Studio-v0.6-arm64.apk
           EOF
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add .ci_state/android_studio_run.md
-          git commit -m "Publish active Studio build pointer"
-          git push origin HEAD:claude/motor-improvement-sr808c
+          git commit -m "Publish active Studio v0.6 build pointer" || true
+          git push origin HEAD:claude/motor-improvement-sr808c || true
 
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
@@ -41,6 +41,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Materialize verified Studio v0.6 Activity
+        run: |
+          set -euxo pipefail
+          python android_studio/source_payload/materialize_v06_activity.py
+          echo "413a6f3bd68f5e97a221c8ff3f7230aa0420306593e133b77163c880dab39e59  android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java" | sha256sum -c -
+          test "$(wc -c < android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java)" -eq 46707
+          grep -q 'nativeWorkspace()' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'nativeSetValueRaw' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'nativeAddMusicBinding' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'nativePickFace' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'nativeMeshTopology' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          grep -q 'versionName '\''0.6.0-studio'\''' android_studio/app/build.gradle
+
       - uses: android-actions/setup-android@v3
 
       - name: Install pinned Android toolchain
@@ -89,44 +103,54 @@ jobs:
           test -s "$THIRD/openssl-install/lib/libcrypto.a"
           test -f "$THIRD/openssl-install/include/openssl/evp.h"
 
-      - name: Build Studio ARM64 APK
+      - name: Build Studio v0.6 ARM64 APK
         working-directory: android_studio
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Verify APK launcher JNI and ELF
+      - name: Verify v0.6 APK launcher ABI signature and ELF
         working-directory: android_studio
         run: |
           set -euxo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
           NDK="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          ZIPALIGN="$ANDROID_HOME/build-tools/35.0.0/zipalign"
           test -s "$APK"
           "$AAPT" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='com.odpar.musicmotion'" apk-badging.txt
+          grep -q "versionName='0.6.0-studio'" apk-badging.txt
           grep -q "launchable-activity: name='com.odpar.musicmotion.MainActivity'" apk-badging.txt
+          "$ZIPALIGN" -c -v 4 "$APK" > zipalign.txt
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-signature.txt
           unzip -l "$APK" | tee apk-files.txt
           grep -q 'lib/arm64-v8a/libodpar_studio.so' apk-files.txt
           unzip -p "$APK" lib/arm64-v8a/libodpar_studio.so > /tmp/libodpar_studio.so
           "$NDK/llvm-readelf" -d /tmp/libodpar_studio.so | tee native-dynamic.txt
           "$NDK/llvm-nm" -D --defined-only /tmp/libodpar_studio.so | tee native-symbols.txt
-          grep -q 'Java_com_odpar_musicmotion_MainActivity_nativeBootstrap' native-symbols.txt
-          grep -q 'Java_com_odpar_musicmotion_MainActivity_nativeSchemaManifest' native-symbols.txt
-          grep -q 'Java_com_odpar_musicmotion_MainActivity_nativeRenderViewport' native-symbols.txt
-          grep -q 'Java_com_odpar_musicmotion_MainActivity_nativeMeshPrimitive' native-symbols.txt
+          for sym in \
+            nativeBootstrap nativeWorkspace nativeInspector nativeEnterDomain nativeSelect \
+            nativeSetValueRaw nativeAddObject nativeDeleteObject nativeSetEnabled nativeAddMusicBinding \
+            nativeTimeline nativeMeshTopology nativePickFace nativeMeshDeleteFace nativeMeshSetFaceMaterial \
+            nativeMeshSetFaceSmoothing nativeFocusMesh nativeNavigate nativeMeshPrimitive nativeMeshExtrudeFace \
+            nativeMeshInsetFace nativeMeshSetDimension nativeRenderViewport nativeEngineReport nativeSelfTest nativeLastError; do
+            grep -q "Java_com_odpar_musicmotion_MainActivity_${sym}" native-symbols.txt
+          done
           sha256sum "$APK" | tee app-debug.apk.sha256
-          cp "$APK" ODPAR-Music-Motion-Studio-v0.5-arm64.apk
+          cp "$APK" ODPAR-Music-Motion-Studio-v0.6-arm64.apk
 
-      - name: Build receipt
+      - name: Publish Studio v0.6 build receipt
         working-directory: android_studio
         run: |
           {
-            echo "# ODPAR Music Motion Studio v0.5"
+            echo "# ODPAR Music Motion Studio v0.6"
             echo
             echo "run_id=$GITHUB_RUN_ID"
             echo "run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "commit=$GITHUB_SHA"
             echo "engine_sha256=64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8"
             echo "engine_sources=182"
+            echo "activity_sha256=413a6f3bd68f5e97a221c8ff3f7230aa0420306593e133b77163c880dab39e59"
             echo "apk_sha256=$(cut -d' ' -f1 app-debug.apk.sha256)"
             echo
             echo "## Launcher"
@@ -135,25 +159,29 @@ jobs:
             echo "## DT_NEEDED"
             grep NEEDED native-dynamic.txt || true
             echo
-            echo "## JNI surface"
+            echo "## JNI v0.6 surface"
             grep 'Java_com_odpar_musicmotion_MainActivity_native' native-symbols.txt | sed 's/.* Java_/Java_/'
           } > BUILD_RECEIPT.md
           cd ..
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add android_studio/BUILD_RECEIPT.md
           if ! git diff --cached --quiet; then
-            git commit -m "Publish Studio v0.5 build receipt"
-            git push origin HEAD:claude/motor-improvement-sr808c
+            git commit -m "Publish Studio v0.6 build receipt"
+            git push origin HEAD:claude/motor-improvement-sr808c || true
           fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ODPAR-Music-Motion-Studio-v0.5-APK
+          name: ODPAR-Music-Motion-Studio-v0.6-APK
           path: |
-            android_studio/ODPAR-Music-Motion-Studio-v0.5-arm64.apk
+            android_studio/ODPAR-Music-Motion-Studio-v0.6-arm64.apk
             android_studio/app-debug.apk.sha256
             android_studio/BUILD_RECEIPT.md
             android_studio/apk-badging.txt
             android_studio/native-dynamic.txt
             android_studio/native-symbols.txt
+            android_studio/apk-signature.txt
+            android_studio/zipalign.txt
           if-no-files-found: error
           retention-days: 14
