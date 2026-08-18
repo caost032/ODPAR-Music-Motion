@@ -1,59 +1,79 @@
-name: Build ODPAR Music Motion Studio
+name: Build ODPAR Music Motion Authoring World v0.7
 on:
   push:
     branches: [ "claude/motor-improvement-sr808c" ]
     paths:
-      - "android_studio/**"
+      - "android_workspace_payload/v07_payload.b64"
       - ".github/workflows/android-engine-lab.yml"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  studio-apk:
+  authoring-world-v07:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Publish active Studio v0.6 run pointer
+      - name: Materialize immutable v0.7 Authoring World source
         run: |
-          mkdir -p .ci_state
-          cat > .ci_state/android_studio_run.md <<EOF
-          # Active ODPAR Music Motion Studio v0.6 build
+          set -euxo pipefail
+          base64 -d android_workspace_payload/v07_payload.b64 > /tmp/v07.tar.gz
+          echo "50722b4f537cb3fd8629715528295b4a55028434921da36afbf77ef4989057b7  /tmp/v07.tar.gz" | sha256sum -c -
+          rm -rf android_engine_lab
+          mkdir android_engine_lab
+          tar -xzf /tmp/v07.tar.gz -C android_engine_lab --strip-components=1
+          JAVA=android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          C=android_engine_lab/app/src/main/cpp/studio_native_bridge.c
+          CMAKE=android_engine_lab/app/src/main/cpp/CMakeLists.txt
+          test -f "$JAVA"
+          test -f "$C"
+          test -f "$CMAKE"
+          grep -q 'System.loadLibrary("odpar_studio")' "$JAVA"
+          grep -q 'add_library(odpar_studio SHARED' "$CMAKE"
+          if grep -R -q 'odpar_lab' android_engine_lab/app; then
+            echo 'legacy Lab reference found'; exit 1
+          fi
+          grep -n "versionName" android_engine_lab/app/build.gradle | tee android_engine_lab/version-name.txt
 
-          run_id=$GITHUB_RUN_ID
-          run_attempt=$GITHUB_RUN_ATTEMPT
-          source_commit=$GITHUB_SHA
-          workflow=android-engine-lab.yml
-          target=ODPAR-Music-Motion-Studio-v0.6-arm64.apk
-          EOF
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .ci_state/android_studio_run.md
-          git commit -m "Publish active Studio v0.6 build pointer" || true
-          git push origin HEAD:claude/motor-improvement-sr808c || true
+      - name: Verify engine-authoritative Java JNI surface
+        run: |
+          set -euxo pipefail
+          JAVA=android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java
+          C=android_engine_lab/app/src/main/cpp/studio_native_bridge.c
+          grep -q 'private synchronized native' "$JAVA"
+          grep -q 'odm_presentation_schema_manifest_json' "$C"
+          grep -q 'odm_editor_catalog_prepare' "$C"
+          grep -q 'odm_authoring_playhead_resolve' "$C"
+          grep -q 'odm_editor_view3d' "$C"
+          grep -q 'odm_mesh_authoring_extrude_face_normal' "$C"
+          grep -q 'odm_mesh_authoring_inset_face' "$C"
+          grep -q 'odm_mesh_authoring_set_face_material_slot' "$C"
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          j=Path('android_engine_lab/app/src/main/java/com/odpar/musicmotion/MainActivity.java').read_text()
+          c=Path('android_engine_lab/app/src/main/cpp/studio_native_bridge.c').read_text()
+          java=set(re.findall(r'private\s+synchronized\s+native\s+[\w\[\]]+\s+(native\w+)\s*\(',j))
+          exports=set(re.findall(r'Java_com_odpar_musicmotion_MainActivity_(native\w+)\s*\(',c))
+          print('Java native methods:',len(java),sorted(java))
+          print('C JNI exports:',len(exports),sorted(exports))
+          if java != exports:
+              raise SystemExit(f'JNI mismatch: Java-only={sorted(java-exports)} C-only={sorted(exports-java)}')
+          if len(java) != 26:
+              raise SystemExit(f'Expected 26 JNI methods, got {len(java)}')
+          PY
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: '3.12'
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Materialize verified Studio v0.6 Activity
-        run: |
-          set -euxo pipefail
-          python android_studio/source_payload/materialize_v06_activity.py
-          echo "413a6f3bd68f5e97a221c8ff3f7230aa0420306593e133b77163c880dab39e59  android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java" | sha256sum -c -
-          test "$(wc -c < android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java)" -eq 46707
-          grep -q 'nativeWorkspace()' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
-          grep -q 'nativeSetValueRaw' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
-          grep -q 'nativeAddMusicBinding' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
-          grep -q 'nativePickFace' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
-          grep -q 'nativeMeshTopology' android_studio/app/src/main/java/com/odpar/musicmotion/MainActivity.java
-          grep -q 'versionName '\''0.6.0-studio'\''' android_studio/app/build.gradle
 
       - uses: android-actions/setup-android@v3
 
@@ -63,32 +83,47 @@ jobs:
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: '8.9' }
+        with:
+          gradle-version: '8.9'
 
       - name: Stage canonical ODPAR engine
-        working-directory: android_studio
+        working-directory: android_engine_lab
         env:
           ODPAR_DRIVE_ID: 117etA7LrenJFEpgzYeRhD19T_jlY-TmA
           ODPAR_EXPECTED_SHA256: 64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8
         run: |
           set -euxo pipefail
           python -m pip install --disable-pip-version-check -q gdown
-          gdown "$ODPAR_DRIVE_ID" -O canonical-engine.zip
-          echo "$ODPAR_EXPECTED_SHA256  canonical-engine.zip" | sha256sum -c -
+          gdown "$ODPAR_DRIVE_ID" -O official-engine.zip
+          echo "$ODPAR_EXPECTED_SHA256  official-engine.zip" | sha256sum -c -
+          rm -rf app/src/main/cpp/engine
           mkdir -p app/src/main/cpp/engine app/src/main/cpp/generated
-          unzip -q canonical-engine.zip -d app/src/main/cpp/engine
+          unzip -q official-engine.zip -d app/src/main/cpp/engine
           test "$(find app/src/main/cpp/engine/src -name '*.c' ! -path '*/cli/*' | wc -l)" -eq 182
           python app/src/main/cpp/engine/tools/gen_build_meta.py --output app/src/main/cpp/generated/odm_build_meta.h
           grep -q '0.52.0-world3d-shadow-material-wip-v52' app/src/main/cpp/engine/CHECKPOINT_STATUS.json
 
+      - name: Compile JNI bridge strictly with Android NDK
+        working-directory: android_engine_lab
+        run: |
+          set -euxo pipefail
+          NDK="$ANDROID_HOME/ndk/27.2.12479018"
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang"
+          "$CC" -std=c11 -Wall -Wextra -Werror -fPIC -fsyntax-only \
+            -Iapp/src/main/cpp/engine/include \
+            -Iapp/src/main/cpp/engine/src/cli \
+            -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" \
+            app/src/main/cpp/studio_native_bridge.c
+
       - name: Build pinned native dependencies
-        working-directory: android_studio
+        working-directory: android_engine_lab
         env:
           OPENSSL_COMMIT: 8cf17aaeb4599f8af87fefd810b5b5fee90fe69e
         run: |
           set -euxo pipefail
           ROOT="$PWD"
           THIRD="$ROOT/app/src/main/cpp/third_party"
+          rm -rf "$THIRD/libpng" "$THIRD/openssl-src" "$THIRD/openssl-install"
           mkdir -p "$THIRD"
           git clone --depth 1 --branch v1.6.50 https://github.com/pnggroup/libpng.git "$THIRD/libpng"
           git clone --depth 1 --branch openssl-3.5.7 https://github.com/openssl/openssl.git "$THIRD/openssl-src"
@@ -102,13 +137,17 @@ jobs:
           make install_sw
           test -s "$THIRD/openssl-install/lib/libcrypto.a"
           test -f "$THIRD/openssl-install/include/openssl/evp.h"
+          printf '%s\n' \
+            'target_include_directories(odpar_engine PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/include")' \
+            'target_link_libraries(odpar_engine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/lib/libcrypto.a")' \
+            >> "$ROOT/app/src/main/cpp/CMakeLists.txt"
 
-      - name: Build Studio v0.6 ARM64 APK
-        working-directory: android_studio
+      - name: Build v0.7 ARM64 APK
+        working-directory: android_engine_lab
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Verify v0.6 APK launcher ABI signature and ELF
-        working-directory: android_studio
+      - name: Verify APK launcher signature alignment ELF and JNI
+        working-directory: android_engine_lab
         run: |
           set -euxo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
@@ -119,69 +158,59 @@ jobs:
           test -s "$APK"
           "$AAPT" dump badging "$APK" | tee apk-badging.txt
           grep -q "package: name='com.odpar.musicmotion'" apk-badging.txt
-          grep -q "versionName='0.6.0-studio'" apk-badging.txt
           grep -q "launchable-activity: name='com.odpar.musicmotion.MainActivity'" apk-badging.txt
-          "$ZIPALIGN" -c -v 4 "$APK" > zipalign.txt
+          "$ZIPALIGN" -c -v 4 "$APK" | tee zipalign.txt
           "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-signature.txt
           unzip -l "$APK" | tee apk-files.txt
           grep -q 'lib/arm64-v8a/libodpar_studio.so' apk-files.txt
+          if grep -q 'lib/arm64-v8a/libodpar_lab.so' apk-files.txt; then exit 1; fi
           unzip -p "$APK" lib/arm64-v8a/libodpar_studio.so > /tmp/libodpar_studio.so
           "$NDK/llvm-readelf" -d /tmp/libodpar_studio.so | tee native-dynamic.txt
-          "$NDK/llvm-nm" -D --defined-only /tmp/libodpar_studio.so | tee native-symbols.txt
-          for sym in \
-            nativeBootstrap nativeWorkspace nativeInspector nativeEnterDomain nativeSelect \
-            nativeSetValueRaw nativeAddObject nativeDeleteObject nativeSetEnabled nativeAddMusicBinding \
-            nativeTimeline nativeMeshTopology nativePickFace nativeMeshDeleteFace nativeMeshSetFaceMaterial \
-            nativeMeshSetFaceSmoothing nativeFocusMesh nativeNavigate nativeMeshPrimitive nativeMeshExtrudeFace \
-            nativeMeshInsetFace nativeMeshSetDimension nativeRenderViewport nativeEngineReport nativeSelfTest nativeLastError; do
-            grep -q "Java_com_odpar_musicmotion_MainActivity_${sym}" native-symbols.txt
-          done
+          "$NDK/llvm-nm" -D --defined-only /tmp/libodpar_studio.so | grep 'Java_com_odpar_musicmotion_MainActivity_native' | tee jni-symbols.txt
+          test "$(wc -l < jni-symbols.txt)" -eq 26
           sha256sum "$APK" | tee app-debug.apk.sha256
-          cp "$APK" ODPAR-Music-Motion-Studio-v0.6-arm64.apk
+          cp "$APK" ODPAR-Music-Motion-v0.7-Authoring-World-arm64.apk
 
-      - name: Publish Studio v0.6 build receipt
-        working-directory: android_studio
+      - name: Build receipt
+        working-directory: android_engine_lab
         run: |
           {
-            echo "# ODPAR Music Motion Studio v0.6"
+            echo "# ODPAR Music Motion v0.7 Authoring World"
             echo
             echo "run_id=$GITHUB_RUN_ID"
             echo "run_attempt=$GITHUB_RUN_ATTEMPT"
             echo "commit=$GITHUB_SHA"
+            echo "source_payload_sha256=50722b4f537cb3fd8629715528295b4a55028434921da36afbf77ef4989057b7"
             echo "engine_sha256=64d786ca5850519a324d2aff70f26134ac25ff4edb959da943e093f82cc47fc8"
-            echo "engine_sources=182"
-            echo "activity_sha256=413a6f3bd68f5e97a221c8ff3f7230aa0420306593e133b77163c880dab39e59"
+            echo "engine_source_count=182"
+            echo "jni_methods=26"
             echo "apk_sha256=$(cut -d' ' -f1 app-debug.apk.sha256)"
             echo
-            echo "## Launcher"
+            cat version-name.txt
+            echo
+            echo "Presentation schema manifest: yes"
+            echo "Editor Catalog: yes"
+            echo "Authoring Timeline: yes"
+            echo "Editor View3D: yes"
+            echo "Mesh Authoring: yes"
+            echo
             grep "launchable-activity:" apk-badging.txt
             echo
-            echo "## DT_NEEDED"
             grep NEEDED native-dynamic.txt || true
-            echo
-            echo "## JNI v0.6 surface"
-            grep 'Java_com_odpar_musicmotion_MainActivity_native' native-symbols.txt | sed 's/.* Java_/Java_/'
-          } > BUILD_RECEIPT.md
-          cd ..
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add android_studio/BUILD_RECEIPT.md
-          if ! git diff --cached --quiet; then
-            git commit -m "Publish Studio v0.6 build receipt"
-            git push origin HEAD:claude/motor-improvement-sr808c || true
-          fi
+          } > AUTHORING_WORLD_BUILD_RECEIPT.md
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ODPAR-Music-Motion-Studio-v0.6-APK
+          name: ODPAR-Music-Motion-v0.7-Authoring-World-APK
           path: |
-            android_studio/ODPAR-Music-Motion-Studio-v0.6-arm64.apk
-            android_studio/app-debug.apk.sha256
-            android_studio/BUILD_RECEIPT.md
-            android_studio/apk-badging.txt
-            android_studio/native-dynamic.txt
-            android_studio/native-symbols.txt
-            android_studio/apk-signature.txt
-            android_studio/zipalign.txt
+            android_engine_lab/ODPAR-Music-Motion-v0.7-Authoring-World-arm64.apk
+            android_engine_lab/app-debug.apk.sha256
+            android_engine_lab/AUTHORING_WORLD_BUILD_RECEIPT.md
+            android_engine_lab/apk-badging.txt
+            android_engine_lab/native-dynamic.txt
+            android_engine_lab/jni-symbols.txt
+            android_engine_lab/apk-signature.txt
+            android_engine_lab/zipalign.txt
+            android_engine_lab/version-name.txt
           if-no-files-found: error
           retention-days: 14
