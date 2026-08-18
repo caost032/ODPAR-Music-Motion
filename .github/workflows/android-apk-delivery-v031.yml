@@ -113,7 +113,9 @@ jobs:
             ./Configure "$target" -D__ANDROID_API__=28 no-shared no-tests no-apps no-docs --prefix="$dest"
             make -j2 build_libs
             make install_dev
-            test -s "$dest/lib/libcrypto.a"
+            mkdir -p "$dest/lib"
+            cp libcrypto.a "$dest/libcrypto.a"
+            test -s "$dest/libcrypto.a"
             test -s "$dest/include/openssl/evp.h"
           }
           build_ssl android-arm64 arm64-v8a
@@ -157,7 +159,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          gradle -p android --no-daemon --stacktrace :app:validateSigningDebug :app:assembleDebug
+          gradle -p android --no-daemon --stacktrace :app:validateSigningDebug :app:assembleDebug 2>&1 | tee android/gradle-build.log
 
       - name: Verify APK, both ABIs, compatibility shim and full JNI surface
         shell: bash
@@ -198,7 +200,7 @@ jobs:
           Native authority: official ODPAR 0.52 C11, ABI 11.
           Production C sources: 182. Official unit/property families: 74.
           APK contains arm64-v8a and x86_64 native libraries.
-          This delivery lane is intentionally independent from the Android 10/API29 runtime smoke lane.
+          Delivery build structurally verified independently from the Android 10/API29 runtime smoke lane.
           TXT
 
       - name: Upload installable Spatial Lab v0.3.1 APK
