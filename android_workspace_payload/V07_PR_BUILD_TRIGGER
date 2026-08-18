@@ -1,0 +1,4 @@
+ODPAR Music Motion Authoring World v0.7
+workflow=.github/workflows/android-authoring-world-v07-pr-ubuntu-latest-20260817.yml
+source_payload_sha256=50722b4f537cb3fd8629715528295b4a55028434921da36afbf77ef4989057b7
+trigger_generation=1
