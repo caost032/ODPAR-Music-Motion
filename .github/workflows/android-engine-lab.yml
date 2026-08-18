@@ -151,12 +151,42 @@ jobs:
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           unzip -l "$APK" | grep 'lib/arm64-v8a/libodpar_lab.so'
-          aapt dump badging "$APK" | tee apk-badging.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee apk-badging.txt
           grep -q "launchable-activity: name='com.odpar.musicmotionlab.MainActivity'" apk-badging.txt
           unzip -p "$APK" lib/arm64-v8a/libodpar_lab.so > /tmp/libodpar_lab.so
           "$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d /tmp/libodpar_lab.so | tee native-dynamic.txt
           sha256sum "$APK" | tee app-debug.apk.sha256
           cp "$APK" ODPAR-Music-Motion-Spatial-Lab-v0.4-arm64.apk
+
+      - name: Publish successful build receipt
+        working-directory: android_engine_lab
+        run: |
+          set -euxo pipefail
+          {
+            echo "# ODPAR Music Motion Spatial Lab v0.4 build receipt"
+            echo
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "commit=$GITHUB_SHA"
+            echo "artifact=ODPAR-Music-Motion-Spatial-Lab-v0.4-APK"
+            echo "apk=ODPAR-Music-Motion-Spatial-Lab-v0.4-arm64.apk"
+            echo "sha256=$(cut -d' ' -f1 app-debug.apk.sha256)"
+            echo
+            echo "## Launcher"
+            grep "launchable-activity:" apk-badging.txt
+            echo
+            echo "## Native DT_NEEDED"
+            grep NEEDED native-dynamic.txt || true
+          } > BUILD_RECEIPT.md
+          cp BUILD_RECEIPT.md ../android_engine_lab/BUILD_RECEIPT.md
+          cd ..
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add android_engine_lab/BUILD_RECEIPT.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish Spatial Lab v0.4 successful build receipt"
+            git push origin HEAD:claude/motor-improvement-sr808c
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
@@ -166,5 +196,6 @@ jobs:
             android_engine_lab/app-debug.apk.sha256
             android_engine_lab/apk-badging.txt
             android_engine_lab/native-dynamic.txt
+            android_engine_lab/BUILD_RECEIPT.md
           if-no-files-found: error
           retention-days: 14
