@@ -1,4 +1,4 @@
-name: Build uploaded Android test APK
+name: Build uploaded ODPAR Authoring Studio APK
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - claude/motor-improvement-sr808c
     paths:
       - "ODPAR-Music-Motion-Android-Test-2026-08-18.zip"
+      - "android-test-overrides/**"
       - ".github/workflows/build-uploaded-android-test.yml"
   workflow_dispatch:
 
@@ -23,12 +24,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract prepared engine
+      - name: Extract engine and apply verified Authoring Studio overrides
         run: |
           test -s ODPAR-Music-Motion-Android-Test-2026-08-18.zip
           mkdir prepared
           unzip -q ODPAR-Music-Motion-Android-Test-2026-08-18.zip -d prepared
+          test -d android-test-overrides
+          cp -a android-test-overrides/. prepared/
           test -f prepared/android/app/src/main/cpp/native_bridge.c
+          test -f prepared/android/app/src/main/java/com/odpar/musicmotion/MainActivity.java
           test -f prepared/android/app/build.gradle.kts
 
       - uses: actions/setup-java@v4
@@ -53,17 +57,22 @@ jobs:
       - name: Build debug APK
         run: gradle -p prepared/android --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Verify APK
+      - name: Verify APK and native libraries
         run: |
           APK=prepared/android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 "$APK"
           unzip -l "$APK" | grep 'lib/arm64-v8a/libodpar_authoring3d.so'
           unzip -l "$APK" | grep 'lib/x86_64/libodpar_authoring3d.so'
+          mkdir -p /tmp/odpar-apk
+          unzip -q "$APK" 'lib/*/libodpar_authoring3d.so' -d /tmp/odpar-apk
+          READELF="$ANDROID_HOME/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          "$READELF" -lW /tmp/odpar-apk/lib/arm64-v8a/libodpar_authoring3d.so | grep -E 'LOAD.*0x4000'
+          "$READELF" -lW /tmp/odpar-apk/lib/x86_64/libodpar_authoring3d.so | grep -E 'LOAD.*0x4000'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: odpar-motor-test-apk
+          name: odpar-authoring-studio-apk
           path: prepared/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
