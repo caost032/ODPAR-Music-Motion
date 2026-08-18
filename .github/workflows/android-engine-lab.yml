@@ -17,6 +17,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Publish active run pointer
+        run: |
+          mkdir -p android_engine_lab
+          cat > android_engine_lab/RUN_POINTER.md <<EOF
+          # Active Android Spatial Lab build
+
+          run_id=$GITHUB_RUN_ID
+          run_attempt=$GITHUB_RUN_ATTEMPT
+          source_commit=$GITHUB_SHA
+          workflow=android-engine-lab.yml
+          target=ODPAR-Music-Motion-Spatial-Lab-v0.4-arm64.apk
+          EOF
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add android_engine_lab/RUN_POINTER.md
+          git commit -m "Publish active Spatial Lab build pointer"
+          git push origin HEAD:claude/motor-improvement-sr808c
+
       - name: Materialize Android app source
         run: |
           rm -rf android_engine_lab
@@ -67,8 +85,6 @@ jobs:
               lines.append('')
           out.write_text('\n'.join(lines), encoding='utf-8')
           PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add android_engine_lab/DIAGNOSTIC_SNAPSHOT.md
           if ! git diff --cached --quiet; then
             git commit -m "Capture hardened Android Engine Lab launch surface"
@@ -180,8 +196,6 @@ jobs:
           } > BUILD_RECEIPT.md
           cp BUILD_RECEIPT.md ../android_engine_lab/BUILD_RECEIPT.md
           cd ..
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add android_engine_lab/BUILD_RECEIPT.md
           if ! git diff --cached --quiet; then
             git commit -m "Publish Spatial Lab v0.4 successful build receipt"
