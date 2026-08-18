@@ -64,13 +64,23 @@ target_link_libraries(odpar_engine PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openssl-install/lib/libcrypto.a"
 )
 
-add_library(odpar_studio SHARED studio_native_bridge.c)
+# v0.6 is intentionally split into logical .inc modules but compiled as one C11
+# translation unit. Shared static helpers/state therefore stay private to the
+# Android host while the engine remains the authority for schema, limits,
+# topology, timeline and rendering.
+add_library(odpar_studio SHARED
+  studio_v06.c
+  "${ENGINE_ROOT}/src/cli/selftest.c"
+)
 target_include_directories(odpar_studio PRIVATE
   "${ENGINE_ROOT}/include"
   "${ENGINE_ROOT}/src/cli"
   "${CMAKE_CURRENT_SOURCE_DIR}/generated"
 )
-target_compile_options(odpar_studio PRIVATE -O3 -fstack-protector-strong -Wall -Wextra -Werror)
+target_compile_options(odpar_studio PRIVATE
+  -O3 -fstack-protector-strong -ffunction-sections -fdata-sections
+  -Wall -Wextra -Werror
+)
 
 find_library(log-lib log)
 find_library(android-lib android)
