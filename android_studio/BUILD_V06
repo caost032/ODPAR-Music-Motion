@@ -1,4 +1,4 @@
 ODPAR Music Motion Studio v0.6 ABI-aligned build trigger
 activity_sha256=413a6f3bd68f5e97a221c8ff3f7230aa0420306593e133b77163c880dab39e59
-trigger_generation=2
-authority_workflow=.github/workflows/android-studio.yml
+trigger_generation=3
+authority_workflow=.github/workflows/android-studio-v06-world-authority-20260817.yml
